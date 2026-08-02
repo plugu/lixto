@@ -6,6 +6,7 @@ from datetime import date
 import typer
 
 from plic import db
+from plic.sync_detalhes import sync_detalhes
 from plic.sync_publicacao import ALL_MODALIDADES, sync_publicacao
 
 _DATA_INICIAL_OPTION = typer.Option(..., "--data-inicial", help="YYYY-MM-DD")
@@ -14,6 +15,11 @@ _MODALIDADE_OPTION = typer.Option(
     [],
     "--modalidade",
     help="Modalidade code(s) to sync; repeatable. Default: all 13 modalidades.",
+)
+_LIMIT_OPTION = typer.Option(
+    None,
+    "--limit",
+    help="Max licitações to process; default no limit.",
 )
 
 app = typer.Typer(help="plic — PNCP ingestion agent")
@@ -62,6 +68,18 @@ def sync_publicacao_cmd(
 
     for modalidade_id, total in totals.items():
         typer.echo(f"modalidade {modalidade_id}: totalRegistros={total}")
+
+
+@sync_app.command("detalhes")
+def sync_detalhes_cmd(limit: int = _LIMIT_OPTION) -> None:
+    """Fetch items + edital/anexo metadata for licitações missing them."""
+    conn = db.get_connection()
+    try:
+        processed = sync_detalhes(conn, limit=limit)
+    finally:
+        conn.close()
+
+    typer.echo(f"processed {processed} licitação(ões)")
 
 
 if __name__ == "__main__":

@@ -29,7 +29,7 @@ Required: `dataFinal`, `pagina`. Page size hard-capped at 50 here.
 ### `GET /api/pncp/v1/orgaos/{cnpj}/compras/{ano}/{sequencial}/itens` — line items
 
 Params: path cnpj/ano/sequencial + optional `pagina`, `tamanhoPagina`.
-Response: bare JSON array of `RecuperarCompraItemSigiloDTO` (no page envelope). Page until an empty array returns.
+Response: bare JSON array of `RecuperarCompraItemSigiloDTO` (no page envelope). End of pagination is signaled by HTTP 204 with empty body on pages past the first (measured live 2026-08-01), not by `200 []` — handle both.
 
 ### `GET /api/pncp/v1/orgaos/{cnpj}/compras/{ano}/{sequencial}/arquivos` — edital + anexos
 
