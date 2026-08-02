@@ -10,6 +10,7 @@ from plic.backfill import DEFAULT_SINCE
 from plic.backfill import backfill as run_backfill
 from plic.status import format_status, get_status
 from plic.sync_detalhes import sync_detalhes
+from plic.sync_incremental import sync_incremental as run_sync_incremental
 from plic.sync_publicacao import ALL_MODALIDADES, sync_publicacao
 
 _DATA_INICIAL_OPTION = typer.Option(..., "--data-inicial", help="YYYY-MM-DD")
@@ -34,6 +35,12 @@ _UNTIL_OPTION = typer.Option(
     "--until",
     help="YYYY-MM-DD, backfill end date (inclusive). Default today. "
     "Mainly for bounding test/probe runs — a real full backfill omits this.",
+)
+_INCREMENTAL_SINCE_OPTION = typer.Option(
+    None,
+    "--since",
+    help="YYYY-MM-DD override for modalidades with no watermark yet "
+    "(default: bootstrap from the newest data_atualizacao_global in the DB).",
 )
 
 app = typer.Typer(help="plic — PNCP ingestion agent")
@@ -125,6 +132,33 @@ def backfill_cmd(
         f"{result['units_skipped']} skipped of {result['units_total']} total; "
         f"detalhes: {result['detalhes_processed']} processed"
     )
+
+
+@sync_app.command("incremental")
+def sync_incremental_cmd(since: str = _INCREMENTAL_SINCE_OPTION) -> None:
+    """Twice-daily run: pull everything changed since each modalidade's
+    watermark (`/atualizacao`), then fetch itens/arquivos until drained.
+    Exits non-zero if any modalidade failed after retries, so the scheduler
+    surfaces it — the other modalidades still run to completion first.
+    """
+    conn = db.get_connection()
+    try:
+        result = run_sync_incremental(
+            conn,
+            since=date.fromisoformat(since) if since else None,
+        )
+    finally:
+        conn.close()
+
+    typer.echo(
+        f"modalidades: {result['modalidades_advanced']}/{result['modalidades_total']} advanced, "
+        f"{len(result['modalidades_failed'])} failed; "
+        f"rows seen: {result['rows_seen']}; "
+        f"detalhes: {result['detalhes_processed']} processed"
+    )
+    if result["modalidades_failed"]:
+        typer.echo(f"FAILED modalidades: {result['modalidades_failed']}", err=True)
+        raise typer.Exit(code=1)
 
 
 @app.command("status")

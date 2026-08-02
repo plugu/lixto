@@ -1,6 +1,6 @@
 ---
 id: 05
-status: doing
+status: done
 model: sonnet
 depends_on: [04]
 max_attempts: 3
@@ -22,7 +22,8 @@ Ticket-04 discovery: zero-result consulta queries return HTTP 204 (see `docs/PNC
 ## Checks (run in order — cheapest first)
 1. `uv run ruff check .`
 2. `uv run pytest`
-3. `docker compose up -d && uv run plic sync incremental && uv run plic status`
+3. `docker compose up -d && uv run plic sync incremental --since 2026-08-01 && uv run plic status`
+   <!-- probe bounded with --since: on a non-backfilled dev DB the bootstrap watermark is months old and an unbounded run re-downloads most of 2026 at 1 req/s -->
 
 ## Done when
 - Real run completes across all modalidades, advances 13 watermarks, and a second immediate run does near-zero work.

@@ -23,7 +23,7 @@ from typing import Any
 import psycopg
 from psycopg.types.json import Json
 
-from plic.pncp_client import PncpApiError, PncpClient
+from plic.pncp_client import PncpClient
 from plic.sync_detalhes import BASE_URL_PNCP, sync_detalhes
 from plic.sync_publicacao import ALL_MODALIDADES, sync_publicacao
 
@@ -139,34 +139,18 @@ def backfill(
                 logger.info("unit %d/%d %s: already done, skipping", i, total_units, key)
                 continue
 
-            try:
-                totals = sync_publicacao(
-                    conn,
-                    data_inicial=chunk_start,
-                    data_final=chunk_end,
-                    modalidades=[modalidade],
-                    client=publicacao_client,
-                )
-                total_registros = totals.get(modalidade, 0)
-            except PncpApiError as exc:
-                # Verified live (2026-08-01): a modalidade/date-range with
-                # zero results can come back as HTTP 204 (no body) instead
-                # of `200` with an empty envelope (`totalRegistros: 0`),
-                # same quirk already documented for the bare-array
-                # itens/arquivos endpoints in sync_detalhes.py. Narrow,
-                # frequent-by-design case for a full backfill (many
-                # modalidade x 7-day chunks are genuinely empty) — treat as
-                # zero rows rather than failing the unit. Any other
-                # PncpApiError (real 4xx/5xx after retries) still propagates.
-                if "returned 204" not in str(exc):
-                    raise
-                logger.info(
-                    "unit %d/%d %s: PNCP returned 204 (no results), treating as zero rows",
-                    i,
-                    total_units,
-                    key,
-                )
-                total_registros = 0
+            # Zero-result modalidade/date-range chunks (common across a full
+            # backfill) come back as an empty page — the client centralizes
+            # PNCP's HTTP-204-for-zero-results quirk into that, so no
+            # special-casing is needed here (ticket 05).
+            totals = sync_publicacao(
+                conn,
+                data_inicial=chunk_start,
+                data_final=chunk_end,
+                modalidades=[modalidade],
+                client=publicacao_client,
+            )
+            total_registros = totals.get(modalidade, 0)
             rows_so_far += total_registros
             _mark_unit_done(conn, key, total_registros)
             units_processed += 1

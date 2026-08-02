@@ -134,6 +134,88 @@ def test_raises_after_exhausting_retries():
     client.close()
 
 
+def test_get_publicacao_page_204_returns_empty_page_not_error():
+    # Verified live (2026-08-01): zero-result queries return HTTP 204 with an
+    # empty body rather than 200 + an empty envelope — the client must
+    # absorb this centrally, not raise.
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(204)
+
+    client = _client_with_handler(handler)
+    page = client.get_publicacao_page(
+        data_inicial="20260102",
+        data_final="20260102",
+        codigo_modalidade_contratacao=6,
+        pagina=1,
+    )
+    client.close()
+
+    assert page == {
+        "data": [],
+        "totalRegistros": 0,
+        "totalPaginas": 0,
+        "numeroPagina": 1,
+        "paginasRestantes": 0,
+        "empty": True,
+    }
+
+
+def test_iter_publicacao_pages_204_on_first_page_yields_one_empty_page():
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(204)
+
+    client = _client_with_handler(handler)
+    pages = list(
+        client.iter_publicacao_pages(
+            data_inicial="20260102",
+            data_final="20260102",
+            codigo_modalidade_contratacao=6,
+        )
+    )
+    client.close()
+
+    assert len(pages) == 1
+    assert pages[0]["data"] == []
+
+
+def test_get_atualizacao_page_success_returns_decoded_json():
+    fixture = _load_fixture_page()
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/api/consulta/v1/contratacoes/atualizacao"
+        assert request.url.params["codigoModalidadeContratacao"] == "6"
+        return httpx.Response(200, json=fixture)
+
+    client = _client_with_handler(handler)
+    page = client.get_atualizacao_page(
+        data_inicial="20260102",
+        data_final="20260102",
+        codigo_modalidade_contratacao=6,
+        pagina=1,
+    )
+    client.close()
+
+    assert page["totalRegistros"] == fixture["totalRegistros"]
+
+
+def test_get_atualizacao_page_204_returns_empty_page():
+    # /atualizacao hits 204 constantly on quiet modalidades.
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(204)
+
+    client = _client_with_handler(handler)
+    page = client.get_atualizacao_page(
+        data_inicial="20260102",
+        data_final="20260102",
+        codigo_modalidade_contratacao=6,
+        pagina=1,
+    )
+    client.close()
+
+    assert page["data"] == []
+    assert page["paginasRestantes"] == 0
+
+
 def test_iter_publicacao_pages_stops_when_no_pages_remaining():
     page1 = {"data": [{"id": 1}], "totalRegistros": 2, "paginasRestantes": 1}
     page2 = {"data": [{"id": 2}], "totalRegistros": 2, "paginasRestantes": 0}

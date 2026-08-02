@@ -187,35 +187,11 @@ def test_backfill_loops_sync_detalhes_until_zero_processed(monkeypatch):
     assert result["detalhes_processed"] == 700
 
 
-def test_backfill_treats_204_from_publicacao_as_zero_rows_and_still_marks_done(monkeypatch):
-    # Verified live (2026-08-01): PNCP returns HTTP 204 for a zero-result
-    # publicacao query instead of 200 + empty envelope; backfill must not
-    # fail the unit for this, since many modalidade/chunk combos are
-    # genuinely empty across a full backfill.
-    conn, cursor = _mock_conn(set())
-    sync_publicacao_mock = MagicMock(
-        side_effect=PncpApiError("PNCP returned 204 for /v1/contratacoes/publicacao params={}")
-    )
-    monkeypatch.setattr(backfill_module, "sync_publicacao", sync_publicacao_mock)
-
-    result = backfill_module.backfill(
-        conn,
-        since=date(2026, 1, 1),
-        until=date(2026, 1, 1),
-        modalidades=[3],
-        chunk_days=7,
-        publicacao_client=MagicMock(),
-        detalhes_client=MagicMock(),
-    )
-
-    assert result["units_processed"] == 1
-    insert_calls = [
-        c for c in cursor.execute.call_args_list if "INSERT INTO sync_state" in c.args[0]
-    ]
-    assert insert_calls[0].args[1]["value"].obj["total_registros"] == 0
-
-
-def test_backfill_reraises_non_204_pncp_api_errors(monkeypatch):
+def test_backfill_propagates_pncp_api_errors_from_publicacao(monkeypatch):
+    # Ticket 05 centralized HTTP-204-for-zero-results handling into the
+    # client itself (sync_publicacao never sees it as an error anymore), so
+    # backfill no longer special-cases any PncpApiError from sync_publicacao
+    # — any error after retries propagates and fails the run.
     conn, _cursor = _mock_conn(set())
     sync_publicacao_mock = MagicMock(
         side_effect=PncpApiError("PNCP returned 500 for /v1/contratacoes/publicacao params={}")

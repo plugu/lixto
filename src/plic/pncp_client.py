@@ -130,6 +130,49 @@ class PncpClient:
             f"PNCP request failed after {MAX_RETRIES} attempts: {path} params={params}"
         ) from last_exc
 
+    def _get_search_page(
+        self,
+        path: str,
+        *,
+        data_inicial: str,
+        data_final: str,
+        codigo_modalidade_contratacao: int,
+        pagina: int,
+        tamanho_pagina: int = 50,
+    ) -> dict[str, Any]:
+        """Fetch one page of a `PaginaRetornoRecuperarCompra...DTO` endpoint.
+
+        Shared by `/v1/contratacoes/publicacao` and `/v1/contratacoes/atualizacao`
+        (docs/PNCP_API.md: identical params/response shape, `/atualizacao` just
+        filters on `dataAtualizacaoGlobal` instead of publication date).
+        `data_inicial`/`data_final` in `yyyyMMdd` format.
+
+        Verified live (2026-08-01): a zero-result query returns HTTP 204 with
+        an empty body rather than `200` + an empty envelope. Treated here as
+        an empty page so callers (and `iter_*_pages`) never see a raw 204 —
+        `/atualizacao` hits this constantly on quiet modalidades.
+        """
+        params = {
+            "dataInicial": data_inicial,
+            "dataFinal": data_final,
+            "codigoModalidadeContratacao": codigo_modalidade_contratacao,
+            "pagina": pagina,
+            "tamanhoPagina": tamanho_pagina,
+        }
+        response = self._get(path, params)
+        if response.status_code == 204:
+            return {
+                "data": [],
+                "totalRegistros": 0,
+                "totalPaginas": 0,
+                "numeroPagina": pagina,
+                "paginasRestantes": 0,
+                "empty": True,
+            }
+        if response.status_code != 200:
+            raise PncpApiError(f"PNCP returned {response.status_code} for {path} params={params}")
+        return response.json()
+
     def get_publicacao_page(
         self,
         *,
@@ -141,26 +184,42 @@ class PncpClient:
     ) -> dict[str, Any]:
         """Fetch one page of `/v1/contratacoes/publicacao`.
 
-        `data_inicial`/`data_final` in `yyyyMMdd` format. Returns the decoded
-        `PaginaRetornoRecuperarCompraPublicacaoDTO` JSON body.
+        Returns the decoded `PaginaRetornoRecuperarCompraPublicacaoDTO` body
+        (or an empty-page dict on HTTP 204 — see `_get_search_page`).
         """
-        params = {
-            "dataInicial": data_inicial,
-            "dataFinal": data_final,
-            "codigoModalidadeContratacao": codigo_modalidade_contratacao,
-            "pagina": pagina,
-            "tamanhoPagina": tamanho_pagina,
-        }
-        response = self._get("/v1/contratacoes/publicacao", params)
-        if response.status_code != 200:
-            raise PncpApiError(
-                f"PNCP returned {response.status_code} for /v1/contratacoes/publicacao "
-                f"params={params}"
-            )
-        return response.json()
+        return self._get_search_page(
+            "/v1/contratacoes/publicacao",
+            data_inicial=data_inicial,
+            data_final=data_final,
+            codigo_modalidade_contratacao=codigo_modalidade_contratacao,
+            pagina=pagina,
+            tamanho_pagina=tamanho_pagina,
+        )
 
-    def iter_publicacao_pages(
+    def get_atualizacao_page(
         self,
+        *,
+        data_inicial: str,
+        data_final: str,
+        codigo_modalidade_contratacao: int,
+        pagina: int,
+        tamanho_pagina: int = 50,
+    ) -> dict[str, Any]:
+        """Fetch one page of `/v1/contratacoes/atualizacao` (incremental sync
+        by `dataAtualizacaoGlobal` — same params/DTO shape as `/publicacao`).
+        """
+        return self._get_search_page(
+            "/v1/contratacoes/atualizacao",
+            data_inicial=data_inicial,
+            data_final=data_final,
+            codigo_modalidade_contratacao=codigo_modalidade_contratacao,
+            pagina=pagina,
+            tamanho_pagina=tamanho_pagina,
+        )
+
+    def _iter_search_pages(
+        self,
+        get_page,
         *,
         data_inicial: str,
         data_final: str,
@@ -170,7 +229,7 @@ class PncpClient:
         """Yield each page dict for a modalidade until `paginasRestantes` is 0."""
         pagina = 1
         while True:
-            page = self.get_publicacao_page(
+            page = get_page(
                 data_inicial=data_inicial,
                 data_final=data_final,
                 codigo_modalidade_contratacao=codigo_modalidade_contratacao,
@@ -182,3 +241,37 @@ class PncpClient:
             if page.get("paginasRestantes", 0) <= 0:
                 break
             pagina += 1
+
+    def iter_publicacao_pages(
+        self,
+        *,
+        data_inicial: str,
+        data_final: str,
+        codigo_modalidade_contratacao: int,
+        tamanho_pagina: int = 50,
+    ):
+        """Yield each `/publicacao` page dict for a modalidade until drained."""
+        yield from self._iter_search_pages(
+            self.get_publicacao_page,
+            data_inicial=data_inicial,
+            data_final=data_final,
+            codigo_modalidade_contratacao=codigo_modalidade_contratacao,
+            tamanho_pagina=tamanho_pagina,
+        )
+
+    def iter_atualizacao_pages(
+        self,
+        *,
+        data_inicial: str,
+        data_final: str,
+        codigo_modalidade_contratacao: int,
+        tamanho_pagina: int = 50,
+    ):
+        """Yield each `/atualizacao` page dict for a modalidade until drained."""
+        yield from self._iter_search_pages(
+            self.get_atualizacao_page,
+            data_inicial=data_inicial,
+            data_final=data_final,
+            codigo_modalidade_contratacao=codigo_modalidade_contratacao,
+            tamanho_pagina=tamanho_pagina,
+        )
