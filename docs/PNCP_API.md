@@ -18,6 +18,8 @@ Optional: `tamanhoPagina` (use 50), `uf`, `codigoMunicipioIbge`, `cnpj`, `codigo
 Response: `PaginaRetornoRecuperarCompraPublicacaoDTO`:
 `{ data: [RecuperarCompraPublicacaoDTO], totalRegistros, totalPaginas, numeroPagina, paginasRestantes, empty }`
 
+Zero-result queries return HTTP 204 with empty body, not a `200` with an empty envelope (measured live 2026-08-01). Treat 204 as zero rows.
+
 ### `GET /api/consulta/v1/contratacoes/atualizacao` — incremental by update date
 
 Same params as `/publicacao` (dataInicial/dataFinal filter on `dataAtualizacaoGlobal`). Same response shape.

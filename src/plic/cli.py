@@ -6,6 +6,9 @@ from datetime import date
 import typer
 
 from plic import db
+from plic.backfill import DEFAULT_SINCE
+from plic.backfill import backfill as run_backfill
+from plic.status import format_status, get_status
 from plic.sync_detalhes import sync_detalhes
 from plic.sync_publicacao import ALL_MODALIDADES, sync_publicacao
 
@@ -20,6 +23,17 @@ _LIMIT_OPTION = typer.Option(
     None,
     "--limit",
     help="Max licitações to process; default no limit.",
+)
+_SINCE_OPTION = typer.Option(
+    DEFAULT_SINCE.isoformat(),
+    "--since",
+    help="YYYY-MM-DD, backfill start date. Default 2026-01-01.",
+)
+_UNTIL_OPTION = typer.Option(
+    None,
+    "--until",
+    help="YYYY-MM-DD, backfill end date (inclusive). Default today. "
+    "Mainly for bounding test/probe runs — a real full backfill omits this.",
 )
 
 app = typer.Typer(help="plic — PNCP ingestion agent")
@@ -80,6 +94,49 @@ def sync_detalhes_cmd(limit: int = _LIMIT_OPTION) -> None:
         conn.close()
 
     typer.echo(f"processed {processed} licitação(ões)")
+
+
+@app.command("backfill")
+def backfill_cmd(
+    since: str = _SINCE_OPTION,
+    until: str = _UNTIL_OPTION,
+    modalidade: list[int] = _MODALIDADE_OPTION,
+) -> None:
+    """Resumable full backfill: every modalidade x 7-day date chunk from
+    `--since` (default 2026-01-01) to `--until` (default today), then fetch
+    itens/arquivos for every licitação found. `--until`/`--modalidade` exist
+    to bound test/probe runs; a real full backfill is `plic backfill` bare.
+    """
+    modalidades = modalidade or ALL_MODALIDADES
+
+    conn = db.get_connection()
+    try:
+        result = run_backfill(
+            conn,
+            since=date.fromisoformat(since),
+            until=date.fromisoformat(until) if until else None,
+            modalidades=modalidades,
+        )
+    finally:
+        conn.close()
+
+    typer.echo(
+        f"units: {result['units_processed']} processed, "
+        f"{result['units_skipped']} skipped of {result['units_total']} total; "
+        f"detalhes: {result['detalhes_processed']} processed"
+    )
+
+
+@app.command("status")
+def status_cmd() -> None:
+    """Print counts/report of the current mirror state."""
+    conn = db.get_connection()
+    try:
+        report = get_status(conn)
+    finally:
+        conn.close()
+
+    typer.echo(format_status(report))
 
 
 if __name__ == "__main__":
