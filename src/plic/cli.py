@@ -8,6 +8,8 @@ import typer
 from plic import db
 from plic.backfill import DEFAULT_SINCE
 from plic.backfill import backfill as run_backfill
+from plic.schedule import install as schedule_install
+from plic.schedule import uninstall as schedule_uninstall
 from plic.status import format_status, get_status
 from plic.sync_detalhes import sync_detalhes
 from plic.sync_incremental import sync_incremental as run_sync_incremental
@@ -48,6 +50,8 @@ db_app = typer.Typer(help="Database commands")
 app.add_typer(db_app, name="db")
 sync_app = typer.Typer(help="Sync commands")
 app.add_typer(sync_app, name="sync")
+schedule_app = typer.Typer(help="Scheduler commands")
+app.add_typer(schedule_app, name="schedule")
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
@@ -171,6 +175,22 @@ def status_cmd() -> None:
         conn.close()
 
     typer.echo(format_status(report))
+
+
+@schedule_app.command("install")
+def schedule_install_cmd(dry_run: bool = typer.Option(False, "--dry-run")) -> None:
+    """Install the macOS launchd job for twice-daily incremental syncs.
+
+    With --dry-run, prints the plist and exits without installing.
+    """
+    schedule_install(dry_run=dry_run)
+
+
+@schedule_app.command("uninstall")
+def schedule_uninstall_cmd() -> None:
+    """Uninstall the macOS launchd job."""
+    schedule_uninstall()
+    typer.echo("Launchd job uninstalled.")
 
 
 if __name__ == "__main__":

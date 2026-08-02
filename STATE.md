@@ -1,20 +1,18 @@
 # STATE — rewrite after every ticket completes; never append. ≤30 lines total.
 
 ## Now
-06-scheduler-docs — dispatched (haiku)
+idle — all 6 tickets done; awaiting final mvp diff review (approval 2 of 2)
 
 ## Next
-finish: mvp diff review (approval 2 of 2)
+user runs real backfill: `uv run plic backfill` (hours at 1 req/s, resumable)
 
 ## Decisions
 - execution: sequential
-- git repo initialized at run start; commit after each ticket
-- 01 done (1/3): scaffold, migrations, schema v1, docker postgres@5433
-- 02 done (1/3): pncp_client + publicacao sync, freshness upsert
-- 03 done (1/3): sync_detalhes; 204 = end of itens/arquivos pagination
-- 04 done (1/3): resumable backfill + plic status
-- 05 done (1/3, orchestrator-verified): atualizacao watermark sync; 204 centralized in client; 63 tests green; probe bounded with --since (unbounded probe on non-backfilled dev DB re-downloads 2026)
-- dev DB left with ~5.2k licitações pending detalhes — real backfill will drain them
+- 01–06 all done, each attempt 1/3
+- 05 verified by orchestrator (implementer parked on multi-hour detalhes drain; probe bounded with --since)
+- consulta zero-result & itens/arquivos pagination-end both signal HTTP 204 — centralized in pncp_client
+- launchd job com.plic.sync installed: 07:00 + 19:00 daily, logs ~/Library/Logs/plic-sync.log
+- dev DB holds ~5.4k licitações, ~5.2k pending detalhes — real backfill drains them
 
 ## Blockers
 - none
