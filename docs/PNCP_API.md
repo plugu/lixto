@@ -68,7 +68,7 @@ Params: same shape as `/itens`. Response: bare array of `RecuperarDadosDocumento
 
 ## Measured behavior (from prior field notes, `~/dev/licitacoes/docs/PNCP_NOTES.md`)
 
-- Rate limiting: 429 observed after ~6 req/s. Self-impose ≥1 s between requests; on 429 cool down ~30 s (honor `Retry-After` when present, usually absent).
+- Rate limiting: 429 observed after ~6 req/s. Self-impose an interval between requests (default 0.5 s = 2 req/s, env `PLIC_MIN_REQUEST_INTERVAL`); on 429 cool down ~30 s (honor `Retry-After` when present, usually absent).
 - Availability flaps: intermittent 503/504; 5xx bodies are HTML, not JSON — never parse error bodies as JSON.
 - Retry on 429 and 500–504 with exponential backoff (max ~5 attempts); do not retry other 4xx.
 - Timeouts: a 500-record page has been observed to take >60 s — use a ~90 s request timeout.

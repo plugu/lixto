@@ -1,7 +1,8 @@
 """Thin sync HTTP client for the PNCP consulta API.
 
 Policy (docs/PNCP_API.md, "Measured behavior"):
-- self-impose >=1 s between requests (PNCP starts 429ing above ~6 req/s)
+- self-impose an interval between requests, default 0.5 s = 2 req/s
+  (PNCP starts 429ing above ~6 req/s; override via PLIC_MIN_REQUEST_INTERVAL)
 - retry 429 and 500-504 with exponential backoff, max ~5 attempts
 - on 429, cool down ~30 s (honor Retry-After header when present)
 - 90 s request timeout (large pages have been observed to take >60 s)
@@ -15,6 +16,7 @@ arquivos, atualizacao) beyond what ticket 02 needs — those come later.
 from __future__ import annotations
 
 import logging
+import os
 import time
 from typing import Any, Self
 
@@ -24,7 +26,9 @@ logger = logging.getLogger(__name__)
 
 BASE_URL_CONSULTA = "https://pncp.gov.br/api/consulta"
 
-MIN_REQUEST_INTERVAL_SECONDS = 1.0
+# PNCP starts 429ing around ~6 req/s (measured); 2 req/s keeps a 3x margin,
+# and the 429 cooldown below absorbs the occasional excess.
+MIN_REQUEST_INTERVAL_SECONDS = float(os.environ.get("PLIC_MIN_REQUEST_INTERVAL", "0.5"))
 REQUEST_TIMEOUT_SECONDS = 90.0
 MAX_RETRIES = 5
 RETRYABLE_STATUS_CODES = {429, 500, 501, 502, 503, 504}

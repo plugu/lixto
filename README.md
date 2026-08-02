@@ -35,7 +35,7 @@ This applies all SQL migrations and creates the schema.
 uv run plic backfill
 ```
 
-This pulls every licitação published on PNCP since 2026-01-01, including all line items and edital/anexo metadata. Runs at ~1 req/s and may take several hours. It is resumable — if interrupted, re-run and it continues where it stopped.
+This pulls every licitação published on PNCP since 2026-01-01, including all line items and edital/anexo metadata. Runs at ~2 req/s (tunable via `PLIC_MIN_REQUEST_INTERVAL`, seconds between requests) and may take several hours. It is resumable — if interrupted, re-run and it continues where it stopped.
 
 To limit the backfill for testing:
 - `uv run plic backfill --until 2026-02-01` (backfill through Feb only)
@@ -260,7 +260,7 @@ docker compose up -d
 
 ### Backfill taking too long?
 
-This is expected (~1 req/s, hours/days depending on data volume). You can interrupt and resume later — the backfill is resumable via `plic backfill`.
+This is expected (~2 req/s, hours/days depending on data volume). You can interrupt and resume later — the backfill is resumable via `plic backfill`.
 
 ## Architecture
 
