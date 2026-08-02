@@ -1,0 +1,14 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: plic
+      POSTGRES_PASSWORD: plic
+      POSTGRES_DB: plic
+    ports:
+      - "5433:5432"
+    volumes:
+      - plic_pgdata:/var/lib/postgresql/data
+
+volumes:
+  plic_pgdata:

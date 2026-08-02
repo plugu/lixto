@@ -21,6 +21,8 @@ Selection: licitações where `itens_sincronizados_em IS NULL` or `arquivos_sinc
 
 Store `documento.url` as given — never download the file.
 
+Note from ticket 01: `item` columns were created as `situacao_compra_item_id/nome` and `tipo_beneficio_id/nome`, but the API returns `situacaoCompraItem` and `tipoBeneficio` as strings — verify against a live response and align the mapping (or migration 002) accordingly.
+
 ## Checks (run in order — cheapest first)
 1. `uv run ruff check .`
 2. `uv run pytest`
