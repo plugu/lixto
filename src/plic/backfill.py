@@ -23,7 +23,7 @@ from typing import Any
 import psycopg
 from psycopg.types.json import Json
 
-from plic.pncp_client import PncpClient
+from plic.pncp_client import PncpApiError, PncpClient
 from plic.sync_detalhes import BASE_URL_PNCP, sync_detalhes
 from plic.sync_publicacao import ALL_MODALIDADES, sync_publicacao
 
@@ -130,6 +130,7 @@ def backfill(
     units_skipped = 0
     rows_so_far = 0
     detalhes_processed = 0
+    failed_units: list[str] = []
 
     try:
         for i, (modalidade, chunk_start, chunk_end) in enumerate(units, start=1):
@@ -143,13 +144,22 @@ def backfill(
             # backfill) come back as an empty page — the client centralizes
             # PNCP's HTTP-204-for-zero-results quirk into that, so no
             # special-casing is needed here (ticket 05).
-            totals = sync_publicacao(
-                conn,
-                data_inicial=chunk_start,
-                data_final=chunk_end,
-                modalidades=[modalidade],
-                client=publicacao_client,
-            )
+            try:
+                totals = sync_publicacao(
+                    conn,
+                    data_inicial=chunk_start,
+                    data_final=chunk_end,
+                    modalidades=[modalidade],
+                    client=publicacao_client,
+                )
+            except PncpApiError as exc:
+                # PNCP flaps can outlast the client's retries; a failed unit
+                # must not abort an hours-long run. Left unstamped (not
+                # `done`), so the next `plic backfill` retries it.
+                conn.rollback()
+                failed_units.append(key)
+                logger.warning("unit %d/%d %s: failed, will retry on next run: %s", i, total_units, key, exc)
+                continue
             total_registros = totals.get(modalidade, 0)
             rows_so_far += total_registros
             _mark_unit_done(conn, key, total_registros)
@@ -175,9 +185,17 @@ def backfill(
         if owns_detalhes_client:
             detalhes_client.close()
 
+    if failed_units:
+        logger.warning(
+            "%d unit(s) failed and were left unstamped; re-run `plic backfill` to retry: %s",
+            len(failed_units),
+            ", ".join(failed_units),
+        )
+
     return {
         "units_total": total_units,
         "units_processed": units_processed,
         "units_skipped": units_skipped,
+        "units_failed": failed_units,
         "detalhes_processed": detalhes_processed,
     }

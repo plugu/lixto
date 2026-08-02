@@ -133,9 +133,13 @@ def backfill_cmd(
 
     typer.echo(
         f"units: {result['units_processed']} processed, "
-        f"{result['units_skipped']} skipped of {result['units_total']} total; "
+        f"{result['units_skipped']} skipped, "
+        f"{len(result['units_failed'])} failed of {result['units_total']} total; "
         f"detalhes: {result['detalhes_processed']} processed"
     )
+    if result["units_failed"]:
+        typer.echo("some units failed — re-run `plic backfill` to retry them", err=True)
+        raise typer.Exit(1)
 
 
 @sync_app.command("incremental")

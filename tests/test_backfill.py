@@ -187,27 +187,39 @@ def test_backfill_loops_sync_detalhes_until_zero_processed(monkeypatch):
     assert result["detalhes_processed"] == 700
 
 
-def test_backfill_propagates_pncp_api_errors_from_publicacao(monkeypatch):
-    # Ticket 05 centralized HTTP-204-for-zero-results handling into the
-    # client itself (sync_publicacao never sees it as an error anymore), so
-    # backfill no longer special-cases any PncpApiError from sync_publicacao
-    # — any error after retries propagates and fails the run.
-    conn, _cursor = _mock_conn(set())
+def test_backfill_failed_unit_is_skipped_not_fatal(monkeypatch):
+    # A PNCP flap can outlast the client's retries; the failed unit must not
+    # abort the run. It is recorded in units_failed, left unstamped (so the
+    # next run retries it), and the remaining units still execute.
+    conn, cursor = _mock_conn(set())
     sync_publicacao_mock = MagicMock(
-        side_effect=PncpApiError("PNCP returned 500 for /v1/contratacoes/publicacao params={}")
+        side_effect=[
+            PncpApiError("PNCP returned 500 for /v1/contratacoes/publicacao params={}"),
+            {3: 5},
+        ]
     )
     monkeypatch.setattr(backfill_module, "sync_publicacao", sync_publicacao_mock)
 
-    with pytest.raises(PncpApiError):
-        backfill_module.backfill(
-            conn,
-            since=date(2026, 1, 1),
-            until=date(2026, 1, 1),
-            modalidades=[3],
-            chunk_days=7,
-            publicacao_client=MagicMock(),
-            detalhes_client=MagicMock(),
-        )
+    result = backfill_module.backfill(
+        conn,
+        since=date(2026, 1, 1),
+        until=date(2026, 1, 2),
+        modalidades=[3],
+        chunk_days=1,
+        publicacao_client=MagicMock(),
+        detalhes_client=MagicMock(),
+    )
+
+    assert result["units_failed"] == ["backfill:3:2026-01-01"]
+    assert result["units_processed"] == 1
+    assert sync_publicacao_mock.call_count == 2
+    conn.rollback.assert_called_once()
+    stamped_keys = [
+        c.args[1]["key"]
+        for c in cursor.execute.call_args_list
+        if "INSERT INTO sync_state" in c.args[0]
+    ]
+    assert stamped_keys == ["backfill:3:2026-01-02"]
 
 
 def test_backfill_owns_and_closes_clients_when_none_injected(monkeypatch):
