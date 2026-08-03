@@ -199,6 +199,17 @@ def sync_publicacao(
                     for dto in page.get("data", []):
                         upsert_licitacao(cur, dto)
                 conn.commit()
+                numero_pagina = page.get("numeroPagina", 0)
+                total_paginas = page.get("totalPaginas", 0)
+                if numero_pagina == 1 or numero_pagina % 25 == 0 or numero_pagina == total_paginas:
+                    logger.info(
+                        "modalidade %d: page %d/%d (%d rows this page, %d total in range)",
+                        modalidade,
+                        numero_pagina,
+                        total_paginas,
+                        len(page.get("data", [])),
+                        total_registros,
+                    )
             totals[modalidade] = total_registros
             logger.info("modalidade %d: totalRegistros=%d", modalidade, total_registros)
     finally:
