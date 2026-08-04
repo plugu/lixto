@@ -42,7 +42,13 @@ _SELECT_PENDING_SQL = """
 SELECT numero_controle_pncp, orgao_cnpj, ano_compra, sequencial_compra
 FROM licitacao
 WHERE itens_sincronizados_em IS NULL OR arquivos_sincronizados_em IS NULL
-ORDER BY data_publicacao_pncp
+ORDER BY
+    -- open/upcoming first (that's the data users query for), closing-soonest
+    -- first among them; closed history fills in afterwards, newest first
+    COALESCE(data_encerramento_proposta >= now() OR data_abertura_proposta > now(), false) DESC,
+    CASE WHEN COALESCE(data_encerramento_proposta >= now() OR data_abertura_proposta > now(), false)
+         THEN data_encerramento_proposta END ASC NULLS LAST,
+    data_publicacao_pncp DESC
 """
 
 _UPSERT_ITEM_SQL = """

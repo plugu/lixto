@@ -26,9 +26,9 @@ logger = logging.getLogger(__name__)
 
 BASE_URL_CONSULTA = "https://pncp.gov.br/api/consulta"
 
-# PNCP starts 429ing around ~6 req/s (measured); 2 req/s keeps a 3x margin,
-# and the 429 cooldown below absorbs the occasional excess.
-MIN_REQUEST_INTERVAL_SECONDS = float(os.environ.get("PLIC_MIN_REQUEST_INTERVAL", "0.5"))
+# PNCP starts 429ing around ~6 req/s (measured); 4 req/s default trades some
+# 429 churn (absorbed by the cooldown below) for backfill wall-clock.
+MIN_REQUEST_INTERVAL_SECONDS = float(os.environ.get("PLIC_MIN_REQUEST_INTERVAL", "0.25"))
 REQUEST_TIMEOUT_SECONDS = 90.0
 MAX_RETRIES = 5
 RETRYABLE_STATUS_CODES = {429, 500, 501, 502, 503, 504}
