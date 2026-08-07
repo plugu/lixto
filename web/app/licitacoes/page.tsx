@@ -1,12 +1,12 @@
 import Link from "next/link";
+import { FilterChips } from "@/components/filter-chips";
 import { Filters } from "@/components/filters";
 import { StatusBadge } from "@/components/status-badge";
 import { formatCurrencyBRL, formatDateBR } from "@/lib/format";
 import {
+  fetchFacetCounts,
   fetchLicitacoes,
   fetchModalidadeOptions,
-  fetchSetorOptions,
-  fetchPortalOptions,
   parseFilters,
   type LicitacaoFilters,
 } from "@/lib/queries";
@@ -45,26 +45,13 @@ export default async function Home({ searchParams }: PageProps<"/licitacoes">) {
   const paginaRaw = Array.isArray(paginaParam) ? paginaParam[0] : paginaParam;
   const pagina = Math.max(1, Math.trunc(Number(paginaRaw)) || 1);
 
-  const [{ rows, total }, portalOptions, modalidadeOptions, setorOptions] =
-    await Promise.all([
-      fetchLicitacoes(filters, PAGE_SIZE, (pagina - 1) * PAGE_SIZE),
-      fetchPortalOptions(),
-      fetchModalidadeOptions(),
-      fetchSetorOptions(),
-    ]);
+  const [{ rows, total }, modalidadeOptions, facetCounts] = await Promise.all([
+    fetchLicitacoes(filters, PAGE_SIZE, (pagina - 1) * PAGE_SIZE),
+    fetchModalidadeOptions(),
+    fetchFacetCounts(filters),
+  ]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const hasActiveFilters = Boolean(
-    filters.q ||
-      (filters.portais && filters.portais.length > 0) ||
-      (filters.modalidadeIds && filters.modalidadeIds.length > 0) ||
-      (filters.statuses && filters.statuses.length > 0) ||
-      filters.categoria ||
-      (filters.setores && filters.setores.length > 0) ||
-      (filters.ufs && filters.ufs.length > 0) ||
-      filters.valorMin !== undefined ||
-      filters.valorMax !== undefined,
-  );
 
   return (
     <div className="space-y-4">
@@ -72,22 +59,14 @@ export default async function Home({ searchParams }: PageProps<"/licitacoes">) {
         Licitações
       </h1>
 
-      <Filters
-        q={filters.q ?? ""}
-        portal={filters.portais?.[0] ?? ""}
-        modalidadeId={
-          filters.modalidadeIds?.[0] !== undefined
-            ? String(filters.modalidadeIds[0])
-            : ""
-        }
-        status={filters.statuses?.[0] ?? ""}
-        categoria={filters.categoria ?? ""}
-        setor={filters.setores?.[0] ?? ""}
-        setorOptions={setorOptions}
-        portalOptions={portalOptions}
-        modalidadeOptions={modalidadeOptions}
-        hasActiveFilters={hasActiveFilters}
-      />
+      <div className="space-y-3">
+        <Filters filters={filters} facetCounts={facetCounts} />
+        <FilterChips
+          filters={filters}
+          searchParams={resolvedSearchParams}
+          modalidadeOptions={modalidadeOptions}
+        />
+      </div>
 
       <p className="text-sm text-muted-foreground">
         {total.toLocaleString("pt-BR")} licitações
