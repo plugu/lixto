@@ -138,12 +138,17 @@ def sync_incremental(
     until: date | None = None,
     modalidades: Iterable[int] = ALL_MODALIDADES,
     detalhes_batch_size: int = DEFAULT_DETALHES_BATCH_SIZE,
+    max_detalhes: int | None = 5000,
     client: PncpClient | None = None,
     detalhes_client: PncpClient | None = None,
 ) -> dict[str, Any]:
     """Sync every modalidade's `/atualizacao` changes since its watermark,
-    then `sync_detalhes` in batches until no licitação is missing itens/
-    arquivos.
+    then `sync_detalhes` in batches.
+
+    `max_detalhes` bounds the detalhes drain per run (default 5000, ~20-40min)
+    so a large backlog can never starve the watermark phase: an unbounded run
+    once spent days draining while zero new licitações were ingested, leaving
+    short-window dispensas invisible. Pass None to drain fully.
 
     Returns a summary dict including `modalidades_failed` — non-empty means
     the run should be surfaced as a failure by the caller, even though every
@@ -203,7 +208,16 @@ def sync_incremental(
             )
 
         while True:
-            n = sync_detalhes(conn, limit=detalhes_batch_size, client=detalhes_client)
+            if max_detalhes is not None and detalhes_processed >= max_detalhes:
+                logger.info(
+                    "detalhes: reached max_detalhes=%d for this run; remainder drains on later runs",
+                    max_detalhes,
+                )
+                break
+            batch = detalhes_batch_size
+            if max_detalhes is not None:
+                batch = min(batch, max_detalhes - detalhes_processed)
+            n = sync_detalhes(conn, limit=batch, client=detalhes_client)
             detalhes_processed += n
             logger.info("detalhes: processed %d this batch (%d total)", n, detalhes_processed)
             if n == 0:

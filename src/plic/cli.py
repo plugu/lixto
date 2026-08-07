@@ -143,8 +143,19 @@ def backfill_cmd(
         raise typer.Exit(1)
 
 
+_MAX_DETALHES_OPTION = typer.Option(
+    5000,
+    "--max-detalhes",
+    help="Max licitações to fetch detalhes for in this run (0 = unlimited). "
+    "Bounds the drain so the watermark phase always runs on schedule.",
+)
+
+
 @sync_app.command("incremental")
-def sync_incremental_cmd(since: str = _INCREMENTAL_SINCE_OPTION) -> None:
+def sync_incremental_cmd(
+    since: str = _INCREMENTAL_SINCE_OPTION,
+    max_detalhes: int = _MAX_DETALHES_OPTION,
+) -> None:
     """Twice-daily run: pull everything changed since each modalidade's
     watermark (`/atualizacao`), then fetch itens/arquivos until drained.
     Exits non-zero if any modalidade failed after retries, so the scheduler
@@ -155,6 +166,7 @@ def sync_incremental_cmd(since: str = _INCREMENTAL_SINCE_OPTION) -> None:
         result = run_sync_incremental(
             conn,
             since=date.fromisoformat(since) if since else None,
+            max_detalhes=None if max_detalhes == 0 else max_detalhes,
         )
     finally:
         conn.close()
