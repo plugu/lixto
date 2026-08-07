@@ -43,16 +43,31 @@ export async function fetchStatusCounts(): Promise<StatusCounts> {
   };
 }
 
+/** Scope for the breakdown charts: actionable slices or the whole base. */
+export type ChartScope = "abertas" | "vai_abrir" | "tudo";
+
+const SCOPE_PREDICATES: Record<ChartScope, string> = {
+  abertas: ` AND ${ABERTA}`,
+  vai_abrir: ` AND ${VAI_ABRIR}`,
+  tudo: "",
+};
+
+export function parseChartScope(raw: string | string[] | undefined): ChartScope {
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  return value === "vai_abrir" || value === "tudo" ? value : "abertas";
+}
+
 /** Top N categories by count with the tail folded into "Outras". */
 async function fetchTopCounts(
   column: "modalidade_nome" | "usuario_nome",
   top: number,
   otherLabel: string,
+  scope: ChartScope,
 ): Promise<CategoryCount[]> {
   const { rows } = await pool.query<{ label: string | null; count: string }>(
     `SELECT ${column} AS label, count(*)::text AS count
      FROM licitacao
-     WHERE ${column} IS NOT NULL
+     WHERE ${column} IS NOT NULL${SCOPE_PREDICATES[scope]}
      GROUP BY 1 ORDER BY count(*) DESC`,
   );
   const all = rows.map((r) => ({ label: r.label ?? "—", count: Number(r.count) }));
@@ -67,12 +82,12 @@ async function fetchTopCounts(
   return head;
 }
 
-export function fetchPorModalidade(): Promise<CategoryCount[]> {
-  return fetchTopCounts("modalidade_nome", 8, "Outras");
+export function fetchPorModalidade(scope: ChartScope): Promise<CategoryCount[]> {
+  return fetchTopCounts("modalidade_nome", 8, "Outras", scope);
 }
 
-export function fetchPorPortal(): Promise<CategoryCount[]> {
-  return fetchTopCounts("usuario_nome", 8, "Outros");
+export function fetchPorPortal(scope: ChartScope): Promise<CategoryCount[]> {
+  return fetchTopCounts("usuario_nome", 8, "Outros", scope);
 }
 
 /** Publications per day, last 30 days, gaps filled with zero. */

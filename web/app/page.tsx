@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { BarList } from "@/components/charts/bar-list";
 import { DailyLine } from "@/components/charts/daily-line";
 import { StatTile } from "@/components/charts/stat-tile";
@@ -7,15 +8,32 @@ import {
   fetchPorModalidade,
   fetchPorPortal,
   fetchStatusCounts,
+  parseChartScope,
+  type ChartScope,
 } from "@/lib/stats-queries";
 
 export const dynamic = "force-dynamic";
 
-export default async function Dashboard() {
+const SCOPES: { value: ChartScope; label: string }[] = [
+  { value: "abertas", label: "Abertas agora" },
+  { value: "vai_abrir", label: "Vão abrir" },
+  { value: "tudo", label: "Tudo" },
+];
+
+const SCOPE_SUBTITLES: Record<ChartScope, string> = {
+  abertas: "Somente licitações abertas agora",
+  vai_abrir: "Somente licitações que vão abrir",
+  tudo: "Todas as licitações desde jan/2026",
+};
+
+export default async function Dashboard({ searchParams }: PageProps<"/">) {
+  const resolved = await searchParams;
+  const scope = parseChartScope(resolved.escopo);
+
   const [counts, porModalidade, porPortal, porDia] = await Promise.all([
     fetchStatusCounts(),
-    fetchPorModalidade(),
-    fetchPorPortal(),
+    fetchPorModalidade(scope),
+    fetchPorPortal(scope),
     fetchPorDia(),
   ]);
 
@@ -40,11 +58,39 @@ export default async function Dashboard() {
         <DailyLine data={porDia} />
       </ChartCard>
 
+      <nav
+        aria-label="Escopo dos gráficos de modalidade e portal"
+        className="flex items-center gap-1 pt-2"
+      >
+        <span className="mr-2 text-xs font-medium text-muted-foreground">
+          Escopo
+        </span>
+        {SCOPES.map((s) => (
+          <Link
+            key={s.value}
+            href={s.value === "abertas" ? "/" : `/?escopo=${s.value}`}
+            className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+              s.value === scope
+                ? "border-primary bg-primary text-primary-foreground"
+                : "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
+            }`}
+          >
+            {s.label}
+          </Link>
+        ))}
+      </nav>
+
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <ChartCard title="Licitações por modalidade">
+        <ChartCard
+          title="Licitações por modalidade"
+          subtitle={SCOPE_SUBTITLES[scope]}
+        >
           <BarList data={porModalidade} />
         </ChartCard>
-        <ChartCard title="Licitações por portal">
+        <ChartCard
+          title="Licitações por portal"
+          subtitle={SCOPE_SUBTITLES[scope]}
+        >
           <BarList data={porPortal} />
         </ChartCard>
       </div>
