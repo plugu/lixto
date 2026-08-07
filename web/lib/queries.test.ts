@@ -197,14 +197,14 @@ describe("buildWhereClause", () => {
     const { where, values } = buildWhereClause({ q: "merenda" });
     expect(values).toEqual([PORTAIS_ATIVOS, "merenda"]);
     expect(where).toContain(
-      "to_tsvector('portuguese', objeto_compra) @@ websearch_to_tsquery('portuguese', $2)",
+      "to_tsvector('portuguese', f_unaccent(coalesce(objeto_compra, ''))) @@ websearch_to_tsquery('portuguese', f_unaccent($2))",
     );
     expect(where).toContain("EXISTS (");
     expect(where).toContain(
       "item.numero_controle_pncp = licitacao.numero_controle_pncp",
     );
     expect(where).toContain(
-      "to_tsvector('portuguese', coalesce(item.descricao, '')) @@ websearch_to_tsquery('portuguese', $2)",
+      "to_tsvector('portuguese', f_unaccent(coalesce(item.descricao, ''))) @@ websearch_to_tsquery('portuguese', f_unaccent($2))",
     );
   });
 

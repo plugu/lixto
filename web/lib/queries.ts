@@ -159,11 +159,12 @@ function buildFilterConditions(
     values.push(filters.q);
     const idx = values.length;
     conditions.push(
-      `(to_tsvector('portuguese', objeto_compra) @@ websearch_to_tsquery('portuguese', $${idx})` +
+      // f_unaccent on both sides (migration 005): "lapis" matches "lápis".
+      `(to_tsvector('portuguese', f_unaccent(coalesce(objeto_compra, ''))) @@ websearch_to_tsquery('portuguese', f_unaccent($${idx}))` +
         ` OR EXISTS (` +
         `SELECT 1 FROM item` +
         ` WHERE item.numero_controle_pncp = licitacao.numero_controle_pncp` +
-        ` AND to_tsvector('portuguese', coalesce(item.descricao, '')) @@ websearch_to_tsquery('portuguese', $${idx})` +
+        ` AND to_tsvector('portuguese', f_unaccent(coalesce(item.descricao, ''))) @@ websearch_to_tsquery('portuguese', f_unaccent($${idx}))` +
         `))`,
     );
   }
