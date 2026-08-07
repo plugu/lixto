@@ -4,35 +4,33 @@ routing_profile: cloud
 parallel_default: sequential
 ---
 
-# plataforma-licitante — dashboard de licitações (cycle 2)
+# plataforma-licitante — filtros v2 (cycle 3)
 
 ## What / why
 
-The ingestion agent (cycle 1, done — see `docs/cycles/01-ingestao/`) keeps a local Postgres mirror of every PNCP licitação since 2026-01-01: ~556k licitações with itens and edital/anexo URLs, refreshed twice daily. Today the only way to explore it is raw SQL. This cycle builds the first product face: a web dashboard — MVP of a future SaaS — to search and inspect licitações. Entire UI in Brazilian Portuguese.
-
-Visual reference: Amie-style (`~/Documents/hero (1).webp`) — clean, flat, light, left sidebar, generous whitespace, subtle borders, no heavy chrome.
+The `/licitacoes` filter bar is functional but primitive: five single-select native dropdowns, no multi-select, no UF filter, no value filter, and the portal dropdown drowns users in 257 raw system names. This cycle redesigns filtering for efficiency (senior-UX pass): popover multi-selects with removable chips, plus a platform-wide focus on the 7 portals that matter.
 
 ## Primary user story
 
-As the operator, I open the dashboard, search by palavra-chave and filter by portal (sistema de origem), modalidade, and status (aberta / vai abrir / fechada), so that I can find relevant licitações and open each one's detail page — dados completos, itens, edital and anexos (links) — instead of writing SQL.
+As the operator, I combine multiple modalidades, setores, portais, status, UFs and a faixa de valor in a clean filter bar — seeing per-option counts and my active selections as chips — so that I can zero in on biddable licitações in seconds.
 
 ## Scope
 
-- **List view:** searchable, filterable, paginated table/list of licitações. Columns: objeto, órgão, município/UF, modalidade, status, valor estimado, encerramento date.
-- **Filters:** palavra-chave (full-text over objeto + descrições de itens), portal = sistema de origem (derived from `link_sistema_origem` domain), modalidade, status. Status derives from proposal-window dates (existing views' logic: aberta / vai abrir / fechada).
-- **Detail page:** all licitação fields worth showing, list of itens (descrição, quantidade, valores, situação), documentos grouped as edital vs anexos with download links to PNCP, link to the origin system.
-- **Language:** pt-BR everywhere (labels, dates dd/mm/aaaa, R$ formatting).
-- **Runs locally** against the existing Postgres (`docker compose` DB); no login.
+- **Pattern:** compact filter bar; each filter opens a popover with a checkbox list; active selections render as removable chips below; "Limpar tudo". Palavra-chave input + Buscar stay.
+- **Multi-select:** modalidade, setor, portal, status, UF (new filter). Categoria stays single-select. All state remains in URL params (repeatable params, shareable).
+- **New filters:** UF (multi) and faixa de valor estimado (min/max inputs).
+- **Per-option counts** inside popovers (e.g. "Pregão Eletrônico (9.698)"), computed against the other active filters.
+- **Top-7 portal allowlist, platform-wide:** everything (list, dashboard tiles, charts, counts, filter options) considers ONLY licitações from: Compras.gov.br; ECustomize Consultoria em Software S.A; IPM Sistemas; Betha Sistemas; Governançabrasil Tecnologia e Gestão em Serviços; BLL Compras; Megasoft Informática. Other records stay in the DB untouched (and keep syncing) but are invisible in the UI. Allowlist lives in one shared constant.
+- **Visual:** per `docs/WEB_STYLE.md` — popovers as cards (`shadow-card`), chips as rounded-full tokens, accent for active states.
 
 ## Out of scope
 
-- Auth, signup, billing, multi-tenant — later SaaS cycle.
-- Alerts/notifications, saved searches, favorites.
-- Downloading/serving edital PDFs (links only, as in cycle 1).
-- MCP server (separate cycle).
-- Any change to the ingestion pipeline or schema beyond read-side needs (indexes/views allowed).
-- Mobile layout polish (desktop-first; don't actively break mobile).
+- Backend/ingestion changes (sync keeps ingesting all portals).
+- Saved filters/presets, URL shortening.
+- Dashboard redesign beyond applying the top-7 allowlist to its queries.
+- Faceted sidebar, mobile-specific layout work.
+- Search-as-you-type/debounced live results.
 
 ## Success demo
 
-Done when I can open the dashboard, type a palavra-chave, filter status = aberta plus a modalidade and a portal, see the matching licitações instantly, click one, and read its full details with itens and clickable edital/anexo links — all in Portuguese.
+Done when I can select two modalidades + three setores + two UFs + status Aberta + valor 50k–500k, see chips for each, per-option counts in the popovers, results matching all of it — and every number on the platform reflects only the top-7 portals.
