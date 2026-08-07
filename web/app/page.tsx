@@ -1,89 +1,73 @@
 import Link from "next/link";
+import { Filters } from "@/components/filters";
 import { StatusBadge } from "@/components/status-badge";
-import { pool } from "@/lib/db";
 import { formatCurrencyBRL, formatDateBR } from "@/lib/format";
+import {
+  fetchLicitacoes,
+  fetchModalidadeOptions,
+  fetchPortalOptions,
+  parseFilters,
+  type LicitacaoFilters,
+} from "@/lib/queries";
 import { computeStatus } from "@/lib/status";
 
 const PAGE_SIZE = 25;
 
-type LicitacaoRow = {
-  numero_controle_pncp: string;
-  objeto_compra: string | null;
-  orgao_razao_social: string | null;
-  municipio_nome: string | null;
-  uf: string | null;
-  modalidade_nome: string | null;
-  valor_total_estimado: string | null;
-  data_abertura_proposta: Date | null;
-  data_encerramento_proposta: Date | null;
-};
-
-// Orders: abertas closing soonest, then futuras (vai abrir) opening soonest,
-// then fechadas newest first. Mirrors v_abertas/v_futuras/v_encerradas
-// (migrations/001_schema.sql) via status_group, with a sort_val normalized
-// so a single ASC ordering works across the three windows (fechadas use a
-// negated epoch to get "newest first" out of an ascending sort).
-const LIST_QUERY = `
-  WITH classified AS (
-    SELECT
-      numero_controle_pncp,
-      objeto_compra,
-      orgao_razao_social,
-      municipio_nome,
-      uf,
-      modalidade_nome,
-      valor_total_estimado,
-      data_abertura_proposta,
-      data_encerramento_proposta,
-      CASE
-        WHEN data_abertura_proposta <= now() AND now() < data_encerramento_proposta THEN 0
-        WHEN data_abertura_proposta > now() THEN 1
-        ELSE 2
-      END AS status_group,
-      CASE
-        WHEN data_abertura_proposta <= now() AND now() < data_encerramento_proposta
-          THEN extract(epoch FROM data_encerramento_proposta)
-        WHEN data_abertura_proposta > now()
-          THEN extract(epoch FROM data_abertura_proposta)
-        ELSE -extract(epoch FROM coalesce(
-          data_encerramento_proposta, data_publicacao_pncp, '-infinity'::timestamptz
-        ))
-      END AS sort_val
-    FROM licitacao
-  )
-  SELECT
-    numero_controle_pncp, objeto_compra, orgao_razao_social, municipio_nome, uf,
-    modalidade_nome, valor_total_estimado, data_abertura_proposta, data_encerramento_proposta
-  FROM classified
-  ORDER BY status_group ASC, sort_val ASC NULLS LAST
-  LIMIT $1 OFFSET $2
-`;
-
-async function fetchLicitacoes(pagina: number) {
-  const offset = (pagina - 1) * PAGE_SIZE;
-  const [rowsResult, countResult] = await Promise.all([
-    pool.query<LicitacaoRow>(LIST_QUERY, [PAGE_SIZE, offset]),
-    pool.query<{ count: string }>("SELECT count(*)::text AS count FROM licitacao"),
-  ]);
-
-  return {
-    rows: rowsResult.rows,
-    total: Number(countResult.rows[0]?.count ?? 0),
-  };
+function buildQueryString(
+  filters: LicitacaoFilters,
+  pagina?: number,
+): string {
+  const params = new URLSearchParams();
+  if (filters.q) params.set("q", filters.q);
+  if (filters.portal) params.set("portal", filters.portal);
+  if (filters.modalidadeId !== undefined) {
+    params.set("modalidade", String(filters.modalidadeId));
+  }
+  if (filters.status) params.set("status", filters.status);
+  if (pagina && pagina > 1) params.set("pagina", String(pagina));
+  const qs = params.toString();
+  return qs ? `?${qs}` : "";
 }
 
 export default async function Home({ searchParams }: PageProps<"/">) {
   const resolvedSearchParams = await searchParams;
+  const filters = parseFilters(resolvedSearchParams);
+
   const paginaParam = resolvedSearchParams.pagina;
   const paginaRaw = Array.isArray(paginaParam) ? paginaParam[0] : paginaParam;
   const pagina = Math.max(1, Math.trunc(Number(paginaRaw)) || 1);
 
-  const { rows, total } = await fetchLicitacoes(pagina);
+  const [{ rows, total }, portalOptions, modalidadeOptions] =
+    await Promise.all([
+      fetchLicitacoes(filters, PAGE_SIZE, (pagina - 1) * PAGE_SIZE),
+      fetchPortalOptions(),
+      fetchModalidadeOptions(),
+    ]);
+
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const hasActiveFilters = Boolean(
+    filters.q || filters.portal || filters.modalidadeId !== undefined || filters.status,
+  );
 
   return (
     <div>
       <h1 className="mb-4 text-lg font-semibold text-gray-900">Licitações</h1>
+
+      <Filters
+        q={filters.q ?? ""}
+        portal={filters.portal ?? ""}
+        modalidadeId={
+          filters.modalidadeId !== undefined ? String(filters.modalidadeId) : ""
+        }
+        status={filters.status ?? ""}
+        portalOptions={portalOptions}
+        modalidadeOptions={modalidadeOptions}
+        hasActiveFilters={hasActiveFilters}
+      />
+
+      <p className="mb-2 text-sm text-gray-500">
+        {total.toLocaleString("pt-BR")} licitações
+      </p>
 
       {rows.length === 0 ? (
         <p className="py-16 text-center text-gray-500">
@@ -131,7 +115,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         </div>
       )}
 
-      <Pagination pagina={pagina} totalPages={totalPages} />
+      <Pagination pagina={pagina} totalPages={totalPages} filters={filters} />
     </div>
   );
 }
@@ -139,9 +123,11 @@ export default async function Home({ searchParams }: PageProps<"/">) {
 function Pagination({
   pagina,
   totalPages,
+  filters,
 }: {
   pagina: number;
   totalPages: number;
+  filters: LicitacaoFilters;
 }) {
   if (totalPages <= 1) return null;
 
@@ -153,7 +139,7 @@ function Pagination({
   return (
     <div className="mt-6 flex items-center justify-between text-sm text-gray-500">
       <Link
-        href={`/?pagina=${prev}`}
+        href={`/${buildQueryString(filters, prev)}`}
         aria-disabled={isFirst}
         className={`rounded-lg border border-gray-200 bg-white px-3 py-1.5 ${
           isFirst ? "pointer-events-none opacity-50" : "hover:bg-gray-50"
@@ -165,7 +151,7 @@ function Pagination({
         Página {pagina} de {totalPages}
       </span>
       <Link
-        href={`/?pagina=${next}`}
+        href={`/${buildQueryString(filters, next)}`}
         aria-disabled={isLast}
         className={`rounded-lg border border-gray-200 bg-white px-3 py-1.5 ${
           isLast ? "pointer-events-none opacity-50" : "hover:bg-gray-50"
