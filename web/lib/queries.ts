@@ -86,7 +86,10 @@ export function buildWhereClause(filters: LicitacaoFilters): {
 
   if (filters.portal) {
     values.push(filters.portal);
-    conditions.push(`portal = $${values.length}`);
+    // "Portal" filters on usuario_nome — the publishing system's name (e.g.
+    // "Compras.gov.br"). link_sistema_origem's domain is NULL on ~59% of rows
+    // and undercounts Comprasnet by half; usuario_nome is always present.
+    conditions.push(`usuario_nome = $${values.length}`);
   }
 
   if (filters.modalidadeId !== undefined) {
@@ -163,7 +166,7 @@ export function buildCountQuery(filters: LicitacaoFilters): SqlQuery {
 
 export function buildPortalOptionsQuery(): SqlQuery {
   return {
-    text: `SELECT DISTINCT portal FROM licitacao WHERE portal IS NOT NULL ORDER BY 1`,
+    text: `SELECT DISTINCT usuario_nome AS portal FROM licitacao WHERE usuario_nome IS NOT NULL ORDER BY 1`,
     values: [],
   };
 }

@@ -85,10 +85,10 @@ describe("buildWhereClause", () => {
     );
   });
 
-  it("builds the portal predicate as a parameterized equality", () => {
-    const { where, values } = buildWhereClause({ portal: "www.bll.org.br" });
-    expect(where).toBe("WHERE portal = $1");
-    expect(values).toEqual(["www.bll.org.br"]);
+  it("builds the portal predicate as a parameterized equality on usuario_nome", () => {
+    const { where, values } = buildWhereClause({ portal: "Compras.gov.br" });
+    expect(where).toBe("WHERE usuario_nome = $1");
+    expect(values).toEqual(["Compras.gov.br"]);
   });
 
   it("builds the modalidade predicate as a parameterized equality", () => {
@@ -126,7 +126,7 @@ describe("buildWhereClause", () => {
     });
     expect(values).toEqual(["merenda", "www.bll.org.br", 6]);
     expect(where).toContain("$1");
-    expect(where).toContain("portal = $2");
+    expect(where).toContain("usuario_nome = $2");
     expect(where).toContain("modalidade_id = $3");
     expect(where).toContain(
       "(data_abertura_proposta <= now() AND now() < data_encerramento_proposta)",
@@ -143,7 +143,7 @@ describe("buildListQuery", () => {
       50,
     );
     expect(values).toEqual(["www.bll.org.br", 25, 50]);
-    expect(text).toContain("portal = $1");
+    expect(text).toContain("usuario_nome = $1");
     expect(text).toContain("LIMIT $2 OFFSET $3");
   });
 
