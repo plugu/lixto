@@ -1,6 +1,6 @@
 ---
 id: 07
-status: todo
+status: done
 model: sonnet
 depends_on: []
 max_attempts: 3
