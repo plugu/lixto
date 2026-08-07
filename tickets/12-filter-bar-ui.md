@@ -28,7 +28,7 @@ Keyboard: triggers and options focusable, visible focus ring (`focus-visible:rin
 1. `cd web && npx tsc --noEmit`
 2. `cd web && npx vitest run`
 3. `cd web && npm run build`
-4. `cd web && (npm run start -- -p 3100 &) && sleep 5 && curl -s "localhost:3100/licitacoes?modalidade=6&modalidade=8&uf=SP" | grep -q "Limpar tudo" && pkill -f "next start"`
+4. `cd web && (npm run start -- -p 3100 &) && sleep 5 && curl -s "localhost:3100/licitacoes?modalidade=6&modalidade=8&uf=SP" | grep -q "Limpar tudo" && pkill -f "next-server"`
 
 ## Done when
 - Multi-select via popovers works end-to-end (select 2 modalidades + 1 UF → chips appear → removing a chip re-filters); counts visible per option; valor range applies.

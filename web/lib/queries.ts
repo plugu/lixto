@@ -8,6 +8,7 @@
 // computeStatus, expressed as SQL predicates).
 
 import { pool } from "./db";
+import { PORTAIS_ATIVOS } from "./portais";
 import type { StatusLicitacao } from "./status";
 
 export type CategoriaLicitacao = "produto" | "servico" | "mista";
@@ -97,6 +98,11 @@ export function buildWhereClause(filters: LicitacaoFilters): {
   const conditions: string[] = [];
   const values: unknown[] = [];
 
+  // Platform-wide top-7 portal allowlist (ticket 10): always applied, even
+  // with no user filters, so the WHERE clause is never empty.
+  values.push(PORTAIS_ATIVOS);
+  conditions.push(`usuario_nome = ANY($${values.length})`);
+
   if (filters.q) {
     values.push(filters.q);
     const idx = values.length;
@@ -136,7 +142,7 @@ export function buildWhereClause(filters: LicitacaoFilters): {
     conditions.push(`setor = $${values.length}`);
   }
 
-  const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+  const where = `WHERE ${conditions.join(" AND ")}`;
   return { where, values };
 }
 
@@ -201,8 +207,8 @@ export function buildCountQuery(filters: LicitacaoFilters): SqlQuery {
 
 export function buildPortalOptionsQuery(): SqlQuery {
   return {
-    text: `SELECT DISTINCT usuario_nome AS portal FROM licitacao WHERE usuario_nome IS NOT NULL ORDER BY 1`,
-    values: [],
+    text: `SELECT DISTINCT usuario_nome AS portal FROM licitacao WHERE usuario_nome = ANY($1) ORDER BY 1`,
+    values: [PORTAIS_ATIVOS],
   };
 }
 

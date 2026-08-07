@@ -1,6 +1,7 @@
-// Aggregate queries for the dashboard (Visão geral). Read-only, no params
-// from user input except none at all — every query here is static SQL.
+// Aggregate queries for the dashboard (Visão geral). Read-only; the only
+// bound param across these queries is the top-7 portal allowlist (ticket 10).
 import { pool } from "./db";
+import { PORTAIS_ATIVOS } from "./portais";
 
 export type StatusCounts = {
   total: number;
@@ -28,7 +29,9 @@ export async function fetchStatusCounts(): Promise<StatusCounts> {
        count(*) FILTER (WHERE ${ABERTA})::text AS abertas,
        count(*) FILTER (WHERE ${VAI_ABRIR})::text AS vai_abrir,
        count(*) FILTER (WHERE data_publicacao_pncp >= now() - interval '24 hours')::text AS novas_24h
-     FROM licitacao`,
+     FROM licitacao
+     WHERE usuario_nome = ANY($1)`,
+    [PORTAIS_ATIVOS],
   );
   const row = rows[0];
   const total = Number(row?.total ?? 0);
@@ -67,8 +70,9 @@ async function fetchTopCounts(
   const { rows } = await pool.query<{ label: string | null; count: string }>(
     `SELECT ${column} AS label, count(*)::text AS count
      FROM licitacao
-     WHERE ${column} IS NOT NULL${SCOPE_PREDICATES[scope]}
+     WHERE usuario_nome = ANY($1) AND ${column} IS NOT NULL${SCOPE_PREDICATES[scope]}
      GROUP BY 1 ORDER BY count(*) DESC`,
+    [PORTAIS_ATIVOS],
   );
   const all = rows.map((r) => ({ label: r.label ?? "—", count: Number(r.count) }));
   const head = all.slice(0, top);
@@ -87,7 +91,9 @@ export function fetchPorModalidade(scope: ChartScope): Promise<CategoryCount[]> 
 }
 
 export function fetchPorPortal(scope: ChartScope): Promise<CategoryCount[]> {
-  return fetchTopCounts("usuario_nome", 8, "Outros", scope);
+  // Post-allowlist there are at most 7 distinct portais, so the tail fold
+  // never triggers — kept as a plain top-N call for consistency.
+  return fetchTopCounts("usuario_nome", 7, "Outros", scope);
 }
 
 /** Publications per day, last 30 days, gaps filled with zero. */
@@ -101,7 +107,9 @@ export async function fetchPorDia(): Promise<DailyCount[]> {
      ) AS d(day)
      LEFT JOIN licitacao l
        ON l.data_publicacao_pncp >= d.day AND l.data_publicacao_pncp < d.day + interval '1 day'
+       AND l.usuario_nome = ANY($1)
      GROUP BY d.day ORDER BY d.day`,
+    [PORTAIS_ATIVOS],
   );
   return rows.map((r) => ({ day: r.day, count: Number(r.count) }));
 }

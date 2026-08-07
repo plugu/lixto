@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { PORTAIS_ATIVOS } from "./portais";
 import {
   buildCountQuery,
   buildListQuery,
+  buildPortalOptionsQuery,
   buildWhereClause,
   parseFilters,
 } from "./queries";
@@ -64,94 +66,108 @@ describe("parseFilters", () => {
 });
 
 describe("buildWhereClause", () => {
-  it("produces no WHERE clause when no filters are active", () => {
+  it("always applies the top-7 portal allowlist as the base predicate, even with no filters", () => {
     const { where, values } = buildWhereClause({});
-    expect(where).toBe("");
-    expect(values).toEqual([]);
+    expect(where).toBe("WHERE usuario_nome = ANY($1)");
+    expect(values).toEqual([PORTAIS_ATIVOS]);
   });
 
-  it("builds the q predicate against objeto_compra and item.descricao, reusing one param", () => {
+  it("builds the q predicate against objeto_compra and item.descricao, after the allowlist param", () => {
     const { where, values } = buildWhereClause({ q: "merenda" });
-    expect(values).toEqual(["merenda"]);
+    expect(values).toEqual([PORTAIS_ATIVOS, "merenda"]);
     expect(where).toContain(
-      "to_tsvector('portuguese', objeto_compra) @@ websearch_to_tsquery('portuguese', $1)",
+      "to_tsvector('portuguese', objeto_compra) @@ websearch_to_tsquery('portuguese', $2)",
     );
     expect(where).toContain("EXISTS (");
     expect(where).toContain(
       "item.numero_controle_pncp = licitacao.numero_controle_pncp",
     );
     expect(where).toContain(
-      "to_tsvector('portuguese', coalesce(item.descricao, '')) @@ websearch_to_tsquery('portuguese', $1)",
+      "to_tsvector('portuguese', coalesce(item.descricao, '')) @@ websearch_to_tsquery('portuguese', $2)",
     );
   });
 
-  it("builds the portal predicate as a parameterized equality on usuario_nome", () => {
+  it("builds the portal predicate as a parameterized equality on usuario_nome, after the allowlist param", () => {
     const { where, values } = buildWhereClause({ portal: "Compras.gov.br" });
-    expect(where).toBe("WHERE usuario_nome = $1");
-    expect(values).toEqual(["Compras.gov.br"]);
+    expect(where).toBe(
+      "WHERE usuario_nome = ANY($1) AND usuario_nome = $2",
+    );
+    expect(values).toEqual([PORTAIS_ATIVOS, "Compras.gov.br"]);
   });
 
-  it("builds the modalidade predicate as a parameterized equality", () => {
+  it("builds the modalidade predicate as a parameterized equality, after the allowlist param", () => {
     const { where, values } = buildWhereClause({ modalidadeId: 6 });
-    expect(where).toBe("WHERE modalidade_id = $1");
-    expect(values).toEqual([6]);
+    expect(where).toBe("WHERE usuario_nome = ANY($1) AND modalidade_id = $2");
+    expect(values).toEqual([PORTAIS_ATIVOS, 6]);
   });
 
-  it("builds the status predicate for aberta with no params", () => {
+  it("builds the status predicate for aberta after the allowlist, with no extra params", () => {
     const { where, values } = buildWhereClause({ status: "aberta" });
     expect(where).toBe(
-      "WHERE (data_abertura_proposta <= now() AND now() < data_encerramento_proposta)",
+      "WHERE usuario_nome = ANY($1) AND (data_abertura_proposta <= now() AND now() < data_encerramento_proposta)",
     );
-    expect(values).toEqual([]);
+    expect(values).toEqual([PORTAIS_ATIVOS]);
   });
 
   it("builds the status predicate for vai_abrir", () => {
     const { where } = buildWhereClause({ status: "vai_abrir" });
-    expect(where).toBe("WHERE (data_abertura_proposta > now())");
+    expect(where).toBe(
+      "WHERE usuario_nome = ANY($1) AND (data_abertura_proposta > now())",
+    );
   });
 
   it("builds the status predicate for fechada", () => {
     const { where } = buildWhereClause({ status: "fechada" });
     expect(where).toBe(
-      "WHERE ((data_encerramento_proposta < now() OR data_encerramento_proposta IS NULL))",
+      "WHERE usuario_nome = ANY($1) AND ((data_encerramento_proposta < now() OR data_encerramento_proposta IS NULL))",
     );
   });
 
-  it("combines all filters with AND, each with correctly numbered params", () => {
+  it("combines all filters with AND after the allowlist, each with correctly numbered params", () => {
     const { where, values } = buildWhereClause({
       q: "merenda",
       portal: "www.bll.org.br",
       modalidadeId: 6,
       status: "aberta",
     });
-    expect(values).toEqual(["merenda", "www.bll.org.br", 6]);
-    expect(where).toContain("$1");
-    expect(where).toContain("usuario_nome = $2");
-    expect(where).toContain("modalidade_id = $3");
+    expect(values).toEqual([PORTAIS_ATIVOS, "merenda", "www.bll.org.br", 6]);
+    expect(where).toContain("WHERE usuario_nome = ANY($1)");
+    expect(where).toContain("$2");
+    expect(where).toContain("usuario_nome = $3");
+    expect(where).toContain("modalidade_id = $4");
     expect(where).toContain(
       "(data_abertura_proposta <= now() AND now() < data_encerramento_proposta)",
     );
-    expect(where.match(/AND/g)?.length).toBeGreaterThanOrEqual(3);
+    expect(where.match(/AND/g)?.length).toBeGreaterThanOrEqual(4);
+  });
+});
+
+describe("buildPortalOptionsQuery", () => {
+  it("restricts distinct portal options to the top-7 allowlist", () => {
+    const { text, values } = buildPortalOptionsQuery();
+    expect(text).toContain("usuario_nome = ANY($1)");
+    expect(values).toEqual([PORTAIS_ATIVOS]);
   });
 });
 
 describe("buildListQuery", () => {
-  it("appends limit/offset params after the filter params", () => {
+  it("appends limit/offset params after the allowlist and filter params", () => {
     const { text, values } = buildListQuery(
       { portal: "www.bll.org.br" },
       25,
       50,
     );
-    expect(values).toEqual(["www.bll.org.br", 25, 50]);
-    expect(text).toContain("usuario_nome = $1");
-    expect(text).toContain("LIMIT $2 OFFSET $3");
+    expect(values).toEqual([PORTAIS_ATIVOS, "www.bll.org.br", 25, 50]);
+    expect(text).toContain("usuario_nome = ANY($1)");
+    expect(text).toContain("usuario_nome = $2");
+    expect(text).toContain("LIMIT $3 OFFSET $4");
   });
 
-  it("uses limit/offset as the only params when no filters are active", () => {
+  it("uses the allowlist param plus limit/offset when no other filters are active", () => {
     const { text, values } = buildListQuery({}, 25, 0);
-    expect(values).toEqual([25, 0]);
-    expect(text).toContain("LIMIT $1 OFFSET $2");
-    expect(text).not.toContain("WHERE");
+    expect(values).toEqual([PORTAIS_ATIVOS, 25, 0]);
+    expect(text).toContain("WHERE usuario_nome = ANY($1)");
+    expect(text).toContain("LIMIT $2 OFFSET $3");
   });
 
   it("preserves the status-group/sort_val ordering logic", () => {
@@ -169,10 +185,10 @@ describe("buildCountQuery", () => {
     expect(count.values).toEqual(values);
   });
 
-  it("has no WHERE clause when no filters are active", () => {
+  it("always applies the allowlist WHERE clause, even with no other filters", () => {
     const { text, values } = buildCountQuery({});
-    expect(text).not.toContain("WHERE");
-    expect(values).toEqual([]);
+    expect(text).toContain("WHERE usuario_nome = ANY($1)");
+    expect(values).toEqual([PORTAIS_ATIVOS]);
   });
 });
 
@@ -188,9 +204,9 @@ describe("categoria filter", () => {
     expect(parseFilters({ categoria: "bogus" })).toEqual({});
   });
 
-  it("builds produto as has-M-and-not-S over item, with no params", () => {
+  it("builds produto as has-M-and-not-S over item, with only the allowlist param", () => {
     const { where, values } = buildWhereClause({ categoria: "produto" });
-    expect(values).toEqual([]);
+    expect(values).toEqual([PORTAIS_ATIVOS]);
     expect(where).toContain("i.material_ou_servico = 'M'");
     expect(where).toContain("AND NOT EXISTS");
   });

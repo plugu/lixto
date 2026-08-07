@@ -1,6 +1,6 @@
 ---
 id: 11
-status: todo
+status: doing
 model: sonnet
 depends_on: [10]
 max_attempts: 3
@@ -22,7 +22,7 @@ New `fetchFacetCounts(filters)` → for each of the 5 multi filters, a grouped c
 1. `cd web && npx tsc --noEmit`
 2. `cd web && npx vitest run`
 3. `cd web && npm run build`
-4. `cd web && (npm run start -- -p 3100 &) && sleep 5 && curl -s "localhost:3100/licitacoes?modalidade=6&modalidade=8&status=aberta&uf=SP&uf=MG" | grep -qi "licita" && pkill -f "next start"`
+4. `cd web && (npm run start -- -p 3100 &) && sleep 5 && curl -s "localhost:3100/licitacoes?modalidade=6&modalidade=8&status=aberta&uf=SP&uf=MG" | grep -qi "licita" && pkill -f "next-server"`
 
 ## Done when
 - Repeated URL params narrow results correctly (verified live for modalidade+uf+status combo); valor range works; facet counts exclude own dimension.
