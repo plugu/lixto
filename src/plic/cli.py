@@ -8,6 +8,7 @@ import typer
 from plic import db
 from plic.backfill import DEFAULT_SINCE
 from plic.backfill import backfill as run_backfill
+from plic.classify import classify as run_classify
 from plic.schedule import install as schedule_install
 from plic.schedule import uninstall as schedule_uninstall
 from plic.status import format_status, get_status
@@ -167,6 +168,24 @@ def sync_incremental_cmd(since: str = _INCREMENTAL_SINCE_OPTION) -> None:
     if result["modalidades_failed"]:
         typer.echo(f"FAILED modalidades: {result['modalidades_failed']}", err=True)
         raise typer.Exit(code=1)
+
+
+@app.command("classify")
+def classify_cmd(limit: int = _LIMIT_OPTION) -> None:
+    """Classify abertas/futuras licitações into setores (TI, Saúde, Obras...)
+    using a local LLM via Ollama (PLIC_OLLAMA_URL / PLIC_CLASSIFY_MODEL).
+    Resumable: only rows with setor IS NULL are processed.
+    """
+    conn = db.get_connection()
+    try:
+        result = run_classify(conn, limit=limit)
+    finally:
+        conn.close()
+    typer.echo(
+        f"classificadas: {result['processed']} "
+        f"({result['classified']} pelo modelo, "
+        f"{result['processed'] - result['classified']} fallback Outros)"
+    )
 
 
 @app.command("status")

@@ -18,6 +18,7 @@ export type LicitacaoFilters = {
   modalidadeId?: number;
   status?: StatusLicitacao;
   categoria?: CategoriaLicitacao;
+  setor?: string;
 };
 
 export type SqlQuery = {
@@ -77,6 +78,9 @@ export function parseFilters(
     filters.categoria = categoria;
   }
 
+  const setor = firstValue(raw.setor)?.trim();
+  if (setor) filters.setor = setor;
+
   return filters;
 }
 
@@ -125,6 +129,11 @@ export function buildWhereClause(filters: LicitacaoFilters): {
 
   if (filters.categoria) {
     conditions.push(CATEGORIA_PREDICATES[filters.categoria]);
+  }
+
+  if (filters.setor) {
+    values.push(filters.setor);
+    conditions.push(`setor = $${values.length}`);
   }
 
   const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
@@ -197,6 +206,13 @@ export function buildPortalOptionsQuery(): SqlQuery {
   };
 }
 
+export function buildSetorOptionsQuery(): SqlQuery {
+  return {
+    text: `SELECT DISTINCT setor FROM licitacao WHERE setor IS NOT NULL ORDER BY 1`,
+    values: [],
+  };
+}
+
 export function buildModalidadeOptionsQuery(): SqlQuery {
   return {
     text:
@@ -244,6 +260,12 @@ export async function fetchPortalOptions(): Promise<string[]> {
   const query = buildPortalOptionsQuery();
   const result = await pool.query<{ portal: string }>(query.text, query.values);
   return result.rows.map((row) => row.portal);
+}
+
+export async function fetchSetorOptions(): Promise<string[]> {
+  const query = buildSetorOptionsQuery();
+  const result = await pool.query<{ setor: string }>(query.text, query.values);
+  return result.rows.map((row) => row.setor);
 }
 
 export async function fetchModalidadeOptions(): Promise<ModalidadeOption[]> {

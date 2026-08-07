@@ -5,6 +5,7 @@ import { formatCurrencyBRL, formatDateBR } from "@/lib/format";
 import {
   fetchLicitacoes,
   fetchModalidadeOptions,
+  fetchSetorOptions,
   fetchPortalOptions,
   parseFilters,
   type LicitacaoFilters,
@@ -25,6 +26,7 @@ function buildQueryString(
   }
   if (filters.status) params.set("status", filters.status);
   if (filters.categoria) params.set("categoria", filters.categoria);
+  if (filters.setor) params.set("setor", filters.setor);
   if (pagina && pagina > 1) params.set("pagina", String(pagina));
   const qs = params.toString();
   return qs ? `?${qs}` : "";
@@ -38,11 +40,12 @@ export default async function Home({ searchParams }: PageProps<"/licitacoes">) {
   const paginaRaw = Array.isArray(paginaParam) ? paginaParam[0] : paginaParam;
   const pagina = Math.max(1, Math.trunc(Number(paginaRaw)) || 1);
 
-  const [{ rows, total }, portalOptions, modalidadeOptions] =
+  const [{ rows, total }, portalOptions, modalidadeOptions, setorOptions] =
     await Promise.all([
       fetchLicitacoes(filters, PAGE_SIZE, (pagina - 1) * PAGE_SIZE),
       fetchPortalOptions(),
       fetchModalidadeOptions(),
+      fetchSetorOptions(),
     ]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -51,7 +54,8 @@ export default async function Home({ searchParams }: PageProps<"/licitacoes">) {
       filters.portal ||
       filters.modalidadeId !== undefined ||
       filters.status ||
-      filters.categoria,
+      filters.categoria ||
+      filters.setor,
   );
 
   return (
@@ -68,6 +72,8 @@ export default async function Home({ searchParams }: PageProps<"/licitacoes">) {
         }
         status={filters.status ?? ""}
         categoria={filters.categoria ?? ""}
+        setor={filters.setor ?? ""}
+        setorOptions={setorOptions}
         portalOptions={portalOptions}
         modalidadeOptions={modalidadeOptions}
         hasActiveFilters={hasActiveFilters}

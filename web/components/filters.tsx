@@ -9,6 +9,8 @@ type FiltersProps = {
   modalidadeId: string;
   status: string;
   categoria: string;
+  setor: string;
+  setorOptions: string[];
   portalOptions: string[];
   modalidadeOptions: ModalidadeOption[];
   hasActiveFilters: boolean;
@@ -23,6 +25,8 @@ export function Filters({
   modalidadeId,
   status,
   categoria,
+  setor,
+  setorOptions,
   portalOptions,
   modalidadeOptions,
   hasActiveFilters,
@@ -68,6 +72,22 @@ export function Filters({
           </option>
         ))}
       </select>
+
+      {setorOptions.length > 0 && (
+        <select
+          name="setor"
+          defaultValue={setor}
+          className={CONTROL_CLASS}
+          onChange={(event) => event.currentTarget.form?.requestSubmit()}
+        >
+          <option value="">Setor: Todos</option>
+          {setorOptions.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+      )}
 
       <select
         name="categoria"
