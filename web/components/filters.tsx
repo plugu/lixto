@@ -8,6 +8,7 @@ type FiltersProps = {
   portal: string;
   modalidadeId: string;
   status: string;
+  categoria: string;
   portalOptions: string[];
   modalidadeOptions: ModalidadeOption[];
   hasActiveFilters: boolean;
@@ -21,6 +22,7 @@ export function Filters({
   portal,
   modalidadeId,
   status,
+  categoria,
   portalOptions,
   modalidadeOptions,
   hasActiveFilters,
@@ -65,6 +67,18 @@ export function Filters({
             {option.nome}
           </option>
         ))}
+      </select>
+
+      <select
+        name="categoria"
+        defaultValue={categoria}
+        className={CONTROL_CLASS}
+        onChange={(event) => event.currentTarget.form?.requestSubmit()}
+      >
+        <option value="">Categoria: Todas</option>
+        <option value="produto">Produto</option>
+        <option value="servico">Serviço</option>
+        <option value="mista">Mista</option>
       </select>
 
       <select

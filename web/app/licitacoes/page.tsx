@@ -24,6 +24,7 @@ function buildQueryString(
     params.set("modalidade", String(filters.modalidadeId));
   }
   if (filters.status) params.set("status", filters.status);
+  if (filters.categoria) params.set("categoria", filters.categoria);
   if (pagina && pagina > 1) params.set("pagina", String(pagina));
   const qs = params.toString();
   return qs ? `?${qs}` : "";
@@ -46,7 +47,11 @@ export default async function Home({ searchParams }: PageProps<"/licitacoes">) {
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const hasActiveFilters = Boolean(
-    filters.q || filters.portal || filters.modalidadeId !== undefined || filters.status,
+    filters.q ||
+      filters.portal ||
+      filters.modalidadeId !== undefined ||
+      filters.status ||
+      filters.categoria,
   );
 
   return (
@@ -62,6 +67,7 @@ export default async function Home({ searchParams }: PageProps<"/licitacoes">) {
           filters.modalidadeId !== undefined ? String(filters.modalidadeId) : ""
         }
         status={filters.status ?? ""}
+        categoria={filters.categoria ?? ""}
         portalOptions={portalOptions}
         modalidadeOptions={modalidadeOptions}
         hasActiveFilters={hasActiveFilters}

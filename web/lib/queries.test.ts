@@ -175,3 +175,30 @@ describe("buildCountQuery", () => {
     expect(values).toEqual([]);
   });
 });
+
+describe("categoria filter", () => {
+  it("keeps only known categoria values", () => {
+    expect(parseFilters({ categoria: "produto" })).toEqual({
+      categoria: "produto",
+    });
+    expect(parseFilters({ categoria: "servico" })).toEqual({
+      categoria: "servico",
+    });
+    expect(parseFilters({ categoria: "mista" })).toEqual({ categoria: "mista" });
+    expect(parseFilters({ categoria: "bogus" })).toEqual({});
+  });
+
+  it("builds produto as has-M-and-not-S over item, with no params", () => {
+    const { where, values } = buildWhereClause({ categoria: "produto" });
+    expect(values).toEqual([]);
+    expect(where).toContain("i.material_ou_servico = 'M'");
+    expect(where).toContain("AND NOT EXISTS");
+  });
+
+  it("builds mista as has-M-and-has-S", () => {
+    const { where } = buildWhereClause({ categoria: "mista" });
+    expect(where).toContain("i.material_ou_servico = 'M'");
+    expect(where).toContain("i.material_ou_servico = 'S'");
+    expect(where).not.toContain("NOT EXISTS");
+  });
+});

@@ -10,16 +10,33 @@
 import { pool } from "./db";
 import type { StatusLicitacao } from "./status";
 
+export type CategoriaLicitacao = "produto" | "servico" | "mista";
+
 export type LicitacaoFilters = {
   q?: string;
   portal?: string;
   modalidadeId?: number;
   status?: StatusLicitacao;
+  categoria?: CategoriaLicitacao;
 };
 
 export type SqlQuery = {
   text: string;
   values: unknown[];
+};
+
+// Produto/serviço derives from the itens' PNCP materialOuServico flag (M/S):
+// all-M = produto, all-S = serviço, both = mista. Licitações whose itens are
+// not yet synced match no category (they have no item rows).
+const HAS_M =
+  "EXISTS (SELECT 1 FROM item i WHERE i.numero_controle_pncp = licitacao.numero_controle_pncp AND i.material_ou_servico = 'M')";
+const HAS_S =
+  "EXISTS (SELECT 1 FROM item i WHERE i.numero_controle_pncp = licitacao.numero_controle_pncp AND i.material_ou_servico = 'S')";
+
+const CATEGORIA_PREDICATES: Record<CategoriaLicitacao, string> = {
+  produto: `(${HAS_M} AND NOT ${HAS_S})`,
+  servico: `(${HAS_S} AND NOT ${HAS_M})`,
+  mista: `(${HAS_M} AND ${HAS_S})`,
 };
 
 const STATUS_PREDICATES: Record<StatusLicitacao, string> = {
@@ -53,6 +70,11 @@ export function parseFilters(
   const status = firstValue(raw.status)?.trim();
   if (status === "aberta" || status === "vai_abrir" || status === "fechada") {
     filters.status = status;
+  }
+
+  const categoria = firstValue(raw.categoria)?.trim();
+  if (categoria === "produto" || categoria === "servico" || categoria === "mista") {
+    filters.categoria = categoria;
   }
 
   return filters;
@@ -99,6 +121,10 @@ export function buildWhereClause(filters: LicitacaoFilters): {
 
   if (filters.status) {
     conditions.push(`(${STATUS_PREDICATES[filters.status]})`);
+  }
+
+  if (filters.categoria) {
+    conditions.push(CATEGORIA_PREDICATES[filters.categoria]);
   }
 
   const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
