@@ -63,6 +63,20 @@ To uninstall later:
 uv run plic schedule uninstall
 ```
 
+## Dashboard
+
+A local web dashboard (Next.js) for searching and inspecting licitações — list view with palavra-chave/portal/modalidade/status filters, plus a detail page with itens and edital/anexo links. Lives in `web/`.
+
+Requires the DB up (`docker compose up -d`) and initialized (`uv run plic db init`) with at least some data synced.
+
+```bash
+cd web
+npm install
+npm run dev
+```
+
+Opens at `http://localhost:3000`. It reads `PLIC_DATABASE_URL` (defaults to `postgresql://plic:plic@localhost:5433/plic`, matching the Docker Compose DB above).
+
 ## CLI Commands
 
 ### Database
