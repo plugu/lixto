@@ -12,53 +12,71 @@ function formatQuantidade(value: string | null): string {
 
 export function ItensTable({ itens }: { itens: ItemRow[] }) {
   if (itens.length === 0) {
-    return <p className="text-sm text-gray-500">Nenhum item encontrado.</p>;
+    return (
+      <p className="text-sm text-muted-foreground">Nenhum item encontrado.</p>
+    );
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-left text-sm">
-        <thead>
-          <tr className="border-b border-gray-200 text-xs font-medium text-gray-500 uppercase">
-            <th className="py-2 pr-4">Nº</th>
-            <th className="py-2 pr-4">Descrição</th>
-            <th className="py-2 pr-4 text-right">Quantidade</th>
-            <th className="py-2 pr-4">Unidade</th>
-            <th className="py-2 pr-4 text-right">Valor unitário</th>
-            <th className="py-2 pr-4 text-right">Valor total</th>
-            <th className="py-2 pr-4">Situação</th>
-            <th className="py-2">Benefício</th>
-          </tr>
-        </thead>
-        <tbody>
-          {itens.map((item) => (
-            <tr key={item.numero_item} className="border-b border-gray-200">
-              <td className="py-2 pr-4 text-gray-900">{item.numero_item}</td>
-              <td className="py-2 pr-4 text-gray-900">
-                {item.descricao || "—"}
-              </td>
-              <td className="py-2 pr-4 text-right text-gray-900 tabular-nums">
-                {formatQuantidade(item.quantidade)}
-              </td>
-              <td className="py-2 pr-4 text-gray-900">
-                {item.unidade_medida || "—"}
-              </td>
-              <td className="py-2 pr-4 text-right text-gray-900 tabular-nums">
-                {formatCurrencyBRL(item.valor_unitario_estimado)}
-              </td>
-              <td className="py-2 pr-4 text-right text-gray-900 tabular-nums">
-                {formatCurrencyBRL(item.valor_total)}
-              </td>
-              <td className="py-2 pr-4 text-gray-900">
-                {item.situacao_compra_item_nome || "—"}
-              </td>
-              <td className="py-2 text-gray-900">
-                {item.tipo_beneficio_nome || "—"}
-              </td>
+    <div className="overflow-hidden rounded-lg border border-border bg-card shadow-subtle">
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="bg-muted/50">
+            <tr>
+              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Nº</th>
+              <th className="px-4 py-3 text-left font-medium text-muted-foreground">
+                Descrição
+              </th>
+              <th className="px-4 py-3 text-right font-medium text-muted-foreground">
+                Quantidade
+              </th>
+              <th className="px-4 py-3 text-left font-medium text-muted-foreground">
+                Unidade
+              </th>
+              <th className="px-4 py-3 text-right font-medium text-muted-foreground">
+                Valor unitário
+              </th>
+              <th className="px-4 py-3 text-right font-medium text-muted-foreground">
+                Valor total
+              </th>
+              <th className="px-4 py-3 text-left font-medium text-muted-foreground">
+                Situação
+              </th>
+              <th className="px-4 py-3 text-left font-medium text-muted-foreground">
+                Benefício
+              </th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {itens.map((item) => (
+              <tr key={item.numero_item} className="transition-colors hover:bg-muted/30">
+                <td className="px-4 py-3 text-foreground">{item.numero_item}</td>
+                <td className="px-4 py-3 text-foreground">
+                  {item.descricao || "—"}
+                </td>
+                <td className="px-4 py-3 text-right text-foreground tabular-nums">
+                  {formatQuantidade(item.quantidade)}
+                </td>
+                <td className="px-4 py-3 text-foreground">
+                  {item.unidade_medida || "—"}
+                </td>
+                <td className="px-4 py-3 text-right text-foreground tabular-nums">
+                  {formatCurrencyBRL(item.valor_unitario_estimado)}
+                </td>
+                <td className="px-4 py-3 text-right text-foreground tabular-nums">
+                  {formatCurrencyBRL(item.valor_total)}
+                </td>
+                <td className="px-4 py-3 text-muted-foreground">
+                  {item.situacao_compra_item_nome || "—"}
+                </td>
+                <td className="px-4 py-3 text-muted-foreground">
+                  {item.tipo_beneficio_nome || "—"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

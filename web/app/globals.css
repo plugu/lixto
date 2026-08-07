@@ -1,5 +1,33 @@
 @import "tailwindcss";
 
+/* Design tokens ported from the resume-copilot admin (frontend/src/index.css):
+   cool off-white canvas, deep navy ink, hairline borders, 0.7rem radius,
+   semantic verdict colors reused for licitação status. */
+@theme {
+  --color-background: hsl(220 20% 97%);
+  --color-foreground: hsl(216 55% 14%);
+  --color-card: hsl(0 0% 100%);
+  --color-muted: hsl(220 16% 94%);
+  --color-muted-foreground: hsl(217 12% 45%);
+  --color-border: hsl(220 14% 89%);
+  --color-primary: hsl(216 88% 10%);
+  --color-primary-foreground: hsl(0 0% 100%);
+  --color-accent: hsl(224 70% 46%);
+  --color-met: hsl(152 58% 38%);
+  --color-partial: hsl(36 95% 46%);
+  --color-unclear: hsl(220 11% 56%);
+
+  --radius-lg: 0.7rem;
+  --radius-md: 0.5rem;
+  --radius-sm: 0.3rem;
+
+  --font-sans: var(--font-hanken), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-bricolage), var(--font-hanken), ui-sans-serif, sans-serif;
+
+  --shadow-subtle: 0 1px 2px 0 hsl(220 30% 20% / 0.06);
+  --shadow-card: 0 2px 8px 0 hsl(220 30% 20% / 0.08);
+}
+
 html,
 body {
   min-height: 100%;

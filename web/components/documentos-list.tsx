@@ -4,7 +4,7 @@ const EDITAL_TIPO_DOCUMENTO_ID = 2;
 
 export function DocumentosList({ documentos }: { documentos: DocumentoRow[] }) {
   if (documentos.length === 0) {
-    return <p className="text-sm text-gray-500">Nenhum documento disponível.</p>;
+    return <p className="text-sm text-muted-foreground">Nenhum documento disponível.</p>;
   }
 
   const edital = documentos.filter(
@@ -33,7 +33,7 @@ function DocumentGroup({
 
   return (
     <div>
-      <h3 className="mb-2 text-sm font-semibold text-gray-900">{title}</h3>
+      <h3 className="mb-2 text-sm font-semibold text-foreground">{title}</h3>
       <ul className="flex flex-col gap-1.5">
         {documentos.map((doc) => (
           <li key={doc.sequencial_documento} className="text-sm">
@@ -42,17 +42,17 @@ function DocumentGroup({
                 href={doc.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-blue-600 hover:underline"
+                className="text-accent hover:underline"
               >
                 {doc.titulo || doc.tipo_documento_nome || "Documento"}
               </a>
             ) : (
-              <span className="text-gray-900">
+              <span className="text-foreground">
                 {doc.titulo || doc.tipo_documento_nome || "Documento"}
               </span>
             )}
             {doc.tipo_documento_nome && (
-              <span className="ml-2 text-xs text-gray-500">
+              <span className="ml-2 text-xs text-muted-foreground">
                 {doc.tipo_documento_nome}
               </span>
             )}

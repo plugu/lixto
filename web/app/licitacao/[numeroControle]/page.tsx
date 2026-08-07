@@ -39,7 +39,7 @@ export default async function LicitacaoDetailPage(
     return (
       <div className="flex flex-col gap-6">
         <BackLink />
-        <p className="py-16 text-center text-gray-500">
+        <p className="py-16 text-center text-muted-foreground">
           Licitação não encontrada.
         </p>
       </div>
@@ -69,17 +69,17 @@ export default async function LicitacaoDetailPage(
 
       <header className="flex flex-col gap-2">
         <StatusBadge status={status} />
-        <h1 className="text-lg font-semibold text-gray-900">
+        <h1 className="font-display text-2xl font-bold leading-snug tracking-tight text-foreground">
           {detail.objeto_compra || "—"}
         </h1>
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-muted-foreground">
           {orgaoUnidade || "—"}
           {localizacao ? ` · ${localizacao}` : ""}
         </p>
       </header>
 
       <section>
-        <h2 className="mb-3 text-sm font-semibold text-gray-900">
+        <h2 className="mb-3 text-sm font-semibold text-foreground">
           Dados da licitação
         </h2>
         <dl className="grid grid-cols-1 gap-x-8 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -120,7 +120,7 @@ export default async function LicitacaoDetailPage(
               href={detail.link_sistema_origem}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-sm text-blue-600 hover:underline"
+              className="text-sm text-accent hover:underline"
             >
               Abrir no sistema de origem
             </a>
@@ -130,7 +130,7 @@ export default async function LicitacaoDetailPage(
               href={pncpUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-sm text-blue-600 hover:underline"
+              className="text-sm text-accent hover:underline"
             >
               Ver no PNCP
             </a>
@@ -140,22 +140,22 @@ export default async function LicitacaoDetailPage(
 
       {detail.informacao_complementar && (
         <section>
-          <h2 className="mb-2 text-sm font-semibold text-gray-900">
+          <h2 className="mb-2 text-sm font-semibold text-foreground">
             Informação complementar
           </h2>
-          <p className="whitespace-pre-wrap text-sm text-gray-900">
+          <p className="whitespace-pre-wrap text-sm text-foreground">
             {detail.informacao_complementar}
           </p>
         </section>
       )}
 
       <section>
-        <h2 className="mb-3 text-sm font-semibold text-gray-900">Itens</h2>
+        <h2 className="mb-3 text-sm font-semibold text-foreground">Itens</h2>
         <ItensTable itens={itens} />
       </section>
 
       <section>
-        <h2 className="mb-3 text-sm font-semibold text-gray-900">
+        <h2 className="mb-3 text-sm font-semibold text-foreground">
           Documentos
         </h2>
         <DocumentosList documentos={documentos} />
@@ -166,7 +166,7 @@ export default async function LicitacaoDetailPage(
 
 function BackLink() {
   return (
-    <Link href="/" className="text-sm text-blue-600 hover:underline">
+    <Link href="/" className="text-sm text-accent hover:underline">
       ← Voltar
     </Link>
   );
@@ -181,8 +181,8 @@ function Field({
 }) {
   return (
     <div>
-      <dt className="text-xs text-gray-500">{label}</dt>
-      <dd className="text-sm text-gray-900">{value || "—"}</dd>
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className="text-sm text-foreground">{value || "—"}</dd>
     </div>
   );
 }

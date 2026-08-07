@@ -1,32 +1,49 @@
-# Dashboard style guide (cycle 2)
+# Dashboard style guide (cycle 2 — revised)
 
-Reference: Amie (amie.so) hero — clean, flat, light, calm. Desktop-first.
+Reference: the `~/dev/resume-copilot` admin (its tokens ported verbatim). Clean,
+flat, light, calm. Desktop-first. Tokens live in `web/app/globals.css` `@theme`.
+
+## Tokens
+
+- Canvas `--color-background` hsl(220 20% 97%); surfaces `--color-card` white.
+- Ink `--color-foreground` hsl(216 55% 14%) (deep navy); muted text
+  `--color-muted-foreground`; fills `--color-muted`; hairlines `--color-border`.
+- `--color-primary` = near-black navy (buttons, active nav bar); links/accents
+  `--color-accent` (blue).
+- Status colors (from the reference's verdict palette): `--color-met` green =
+  Aberta, `--color-partial` amber = Vai abrir, `--color-unclear` slate = Fechada.
+- Radius: lg 0.7rem. Shadows: `shadow-subtle` on cards/controls only.
+
+## Type
+
+- Body: Hanken Grotesk (`font-sans`); page titles: Bricolage Grotesque
+  (`font-display text-2xl font-bold tracking-tight`); base `text-sm`.
 
 ## Layout
 
-- Left sidebar 240px, `bg-gray-50`, right border `border-gray-200`; app name top, nav below ("Licitações" is the only real item this cycle).
-- Main content on white, max-width ~1200px, `px-8 py-6`.
-- No shadows heavier than `shadow-sm`; separation via 1px `gray-200` borders and whitespace.
-
-## Type & color
-
-- System font stack or Inter; base `text-sm` (14px), titles `text-lg font-semibold`, muted text `text-gray-500`.
-- Background white; text `gray-900`; accent `blue-600` (links, active filter, primary button).
-- Status badges (rounded-full, `text-xs font-medium`, soft backgrounds):
-  - Aberta → `bg-green-100 text-green-800`
-  - Vai abrir → `bg-amber-100 text-amber-800`
-  - Fechada → `bg-gray-100 text-gray-600`
+- Sidebar: `w-64 sticky h-screen border-r border-border bg-card/80
+  backdrop-blur-sm px-5 py-6`, eyebrow label (uppercase, tracking-[0.18em],
+  0.65rem), active nav item = `bg-muted` + 3px `bg-primary` left bar
+  (rounded-r-full).
+- Main: `max-w-5xl mx-auto px-8 py-10`.
 
 ## Components
 
-- List rows: full-width, `py-3`, bottom border, hover `bg-gray-50`, whole row clickable.
-- Filters: compact selects/inputs in one toolbar row above the list, `rounded-lg border-gray-200 bg-white`; active filters visibly distinct.
-- Tables (itens): header `text-xs uppercase text-gray-500`, row borders only, no zebra.
-- Empty state: centered, muted icon-free text ("Nenhuma licitação encontrada").
-- Detail page: title = objeto (clamped), metadata as label/value grid (`text-gray-500` labels), sections separated by headings, not cards.
+- Tables: `overflow-hidden rounded-lg border border-border bg-card
+  shadow-subtle`; thead `bg-muted/50`, cells `px-4 py-3`, th `font-medium
+  text-muted-foreground` (sentence case); tbody `divide-y divide-border`, rows
+  `hover:bg-muted/30 transition-colors`.
+- Badges: `rounded-full border px-2.5 py-0.5 text-xs font-semibold self-start`,
+  soft bg (`bg-met/10 border-met/30 text-met` pattern).
+- Primary button: `bg-primary text-primary-foreground rounded-lg font-semibold
+  shadow-sm hover:bg-primary/90 active:scale-[0.98] transition-all duration-150`.
+- Controls: `rounded-lg border-border bg-card shadow-subtle
+  focus-visible:ring-2 focus-visible:ring-accent/40`; cap select width
+  (`max-w-56`) — option text can be long.
+- Empty state: `min-h-[40vh] border border-dashed rounded-lg` centered muted text.
 
 ## pt-BR conventions
 
-- All UI strings pt-BR. Dates `dd/mm/aaaa` (with hour `dd/mm/aaaa HH:mm`); currency `R$ 1.234,56` (`Intl.NumberFormat('pt-BR', {style:'currency', currency:'BRL'})`).
-- Labels: Palavra-chave, Portal, Modalidade, Status, Órgão, Município/UF, Valor estimado, Encerramento, Abertura, Objeto, Itens, Edital, Anexos, Publicação.
+- All UI strings pt-BR. Dates `dd/mm/aaaa` (+ `HH:mm` when relevant); currency
+  via `Intl.NumberFormat('pt-BR', {style:'currency', currency:'BRL'})`.
 - Status values: "Aberta", "Vai abrir", "Fechada".

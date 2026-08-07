@@ -13,8 +13,8 @@ type FiltersProps = {
   hasActiveFilters: boolean;
 };
 
-const SELECT_CLASS =
-  "rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-600";
+const CONTROL_CLASS =
+  "rounded-lg border border-border bg-card px-3 py-1.5 text-sm text-foreground shadow-subtle focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/40";
 
 export function Filters({
   q,
@@ -29,20 +29,20 @@ export function Filters({
     <form
       method="GET"
       action="/"
-      className="mb-4 flex flex-wrap items-center gap-2"
+      className="flex flex-wrap items-center gap-2"
     >
       <input
         type="text"
         name="q"
         defaultValue={q}
         placeholder="Palavra-chave"
-        className="min-w-[200px] flex-1 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-600"
+        className={`min-w-[200px] flex-1 ${CONTROL_CLASS} placeholder:text-muted-foreground/60`}
       />
 
       <select
         name="portal"
         defaultValue={portal}
-        className={SELECT_CLASS}
+        className={`max-w-56 ${CONTROL_CLASS}`}
         onChange={(event) => event.currentTarget.form?.requestSubmit()}
       >
         <option value="">Portal: Todos</option>
@@ -56,7 +56,7 @@ export function Filters({
       <select
         name="modalidade"
         defaultValue={modalidadeId}
-        className={SELECT_CLASS}
+        className={CONTROL_CLASS}
         onChange={(event) => event.currentTarget.form?.requestSubmit()}
       >
         <option value="">Modalidade: Todos</option>
@@ -70,7 +70,7 @@ export function Filters({
       <select
         name="status"
         defaultValue={status}
-        className={SELECT_CLASS}
+        className={CONTROL_CLASS}
         onChange={(event) => event.currentTarget.form?.requestSubmit()}
       >
         <option value="">Status: Todos</option>
@@ -81,13 +81,13 @@ export function Filters({
 
       <button
         type="submit"
-        className="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
+        className="rounded-lg bg-primary px-4 py-1.5 text-sm font-semibold text-primary-foreground shadow-sm transition-all duration-150 hover:bg-primary/90 hover:shadow active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
       >
         Buscar
       </button>
 
       {hasActiveFilters && (
-        <a href="/" className="text-sm text-blue-600 hover:underline">
+        <a href="/" className="text-sm text-accent hover:underline">
           Limpar filtros
         </a>
       )}

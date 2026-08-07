@@ -50,8 +50,10 @@ export default async function Home({ searchParams }: PageProps<"/">) {
   );
 
   return (
-    <div>
-      <h1 className="mb-4 text-lg font-semibold text-gray-900">Licitações</h1>
+    <div className="space-y-4">
+      <h1 className="font-display text-2xl font-bold tracking-tight text-foreground">
+        Licitações
+      </h1>
 
       <Filters
         q={filters.q ?? ""}
@@ -65,53 +67,80 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         hasActiveFilters={hasActiveFilters}
       />
 
-      <p className="mb-2 text-sm text-gray-500">
+      <p className="text-sm text-muted-foreground">
         {total.toLocaleString("pt-BR")} licitações
       </p>
 
       {rows.length === 0 ? (
-        <p className="py-16 text-center text-gray-500">
-          Nenhuma licitação encontrada.
-        </p>
+        <div className="flex min-h-[40vh] items-center justify-center rounded-lg border border-dashed border-border">
+          <p className="text-muted-foreground">Nenhuma licitação encontrada.</p>
+        </div>
       ) : (
-        <div className="border-t border-gray-200">
-          {rows.map((row) => {
-            const status = computeStatus(
-              row.data_abertura_proposta,
-              row.data_encerramento_proposta,
-            );
-            const localizacao = [row.municipio_nome, row.uf]
-              .filter(Boolean)
-              .join("/");
+        <div className="overflow-hidden rounded-lg border border-border bg-card shadow-subtle">
+          <table className="w-full text-sm">
+            <thead className="bg-muted/50">
+              <tr>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground">
+                  Objeto
+                </th>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground">
+                  Modalidade
+                </th>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground">
+                  Status
+                </th>
+                <th className="px-4 py-3 text-right font-medium text-muted-foreground">
+                  Valor estimado
+                </th>
+                <th className="px-4 py-3 text-right font-medium text-muted-foreground">
+                  Encerramento
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {rows.map((row) => {
+                const status = computeStatus(
+                  row.data_abertura_proposta,
+                  row.data_encerramento_proposta,
+                );
+                const localizacao = [row.municipio_nome, row.uf]
+                  .filter(Boolean)
+                  .join("/");
 
-            return (
-              <Link
-                key={row.numero_controle_pncp}
-                href={`/licitacao/${encodeURIComponent(row.numero_controle_pncp)}`}
-                className="flex flex-col gap-2 border-b border-gray-200 py-3 hover:bg-gray-50 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="line-clamp-2 text-sm font-medium text-gray-900">
-                    {row.objeto_compra || "—"}
-                  </p>
-                  <p className="mt-0.5 truncate text-xs text-gray-500">
-                    {row.orgao_razao_social || "—"}
-                    {localizacao ? ` · ${localizacao}` : ""}
-                    {row.modalidade_nome ? ` · ${row.modalidade_nome}` : ""}
-                  </p>
-                </div>
-                <div className="flex shrink-0 items-center gap-4">
-                  <StatusBadge status={status} />
-                  <span className="w-28 text-right text-sm text-gray-900 tabular-nums">
-                    {formatCurrencyBRL(row.valor_total_estimado)}
-                  </span>
-                  <span className="w-24 text-right text-sm text-gray-500 tabular-nums">
-                    {formatDateBR(row.data_encerramento_proposta)}
-                  </span>
-                </div>
-              </Link>
-            );
-          })}
+                return (
+                  <tr
+                    key={row.numero_controle_pncp}
+                    className="transition-colors hover:bg-muted/30"
+                  >
+                    <td className="max-w-md px-4 py-3">
+                      <Link
+                        href={`/licitacao/${encodeURIComponent(row.numero_controle_pncp)}`}
+                        className="line-clamp-2 font-medium text-foreground hover:underline"
+                      >
+                        {row.objeto_compra || "—"}
+                      </Link>
+                      <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                        {row.orgao_razao_social || "—"}
+                        {localizacao ? ` · ${localizacao}` : ""}
+                      </p>
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {row.modalidade_nome || "—"}
+                    </td>
+                    <td className="px-4 py-3">
+                      <StatusBadge status={status} />
+                    </td>
+                    <td className="px-4 py-3 text-right text-foreground tabular-nums">
+                      {formatCurrencyBRL(row.valor_total_estimado)}
+                    </td>
+                    <td className="px-4 py-3 text-right text-muted-foreground tabular-nums">
+                      {formatDateBR(row.data_encerramento_proposta)}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
 
@@ -136,13 +165,16 @@ function Pagination({
   const isFirst = pagina <= 1;
   const isLast = pagina >= totalPages;
 
+  const buttonClass =
+    "rounded-lg border border-border bg-card px-3 py-1.5 shadow-subtle transition-colors";
+
   return (
-    <div className="mt-6 flex items-center justify-between text-sm text-gray-500">
+    <div className="flex items-center justify-between pt-2 text-sm text-muted-foreground">
       <Link
         href={`/${buildQueryString(filters, prev)}`}
         aria-disabled={isFirst}
-        className={`rounded-lg border border-gray-200 bg-white px-3 py-1.5 ${
-          isFirst ? "pointer-events-none opacity-50" : "hover:bg-gray-50"
+        className={`${buttonClass} ${
+          isFirst ? "pointer-events-none opacity-50" : "hover:bg-muted"
         }`}
       >
         Anterior
@@ -153,8 +185,8 @@ function Pagination({
       <Link
         href={`/${buildQueryString(filters, next)}`}
         aria-disabled={isLast}
-        className={`rounded-lg border border-gray-200 bg-white px-3 py-1.5 ${
-          isLast ? "pointer-events-none opacity-50" : "hover:bg-gray-50"
+        className={`${buttonClass} ${
+          isLast ? "pointer-events-none opacity-50" : "hover:bg-muted"
         }`}
       >
         Próxima
