@@ -1,196 +1,75 @@
-import Link from "next/link";
-import { Filters } from "@/components/filters";
-import { StatusBadge } from "@/components/status-badge";
-import { formatCurrencyBRL, formatDateBR } from "@/lib/format";
+import { BarList } from "@/components/charts/bar-list";
+import { DailyLine } from "@/components/charts/daily-line";
+import { StatTile } from "@/components/charts/stat-tile";
+import { StatusStack } from "@/components/charts/status-stack";
 import {
-  fetchLicitacoes,
-  fetchModalidadeOptions,
-  fetchPortalOptions,
-  parseFilters,
-  type LicitacaoFilters,
-} from "@/lib/queries";
-import { computeStatus } from "@/lib/status";
+  fetchPorDia,
+  fetchPorModalidade,
+  fetchPorPortal,
+  fetchStatusCounts,
+} from "@/lib/stats-queries";
 
-const PAGE_SIZE = 25;
+export const dynamic = "force-dynamic";
 
-function buildQueryString(
-  filters: LicitacaoFilters,
-  pagina?: number,
-): string {
-  const params = new URLSearchParams();
-  if (filters.q) params.set("q", filters.q);
-  if (filters.portal) params.set("portal", filters.portal);
-  if (filters.modalidadeId !== undefined) {
-    params.set("modalidade", String(filters.modalidadeId));
-  }
-  if (filters.status) params.set("status", filters.status);
-  if (pagina && pagina > 1) params.set("pagina", String(pagina));
-  const qs = params.toString();
-  return qs ? `?${qs}` : "";
-}
-
-export default async function Home({ searchParams }: PageProps<"/">) {
-  const resolvedSearchParams = await searchParams;
-  const filters = parseFilters(resolvedSearchParams);
-
-  const paginaParam = resolvedSearchParams.pagina;
-  const paginaRaw = Array.isArray(paginaParam) ? paginaParam[0] : paginaParam;
-  const pagina = Math.max(1, Math.trunc(Number(paginaRaw)) || 1);
-
-  const [{ rows, total }, portalOptions, modalidadeOptions] =
-    await Promise.all([
-      fetchLicitacoes(filters, PAGE_SIZE, (pagina - 1) * PAGE_SIZE),
-      fetchPortalOptions(),
-      fetchModalidadeOptions(),
-    ]);
-
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const hasActiveFilters = Boolean(
-    filters.q || filters.portal || filters.modalidadeId !== undefined || filters.status,
-  );
+export default async function Dashboard() {
+  const [counts, porModalidade, porPortal, porDia] = await Promise.all([
+    fetchStatusCounts(),
+    fetchPorModalidade(),
+    fetchPorPortal(),
+    fetchPorDia(),
+  ]);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <h1 className="font-display text-2xl font-bold tracking-tight text-foreground">
-        Licitações
+        Visão geral
       </h1>
 
-      <Filters
-        q={filters.q ?? ""}
-        portal={filters.portal ?? ""}
-        modalidadeId={
-          filters.modalidadeId !== undefined ? String(filters.modalidadeId) : ""
-        }
-        status={filters.status ?? ""}
-        portalOptions={portalOptions}
-        modalidadeOptions={modalidadeOptions}
-        hasActiveFilters={hasActiveFilters}
-      />
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <StatTile label="Licitações no total" value={counts.total} />
+        <StatTile label="Abertas agora" value={counts.abertas} />
+        <StatTile label="Vão abrir" value={counts.vaiAbrir} />
+        <StatTile label="Publicadas nas últimas 24h" value={counts.novas24h} />
+      </div>
 
-      <p className="text-sm text-muted-foreground">
-        {total.toLocaleString("pt-BR")} licitações
-      </p>
+      <ChartCard title="Licitações por status">
+        <StatusStack counts={counts} />
+      </ChartCard>
 
-      {rows.length === 0 ? (
-        <div className="flex min-h-[40vh] items-center justify-center rounded-lg border border-dashed border-border">
-          <p className="text-muted-foreground">Nenhuma licitação encontrada.</p>
-        </div>
-      ) : (
-        <div className="overflow-hidden rounded-lg border border-border bg-card shadow-subtle">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50">
-              <tr>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">
-                  Objeto
-                </th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">
-                  Modalidade
-                </th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">
-                  Status
-                </th>
-                <th className="px-4 py-3 text-right font-medium text-muted-foreground">
-                  Valor estimado
-                </th>
-                <th className="px-4 py-3 text-right font-medium text-muted-foreground">
-                  Encerramento
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {rows.map((row) => {
-                const status = computeStatus(
-                  row.data_abertura_proposta,
-                  row.data_encerramento_proposta,
-                );
-                const localizacao = [row.municipio_nome, row.uf]
-                  .filter(Boolean)
-                  .join("/");
+      <ChartCard title="Licitações publicadas por dia" subtitle="Últimos 30 dias">
+        <DailyLine data={porDia} />
+      </ChartCard>
 
-                return (
-                  <tr
-                    key={row.numero_controle_pncp}
-                    className="transition-colors hover:bg-muted/30"
-                  >
-                    <td className="max-w-md px-4 py-3">
-                      <Link
-                        href={`/licitacao/${encodeURIComponent(row.numero_controle_pncp)}`}
-                        className="line-clamp-2 font-medium text-foreground hover:underline"
-                      >
-                        {row.objeto_compra || "—"}
-                      </Link>
-                      <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                        {row.orgao_razao_social || "—"}
-                        {localizacao ? ` · ${localizacao}` : ""}
-                      </p>
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {row.modalidade_nome || "—"}
-                    </td>
-                    <td className="px-4 py-3">
-                      <StatusBadge status={status} />
-                    </td>
-                    <td className="px-4 py-3 text-right text-foreground tabular-nums">
-                      {formatCurrencyBRL(row.valor_total_estimado)}
-                    </td>
-                    <td className="px-4 py-3 text-right text-muted-foreground tabular-nums">
-                      {formatDateBR(row.data_encerramento_proposta)}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      <Pagination pagina={pagina} totalPages={totalPages} filters={filters} />
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <ChartCard title="Licitações por modalidade">
+          <BarList data={porModalidade} />
+        </ChartCard>
+        <ChartCard title="Licitações por portal">
+          <BarList data={porPortal} />
+        </ChartCard>
+      </div>
     </div>
   );
 }
 
-function Pagination({
-  pagina,
-  totalPages,
-  filters,
+function ChartCard({
+  title,
+  subtitle,
+  children,
 }: {
-  pagina: number;
-  totalPages: number;
-  filters: LicitacaoFilters;
+  title: string;
+  subtitle?: string;
+  children: React.ReactNode;
 }) {
-  if (totalPages <= 1) return null;
-
-  const prev = Math.max(1, pagina - 1);
-  const next = Math.min(totalPages, pagina + 1);
-  const isFirst = pagina <= 1;
-  const isLast = pagina >= totalPages;
-
-  const buttonClass =
-    "rounded-lg border border-border bg-card px-3 py-1.5 shadow-subtle transition-colors";
-
   return (
-    <div className="flex items-center justify-between pt-2 text-sm text-muted-foreground">
-      <Link
-        href={`/${buildQueryString(filters, prev)}`}
-        aria-disabled={isFirst}
-        className={`${buttonClass} ${
-          isFirst ? "pointer-events-none opacity-50" : "hover:bg-muted"
-        }`}
-      >
-        Anterior
-      </Link>
-      <span>
-        Página {pagina} de {totalPages}
-      </span>
-      <Link
-        href={`/${buildQueryString(filters, next)}`}
-        aria-disabled={isLast}
-        className={`${buttonClass} ${
-          isLast ? "pointer-events-none opacity-50" : "hover:bg-muted"
-        }`}
-      >
-        Próxima
-      </Link>
-    </div>
+    <section className="rounded-lg border border-border bg-card p-5 shadow-subtle">
+      <header className="mb-4">
+        <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+        {subtitle && (
+          <p className="text-xs text-muted-foreground">{subtitle}</p>
+        )}
+      </header>
+      {children}
+    </section>
   );
 }

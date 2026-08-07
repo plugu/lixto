@@ -166,7 +166,7 @@ export default async function LicitacaoDetailPage(
 
 function BackLink() {
   return (
-    <Link href="/" className="text-sm text-accent hover:underline">
+    <Link href="/licitacoes" className="text-sm text-accent hover:underline">
       ← Voltar
     </Link>
   );

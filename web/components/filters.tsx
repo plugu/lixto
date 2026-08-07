@@ -28,7 +28,7 @@ export function Filters({
   return (
     <form
       method="GET"
-      action="/"
+      action="/licitacoes"
       className="flex flex-wrap items-center gap-2"
     >
       <input
@@ -87,7 +87,7 @@ export function Filters({
       </button>
 
       {hasActiveFilters && (
-        <a href="/" className="text-sm text-accent hover:underline">
+        <a href="/licitacoes" className="text-sm text-accent hover:underline">
           Limpar filtros
         </a>
       )}
