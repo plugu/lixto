@@ -20,13 +20,18 @@ function buildQueryString(
 ): string {
   const params = new URLSearchParams();
   if (filters.q) params.set("q", filters.q);
-  if (filters.portal) params.set("portal", filters.portal);
-  if (filters.modalidadeId !== undefined) {
-    params.set("modalidade", String(filters.modalidadeId));
-  }
-  if (filters.status) params.set("status", filters.status);
+  filters.portais?.forEach((portal) => params.append("portal", portal));
+  filters.modalidadeIds?.forEach((id) => params.append("modalidade", String(id)));
+  filters.statuses?.forEach((status) => params.append("status", status));
   if (filters.categoria) params.set("categoria", filters.categoria);
-  if (filters.setor) params.set("setor", filters.setor);
+  filters.setores?.forEach((setor) => params.append("setor", setor));
+  filters.ufs?.forEach((uf) => params.append("uf", uf));
+  if (filters.valorMin !== undefined) {
+    params.set("valorMin", String(filters.valorMin));
+  }
+  if (filters.valorMax !== undefined) {
+    params.set("valorMax", String(filters.valorMax));
+  }
   if (pagina && pagina > 1) params.set("pagina", String(pagina));
   const qs = params.toString();
   return qs ? `?${qs}` : "";
@@ -51,11 +56,14 @@ export default async function Home({ searchParams }: PageProps<"/licitacoes">) {
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const hasActiveFilters = Boolean(
     filters.q ||
-      filters.portal ||
-      filters.modalidadeId !== undefined ||
-      filters.status ||
+      (filters.portais && filters.portais.length > 0) ||
+      (filters.modalidadeIds && filters.modalidadeIds.length > 0) ||
+      (filters.statuses && filters.statuses.length > 0) ||
       filters.categoria ||
-      filters.setor,
+      (filters.setores && filters.setores.length > 0) ||
+      (filters.ufs && filters.ufs.length > 0) ||
+      filters.valorMin !== undefined ||
+      filters.valorMax !== undefined,
   );
 
   return (
@@ -66,13 +74,15 @@ export default async function Home({ searchParams }: PageProps<"/licitacoes">) {
 
       <Filters
         q={filters.q ?? ""}
-        portal={filters.portal ?? ""}
+        portal={filters.portais?.[0] ?? ""}
         modalidadeId={
-          filters.modalidadeId !== undefined ? String(filters.modalidadeId) : ""
+          filters.modalidadeIds?.[0] !== undefined
+            ? String(filters.modalidadeIds[0])
+            : ""
         }
-        status={filters.status ?? ""}
+        status={filters.statuses?.[0] ?? ""}
         categoria={filters.categoria ?? ""}
-        setor={filters.setor ?? ""}
+        setor={filters.setores?.[0] ?? ""}
         setorOptions={setorOptions}
         portalOptions={portalOptions}
         modalidadeOptions={modalidadeOptions}

@@ -9,22 +9,42 @@
 
 import { pool } from "./db";
 import { PORTAIS_ATIVOS } from "./portais";
-import type { StatusLicitacao } from "./status";
+import { STATUS_LABELS, type StatusLicitacao } from "./status";
 
 export type CategoriaLicitacao = "produto" | "servico" | "mista";
 
 export type LicitacaoFilters = {
   q?: string;
-  portal?: string;
-  modalidadeId?: number;
-  status?: StatusLicitacao;
+  portais?: string[];
+  modalidadeIds?: number[];
+  statuses?: StatusLicitacao[];
   categoria?: CategoriaLicitacao;
-  setor?: string;
+  setores?: string[];
+  ufs?: string[];
+  valorMin?: number;
+  valorMax?: number;
 };
+
+/** The five filter dimensions with per-option facet counts (ticket 11). */
+type MultiFilterKey = "modalidadeIds" | "setores" | "portais" | "statuses" | "ufs";
 
 export type SqlQuery = {
   text: string;
   values: unknown[];
+};
+
+export type FacetOption = {
+  value: string | number;
+  label: string;
+  count: number;
+};
+
+export type FacetCounts = {
+  modalidade: FacetOption[];
+  setor: FacetOption[];
+  portal: FacetOption[];
+  status: FacetOption[];
+  uf: FacetOption[];
 };
 
 // Produto/serviço derives from the itens' PNCP materialOuServico flag (M/S):
@@ -50,8 +70,12 @@ const STATUS_PREDICATES: Record<StatusLicitacao, string> = {
 };
 
 /** Parses raw (possibly array-valued, from Next's searchParams) query values
- * into typed filters. Unknown/invalid values are dropped rather than throwing,
- * so a malformed URL just falls back to "no filter" for that field. */
+ * into typed filters. Repeated params (`?modalidade=6&modalidade=8`) arrive
+ * as arrays already; a single occurrence arrives as a bare string, which we
+ * normalize into a one-element array — so a UI that only ever sends a single
+ * value (components/filters.tsx, pre ticket-12) keeps working unchanged.
+ * Unknown/invalid values are dropped rather than throwing, so a malformed
+ * URL just falls back to "no filter" for that field. */
 export function parseFilters(
   raw: Record<string, string | string[] | undefined>,
 ): LicitacaoFilters {
@@ -60,27 +84,38 @@ export function parseFilters(
   const q = firstValue(raw.q)?.trim();
   if (q) filters.q = q;
 
-  const portal = firstValue(raw.portal)?.trim();
-  if (portal) filters.portal = portal;
+  const portais = allValues(raw.portal);
+  if (portais.length > 0) filters.portais = portais;
 
-  const modalidadeRaw = firstValue(raw.modalidade)?.trim();
-  if (modalidadeRaw) {
-    const modalidadeId = Number.parseInt(modalidadeRaw, 10);
-    if (Number.isInteger(modalidadeId)) filters.modalidadeId = modalidadeId;
-  }
+  const modalidadeIds = allValues(raw.modalidade)
+    .map((v) => Number.parseInt(v, 10))
+    .filter((v) => Number.isInteger(v));
+  if (modalidadeIds.length > 0) filters.modalidadeIds = modalidadeIds;
 
-  const status = firstValue(raw.status)?.trim();
-  if (status === "aberta" || status === "vai_abrir" || status === "fechada") {
-    filters.status = status;
-  }
+  const statuses = allValues(raw.status).filter(
+    (v): v is StatusLicitacao =>
+      v === "aberta" || v === "vai_abrir" || v === "fechada",
+  );
+  if (statuses.length > 0) filters.statuses = statuses;
 
   const categoria = firstValue(raw.categoria)?.trim();
   if (categoria === "produto" || categoria === "servico" || categoria === "mista") {
     filters.categoria = categoria;
   }
 
-  const setor = firstValue(raw.setor)?.trim();
-  if (setor) filters.setor = setor;
+  const setores = allValues(raw.setor);
+  if (setores.length > 0) filters.setores = setores;
+
+  const ufs = allValues(raw.uf)
+    .map((v) => v.toUpperCase())
+    .filter((v) => /^[A-Z]{2}$/.test(v));
+  if (ufs.length > 0) filters.ufs = ufs;
+
+  const valorMin = parseValor(firstValue(raw.valorMin));
+  if (valorMin !== undefined) filters.valorMin = valorMin;
+
+  const valorMax = parseValor(firstValue(raw.valorMax));
+  if (valorMax !== undefined) filters.valorMax = valorMax;
 
   return filters;
 }
@@ -89,12 +124,29 @@ function firstValue(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
 }
 
-/** Builds the WHERE clause + params shared by the list and count queries.
- * `values` starts at $1; callers append further params (limit/offset) after. */
-export function buildWhereClause(filters: LicitacaoFilters): {
-  where: string;
-  values: unknown[];
-} {
+/** Normalizes a possibly-repeated, possibly-absent param into a list of
+ * trimmed, non-empty values (a single string becomes a one-element array). */
+function allValues(value: string | string[] | undefined): string[] {
+  const arr = value === undefined ? [] : Array.isArray(value) ? value : [value];
+  return arr.map((v) => v.trim()).filter((v) => v.length > 0);
+}
+
+function parseValor(raw: string | undefined): number | undefined {
+  const trimmed = raw?.trim();
+  if (!trimmed) return undefined;
+  const n = Number(trimmed);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+/** Builds the WHERE conditions + params shared by the list, count and facet
+ * queries. `exclude`, when given, skips that one multi-select dimension's
+ * own predicate — standard faceting, so a dimension's own selection never
+ * narrows its own per-option counts (ticket 11). `values` starts at $1;
+ * callers append further params (limit/offset) after. */
+function buildFilterConditions(
+  filters: LicitacaoFilters,
+  exclude?: MultiFilterKey,
+): { conditions: string[]; values: unknown[] } {
   const conditions: string[] = [];
   const values: unknown[] = [];
 
@@ -116,32 +168,64 @@ export function buildWhereClause(filters: LicitacaoFilters): {
     );
   }
 
-  if (filters.portal) {
-    values.push(filters.portal);
+  if (exclude !== "portais" && filters.portais && filters.portais.length > 0) {
     // "Portal" filters on usuario_nome — the publishing system's name (e.g.
     // "Compras.gov.br"). link_sistema_origem's domain is NULL on ~59% of rows
     // and undercounts Comprasnet by half; usuario_nome is always present.
-    conditions.push(`usuario_nome = $${values.length}`);
+    // Applied alongside (intersected with) the top-7 allowlist above.
+    values.push(filters.portais);
+    conditions.push(`usuario_nome = ANY($${values.length})`);
   }
 
-  if (filters.modalidadeId !== undefined) {
-    values.push(filters.modalidadeId);
-    conditions.push(`modalidade_id = $${values.length}`);
+  if (
+    exclude !== "modalidadeIds" &&
+    filters.modalidadeIds &&
+    filters.modalidadeIds.length > 0
+  ) {
+    values.push(filters.modalidadeIds);
+    conditions.push(`modalidade_id = ANY($${values.length})`);
   }
 
-  if (filters.status) {
-    conditions.push(`(${STATUS_PREDICATES[filters.status]})`);
+  if (exclude !== "statuses" && filters.statuses && filters.statuses.length > 0) {
+    // Multiple statuses OR-combine (e.g. aberta OR vai_abrir).
+    const predicates = filters.statuses.map((s) => `(${STATUS_PREDICATES[s]})`);
+    conditions.push(`(${predicates.join(" OR ")})`);
   }
 
   if (filters.categoria) {
     conditions.push(CATEGORIA_PREDICATES[filters.categoria]);
   }
 
-  if (filters.setor) {
-    values.push(filters.setor);
-    conditions.push(`setor = $${values.length}`);
+  if (exclude !== "setores" && filters.setores && filters.setores.length > 0) {
+    values.push(filters.setores);
+    conditions.push(`setor = ANY($${values.length})`);
   }
 
+  if (exclude !== "ufs" && filters.ufs && filters.ufs.length > 0) {
+    values.push(filters.ufs);
+    conditions.push(`uf = ANY($${values.length})`);
+  }
+
+  if (filters.valorMin !== undefined) {
+    values.push(filters.valorMin);
+    conditions.push(`valor_total_estimado >= $${values.length}`);
+  }
+
+  if (filters.valorMax !== undefined) {
+    values.push(filters.valorMax);
+    conditions.push(`valor_total_estimado <= $${values.length}`);
+  }
+
+  return { conditions, values };
+}
+
+/** Builds the WHERE clause + params shared by the list and count queries.
+ * `values` starts at $1; callers append further params (limit/offset) after. */
+export function buildWhereClause(filters: LicitacaoFilters): {
+  where: string;
+  values: unknown[];
+} {
+  const { conditions, values } = buildFilterConditions(filters);
   const where = `WHERE ${conditions.join(" AND ")}`;
   return { where, values };
 }
@@ -229,6 +313,91 @@ export function buildModalidadeOptionsQuery(): SqlQuery {
   };
 }
 
+// Facet-count queries (ticket 11): for each of the 5 multi-select
+// dimensions, a grouped count applying every active filter EXCEPT that
+// dimension's own selection (standard faceting), so picking one option
+// never zeroes out the others' counts.
+
+export function buildModalidadeFacetQuery(filters: LicitacaoFilters): SqlQuery {
+  const { conditions, values } = buildFilterConditions(filters, "modalidadeIds");
+  const where = [
+    ...conditions,
+    "modalidade_id IS NOT NULL",
+    "modalidade_nome IS NOT NULL",
+  ].join(" AND ");
+  return {
+    text: `
+      SELECT modalidade_id AS value, modalidade_nome AS label, count(*)::text AS count
+      FROM licitacao
+      WHERE ${where}
+      GROUP BY modalidade_id, modalidade_nome
+      ORDER BY count(*) DESC
+    `,
+    values,
+  };
+}
+
+export function buildSetorFacetQuery(filters: LicitacaoFilters): SqlQuery {
+  const { conditions, values } = buildFilterConditions(filters, "setores");
+  const where = [...conditions, "setor IS NOT NULL"].join(" AND ");
+  return {
+    text: `
+      SELECT setor AS value, setor AS label, count(*)::text AS count
+      FROM licitacao
+      WHERE ${where}
+      GROUP BY setor
+      ORDER BY count(*) DESC
+    `,
+    values,
+  };
+}
+
+export function buildPortalFacetQuery(filters: LicitacaoFilters): SqlQuery {
+  const { conditions, values } = buildFilterConditions(filters, "portais");
+  const where = conditions.join(" AND ");
+  return {
+    text: `
+      SELECT usuario_nome AS value, usuario_nome AS label, count(*)::text AS count
+      FROM licitacao
+      WHERE ${where}
+      GROUP BY usuario_nome
+      ORDER BY count(*) DESC
+    `,
+    values,
+  };
+}
+
+export function buildStatusFacetQuery(filters: LicitacaoFilters): SqlQuery {
+  const { conditions, values } = buildFilterConditions(filters, "statuses");
+  const where = conditions.join(" AND ");
+  return {
+    text: `
+      SELECT
+        count(*) FILTER (WHERE ${STATUS_PREDICATES.aberta})::text AS aberta,
+        count(*) FILTER (WHERE ${STATUS_PREDICATES.vai_abrir})::text AS vai_abrir,
+        count(*) FILTER (WHERE ${STATUS_PREDICATES.fechada})::text AS fechada
+      FROM licitacao
+      WHERE ${where}
+    `,
+    values,
+  };
+}
+
+export function buildUfFacetQuery(filters: LicitacaoFilters): SqlQuery {
+  const { conditions, values } = buildFilterConditions(filters, "ufs");
+  const where = [...conditions, "uf IS NOT NULL"].join(" AND ");
+  return {
+    text: `
+      SELECT uf AS value, uf AS label, count(*)::text AS count
+      FROM licitacao
+      WHERE ${where}
+      GROUP BY uf
+      ORDER BY count(*) DESC
+    `,
+    values,
+  };
+}
+
 export type LicitacaoRow = {
   numero_controle_pncp: string;
   objeto_compra: string | null;
@@ -284,4 +453,69 @@ export async function fetchModalidadeOptions(): Promise<ModalidadeOption[]> {
     id: row.modalidade_id,
     nome: row.modalidade_nome,
   }));
+}
+
+/** Per-option counts for the 5 multi-select filters, each computed against
+ * all other active filters (own dimension's selection excluded) — standard
+ * faceting. UI rendering of these counts is ticket 12. */
+export async function fetchFacetCounts(filters: LicitacaoFilters): Promise<FacetCounts> {
+  const modalidadeQuery = buildModalidadeFacetQuery(filters);
+  const setorQuery = buildSetorFacetQuery(filters);
+  const portalQuery = buildPortalFacetQuery(filters);
+  const statusQuery = buildStatusFacetQuery(filters);
+  const ufQuery = buildUfFacetQuery(filters);
+
+  const [modalidadeResult, setorResult, portalResult, statusResult, ufResult] =
+    await Promise.all([
+      pool.query<{ value: number; label: string; count: string }>(
+        modalidadeQuery.text,
+        modalidadeQuery.values,
+      ),
+      pool.query<{ value: string; label: string; count: string }>(
+        setorQuery.text,
+        setorQuery.values,
+      ),
+      pool.query<{ value: string; label: string; count: string }>(
+        portalQuery.text,
+        portalQuery.values,
+      ),
+      pool.query<{ aberta: string; vai_abrir: string; fechada: string }>(
+        statusQuery.text,
+        statusQuery.values,
+      ),
+      pool.query<{ value: string; label: string; count: string }>(
+        ufQuery.text,
+        ufQuery.values,
+      ),
+    ]);
+
+  const statusRow = statusResult.rows[0];
+
+  return {
+    modalidade: modalidadeResult.rows.map((row) => ({
+      value: row.value,
+      label: row.label,
+      count: Number(row.count),
+    })),
+    setor: setorResult.rows.map((row) => ({
+      value: row.value,
+      label: row.label,
+      count: Number(row.count),
+    })),
+    portal: portalResult.rows.map((row) => ({
+      value: row.value,
+      label: row.label,
+      count: Number(row.count),
+    })),
+    status: (["aberta", "vai_abrir", "fechada"] as const).map((status) => ({
+      value: status,
+      label: STATUS_LABELS[status],
+      count: Number(statusRow?.[status] ?? 0),
+    })),
+    uf: ufResult.rows.map((row) => ({
+      value: row.value,
+      label: row.label,
+      count: Number(row.count),
+    })),
+  };
 }
