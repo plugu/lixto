@@ -1,0 +1,21 @@
+"use server";
+
+import { redirect } from "next/navigation";
+import { login } from "@/lib/auth";
+
+export async function loginAction(formData: FormData): Promise<void> {
+  const email = String(formData.get("email") ?? "");
+  const senha = String(formData.get("senha") ?? "");
+  const next = String(formData.get("next") ?? "");
+
+  const session = await login(email, senha);
+  if (!session) {
+    const params = new URLSearchParams({ erro: "1" });
+    if (next.startsWith("/")) params.set("next", next);
+    redirect(`/login?${params.toString()}`);
+  }
+
+  // Only allow same-origin relative targets (no "//evil.com").
+  const target = next.startsWith("/") && !next.startsWith("//") ? next : "/";
+  redirect(target);
+}
