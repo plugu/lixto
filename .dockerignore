@@ -1,0 +1,15 @@
+.git
+.venv
+web
+node_modules
+.env*
+__pycache__
+*.pyc
+tests
+tickets
+graphify-out
+.codegraph
+docs
+*.md
+.pytest_cache
+.ruff_cache

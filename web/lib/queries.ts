@@ -13,6 +13,8 @@ import { STATUS_LABELS, type StatusLicitacao } from "./status";
 
 export type CategoriaLicitacao = "produto" | "servico" | "mista";
 
+export type FitFilterValue = "fit" | "borderline" | "no_fit" | "sem_analise";
+
 export type LicitacaoFilters = {
   q?: string;
   portais?: string[];
@@ -23,6 +25,9 @@ export type LicitacaoFilters = {
   ufs?: string[];
   valorMin?: number;
   valorMax?: number;
+  /** Agent verdict filter (ticket 15): `fit`/`borderline`/`no_fit` match
+   * analise.verdict; `sem_analise` means no analise row (verdict IS NULL). */
+  fit?: FitFilterValue[];
 };
 
 /** The five filter dimensions with per-option facet counts (ticket 11). */
@@ -116,6 +121,12 @@ export function parseFilters(
 
   const valorMax = parseValor(firstValue(raw.valorMax));
   if (valorMax !== undefined) filters.valorMax = valorMax;
+
+  const fit = allValues(raw.fit).filter(
+    (v): v is FitFilterValue =>
+      v === "fit" || v === "borderline" || v === "no_fit" || v === "sem_analise",
+  );
+  if (fit.length > 0) filters.fit = fit;
 
   return filters;
 }
@@ -220,6 +231,33 @@ function buildFilterConditions(
   return { conditions, values };
 }
 
+/** Builds the `fit` predicate against the `analise` table (ticket 15), joined
+ * in via `LEFT JOIN analise a USING (numero_controle_pncp)` by callers.
+ * `sem_analise` (no analise row) and the three verdict values OR-combine when
+ * both are selected. Appends to `values` and returns the predicate text, or
+ * null when no fit filter is active. Used only by buildWhereClause (list +
+ * count queries) — the facet-count queries (ticket 11/12) are untouched. */
+function buildFitPredicate(
+  filters: LicitacaoFilters,
+  values: unknown[],
+): string | null {
+  if (!filters.fit || filters.fit.length === 0) return null;
+
+  const verdicts = filters.fit.filter((v) => v !== "sem_analise");
+  const wantsSemAnalise = filters.fit.includes("sem_analise");
+
+  const predicates: string[] = [];
+  if (verdicts.length > 0) {
+    values.push(verdicts);
+    predicates.push(`a.verdict = ANY($${values.length})`);
+  }
+  if (wantsSemAnalise) {
+    predicates.push(`a.verdict IS NULL`);
+  }
+
+  return predicates.length > 0 ? `(${predicates.join(" OR ")})` : null;
+}
+
 /** Builds the WHERE clause + params shared by the list and count queries.
  * `values` starts at $1; callers append further params (limit/offset) after. */
 export function buildWhereClause(filters: LicitacaoFilters): {
@@ -227,6 +265,8 @@ export function buildWhereClause(filters: LicitacaoFilters): {
   values: unknown[];
 } {
   const { conditions, values } = buildFilterConditions(filters);
+  const fitPredicate = buildFitPredicate(filters, values);
+  if (fitPredicate) conditions.push(fitPredicate);
   const where = `WHERE ${conditions.join(" AND ")}`;
   return { where, values };
 }
@@ -254,6 +294,10 @@ export function buildListQuery(
         valor_total_estimado,
         data_abertura_proposta,
         data_encerramento_proposta,
+        a.verdict AS fit_verdict,
+        a.fit_score,
+        a.deep_verdict,
+        a.deep_status,
         CASE
           WHEN data_abertura_proposta <= now() AND now() < data_encerramento_proposta THEN 0
           WHEN data_abertura_proposta > now() THEN 1
@@ -269,11 +313,13 @@ export function buildListQuery(
           ))
         END AS sort_val
       FROM licitacao
+      LEFT JOIN analise a USING (numero_controle_pncp)
       ${where}
     )
     SELECT
       numero_controle_pncp, objeto_compra, orgao_razao_social, municipio_nome, uf,
-      modalidade_nome, valor_total_estimado, data_abertura_proposta, data_encerramento_proposta
+      modalidade_nome, valor_total_estimado, data_abertura_proposta, data_encerramento_proposta,
+      fit_verdict, fit_score, deep_verdict, deep_status
     FROM classified
     ORDER BY status_group ASC, sort_val ASC NULLS LAST
     LIMIT $${limitIdx} OFFSET $${offsetIdx}
@@ -285,7 +331,7 @@ export function buildListQuery(
 export function buildCountQuery(filters: LicitacaoFilters): SqlQuery {
   const { where, values } = buildWhereClause(filters);
   return {
-    text: `SELECT count(*)::text AS count FROM licitacao ${where}`,
+    text: `SELECT count(*)::text AS count FROM licitacao LEFT JOIN analise a USING (numero_controle_pncp) ${where}`,
     values,
   };
 }
@@ -409,6 +455,10 @@ export type LicitacaoRow = {
   valor_total_estimado: string | null;
   data_abertura_proposta: Date | null;
   data_encerramento_proposta: Date | null;
+  fit_verdict: string | null;
+  fit_score: number | null;
+  deep_verdict: string | null;
+  deep_status: string | null;
 };
 
 export type ModalidadeOption = { id: number; nome: string };

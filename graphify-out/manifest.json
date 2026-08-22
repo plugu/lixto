@@ -1,0 +1,398 @@
+{
+  "/Users/aazevedo/dev/plataforma-licitante/migrations/003_portal_usuario_nome.sql": {
+    "mtime": 1786074459.2480953,
+    "hash": "73a7dfa7743657e20f06139ac41fe02a"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/migrations/004_setor.sql": {
+    "mtime": 1786126377.9020507,
+    "hash": "f49422bbd6e6019127864c9905d3f1df"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/migrations/001_schema.sql": {
+    "mtime": 1785637111.2296283,
+    "hash": "fc33ff41538bae997c59e5e22f588a99"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/migrations/006_analise.sql": {
+    "mtime": 1786453732.7031925,
+    "hash": "7bc0dc974d42f95dc22c846e3a3ba16e"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/migrations/002_web_read.sql": {
+    "mtime": 1786072956.002404,
+    "hash": "a5a85ac1010fb1415424c0b09513647d"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/migrations/005_unaccent_fts.sql": {
+    "mtime": 1786132721.2455728,
+    "hash": "224c25e4891adb1a13dde18fedba59cb"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/postcss.config.mjs": {
+    "mtime": 1786072360.2634294,
+    "hash": "239f3ebf717465dc636818a1a619398d"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/next-env.d.ts": {
+    "mtime": 1787365940.4167073,
+    "hash": "aa94238a90e7d04b7a47ecc3145ba6a0"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/eslint.config.mjs": {
+    "mtime": 1786072360.2632425,
+    "hash": "dfa1f5f6a7037bf39dc510f30b180002"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/next.config.ts": {
+    "mtime": 1786072360.26339,
+    "hash": "9b77af189a21a7a64e4bd7a426f64176"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/app/layout.tsx": {
+    "mtime": 1787365855.3437178,
+    "hash": "fb526cd09d414757a275cf93beead551"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/app/page.tsx": {
+    "mtime": 1786116125.1810195,
+    "hash": "08a83f8f2a872de8377f86c6d4aacc0c"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/app/licitacoes/page.tsx": {
+    "mtime": 1787365873.0994115,
+    "hash": "9460a8901df23b80963254669aac97e8"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/app/licitacao/[numeroControle]/page.tsx": {
+    "mtime": 1786454582.966552,
+    "hash": "fb8fa91f1e10bbd5720856aa44d37164"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/fit-badge.tsx": {
+    "mtime": 1786454553.3917015,
+    "hash": "57f0e88d32d0ab85ec1d2401fc90bf7b"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/itens-table.tsx": {
+    "mtime": 1786111539.5601923,
+    "hash": "fd5768abf54b86f8807a2ff6954371c4"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/filters.tsx": {
+    "mtime": 1786130926.9205363,
+    "hash": "f0e854a9e4f4e09df5a0853f50f2054c"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/documentos-list.tsx": {
+    "mtime": 1786111556.7081068,
+    "hash": "21fed92e36577ae2e7c7bc7b69190d1a"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/filter-chips.tsx": {
+    "mtime": 1786130917.227434,
+    "hash": "402fecd08f6f6df504c789b4e75452e4"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/status-badge.tsx": {
+    "mtime": 1786111647.346533,
+    "hash": "19a91779f126a5a7584ac7c04da133e8"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/analise-panel.tsx": {
+    "mtime": 1786454565.9388816,
+    "hash": "f1f8ad90d5cdd3cd906ba0ba3e8797bb"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/multi-select.tsx": {
+    "mtime": 1786132045.7050169,
+    "hash": "c63df3b46f6d9bf9d0ba2a2055ee9544"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/sidebar.tsx": {
+    "mtime": 1786114043.732235,
+    "hash": "a8a26848353b6bfed941530f7a9d83e7"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/charts/bar-list.tsx": {
+    "mtime": 1786113968.9991963,
+    "hash": "66d7ea22f39b5f6e66209a6cbc7ceade"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/charts/daily-line.tsx": {
+    "mtime": 1786114002.1225986,
+    "hash": "44ebb35b624261b4467b8ffc95a227c0"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/charts/status-stack.tsx": {
+    "mtime": 1786113976.742338,
+    "hash": "23043787f4d5f49846c1cdabdacc6ba7"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/charts/stat-tile.tsx": {
+    "mtime": 1786113963.5478456,
+    "hash": "311f0fe289b02db44f180a5f5b397224"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/portais.ts": {
+    "mtime": 1786130120.5473647,
+    "hash": "c8e0965993d2af980fe0217a96b7466a"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/status.ts": {
+    "mtime": 1786072582.366435,
+    "hash": "947be51b063cc1a9488bc2dce16bfb4f"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/queries.test.ts": {
+    "mtime": 1786454667.4412086,
+    "hash": "624f32acdd87cce5801a35bb80b4d633"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/queries.ts": {
+    "mtime": 1786454547.9752965,
+    "hash": "3c31d7775cfa993ff6a969f6681f2ea0"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/format.test.ts": {
+    "mtime": 1786072594.4343162,
+    "hash": "07e9c45d9ff564324661527c3ff8a6ae"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/detail-queries.ts": {
+    "mtime": 1786073467.3976123,
+    "hash": "b6d6539fc68aac72290f0b3914f8db22"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/format.ts": {
+    "mtime": 1786072577.431797,
+    "hash": "208b88f259a6827c89dfa5bf852a32a4"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/stats-queries.ts": {
+    "mtime": 1786130160.740752,
+    "hash": "9e0acc21385fe8f394bbd4b3ba360944"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/db.ts": {
+    "mtime": 1786072585.0689228,
+    "hash": "f7f7b90497a9c157428f375d55455332"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/analise-queries.ts": {
+    "mtime": 1786454511.3738072,
+    "hash": "586f7082d4cead289b4e1fc1a6fe2eec"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/tests/test_classify.py": {
+    "mtime": 1786126455.678614,
+    "hash": "322fe8ada52218cd068ead39570c6710"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/tests/test_migrations.py": {
+    "mtime": 1785637128.4930835,
+    "hash": "94e786984fa7cebfc02ca98a44b169cb"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/tests/test_sync_incremental.py": {
+    "mtime": 1785642554.8606877,
+    "hash": "695f93138470b461a583952f616026cc"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/tests/test_schedule.py": {
+    "mtime": 1785644219.167774,
+    "hash": "afdc4270ad7791906092e5812023fe6e"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/tests/test_sync_publicacao.py": {
+    "mtime": 1785637459.4763136,
+    "hash": "acd1dbcecf2370c108153b2a68ac384f"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/tests/test_agents_triage.py": {
+    "mtime": 1786453883.8319476,
+    "hash": "93d36c2a83ccc61d21181019df471b51"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/tests/test_backfill.py": {
+    "mtime": 1785669448.0331407,
+    "hash": "2828817bba9e807858fbe88926e4e27a"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/tests/test_pncp_client.py": {
+    "mtime": 1785642567.0706499,
+    "hash": "2e83f22fb25c977e71ac0c9b695851bc"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/tests/test_sync_detalhes.py": {
+    "mtime": 1785638037.083839,
+    "hash": "cc33517096ac49fffbda5dd0d468b234"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/tests/test_agents_deep.py": {
+    "mtime": 1786454237.5932724,
+    "hash": "2fd5d8ff9434d4ec65101e7d8b7ce557"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/src/plic/db.py": {
+    "mtime": 1785637077.1360292,
+    "hash": "54e7388b5c0731cac21a3c3ff01a8e6b"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/src/plic/sync_publicacao.py": {
+    "mtime": 1785761302.9200046,
+    "hash": "78e3a606dfe8bd582fcf0b1cee65a42d"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/src/plic/classify.py": {
+    "mtime": 1786126403.8652563,
+    "hash": "b43fb04641b0bf451fb970e64109e8d0"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/src/plic/__init__.py": {
+    "mtime": 1785637064.1584783,
+    "hash": "e804db6a30916d23bc7060dc50dc3ebc"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/src/plic/cli.py": {
+    "mtime": 1786453792.3490236,
+    "hash": "532d594c0ebb0bbabe7982fd0e3bf1cd"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/src/plic/backfill.py": {
+    "mtime": 1785669415.1297774,
+    "hash": "80e5dfa8be4c5c82ccce1e8a20e25500"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/src/plic/pncp_client.py": {
+    "mtime": 1785873752.485968,
+    "hash": "d756a481dab58e2650bf1fa6ef39ffd9"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/src/plic/settings.py": {
+    "mtime": 1785637066.9911044,
+    "hash": "7b09f9efcad4ca7c48d8c9f6e37f3659"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/src/plic/sync_incremental.py": {
+    "mtime": 1786133237.5668788,
+    "hash": "44209680bcb203160e959854bbbb74bc"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/src/plic/schedule.py": {
+    "mtime": 1785644259.485516,
+    "hash": "6deb4ff4dd61baa3a5753d41d07951f9"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/src/plic/sync_detalhes.py": {
+    "mtime": 1785873777.8637595,
+    "hash": "ffb0b4d629727ae0175d2863f672d6f8"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/src/plic/status.py": {
+    "mtime": 1785638418.3567924,
+    "hash": "b702b669d16abde015ed32e03cc2d805"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/src/plic/agents/run.py": {
+    "mtime": 1786454082.0584679,
+    "hash": "d33006b6f557bf77d6bd8dd83efc0513"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/src/plic/agents/profile.py": {
+    "mtime": 1786453741.801893,
+    "hash": "ef828725a17adc51ecee0b63f1229e3f"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/src/plic/agents/__init__.py": {
+    "mtime": 1786453739.2274191,
+    "hash": "f423c8a7bea7e03e3bab36e0b0e2c190"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/src/plic/agents/triage.py": {
+    "mtime": 1786453859.806086,
+    "hash": "a192a05ba801638810cd0892e480a920"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/src/plic/agents/deep.py": {
+    "mtime": 1786454227.4761403,
+    "hash": "55b5673aab5565a244f1658781134880"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/PRODUCT.md": {
+    "mtime": 1787365801.7359474,
+    "hash": "88c97a638b9b447ab4729e96fad7c523"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/STATE.md": {
+    "mtime": 1787365934.768515,
+    "hash": "d93157c883b0eec33b2dffa98e1b26af"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/README.md": {
+    "mtime": 1786073506.3449461,
+    "hash": "becf013c04c4e01493ca1a85ab9d9b51"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/company_profile.md": {
+    "mtime": 1786453737.0338352,
+    "hash": "fb4abc0971df4e42f99bb0c57990034e"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/docker-compose.yml": {
+    "mtime": 1785637057.6890552,
+    "hash": "f1063a56fef3a0b2c7d1ec1886875814"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/11-query-layer-v2.md": {
+    "mtime": 1786130709.9557734,
+    "hash": "f323b97bb210a4acd16396bea4d9e63e"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/15-analise-web-ui.md": {
+    "mtime": 1786454806.2221303,
+    "hash": "e54551a883f1393e774d8c5c73ce33e2"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/14-edital-deep-analysis.md": {
+    "mtime": 1786454322.7776916,
+    "hash": "686783c53bab7b6911d2d342ad7c1206"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/13-fit-triage-agent.md": {
+    "mtime": 1786453973.8265336,
+    "hash": "1f0175562e01fc96cc1907bb6a7dee06"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/10-top7-allowlist.md": {
+    "mtime": 1786130414.9054248,
+    "hash": "ad3f11083f51bee6ff1f4a809be9a076"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/12-filter-bar-ui.md": {
+    "mtime": 1786130711.3645065,
+    "hash": "d4fb943b747f64bec98fc33379e30e0c"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/16-licitacoes-wide-table.md": {
+    "mtime": 1787365928.940936,
+    "hash": "39cd53910be0022e25387138d8f4eb14"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/README.md": {
+    "mtime": 1786072360.2632458,
+    "hash": "f15aaa42d5d299d091b1171097ea56ad"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/AGENTS.md": {
+    "mtime": 1786072413.9700038,
+    "hash": "01e8142356e15c3404e0d84c48187cd0"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/CLAUDE.md": {
+    "mtime": 1786072413.970085,
+    "hash": "5c27369b226fcf2be8a6cfe52224e767"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/docs/PNCP_API.md": {
+    "mtime": 1785666260.1931643,
+    "hash": "144e0f6babb672c8a91e134efb57277b"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/docs/WEB_STYLE.md": {
+    "mtime": 1787365880.6579099,
+    "hash": "efabfd5254b44185bc7945190143f0d2"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/docs/cycles/02-dashboard/PRODUCT.md": {
+    "mtime": 1786057260.1968493,
+    "hash": "d835463948ceb883b254baa57c4ed0fc"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/docs/cycles/02-dashboard/STATE.md": {
+    "mtime": 1786073642.6654413,
+    "hash": "4d4b44bb05d616af1cb8614262134f64"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/docs/cycles/02-dashboard/tickets/07-web-scaffold-list.md": {
+    "mtime": 1786073076.0371315,
+    "hash": "34abfb4e3a60f7cdcdb17d522b5c8cda"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/docs/cycles/02-dashboard/tickets/09-detail-page.md": {
+    "mtime": 1786073638.2163084,
+    "hash": "c9c1008e99718e6bcbb441a75b7909b5"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/docs/cycles/02-dashboard/tickets/08-search-filters.md": {
+    "mtime": 1786073335.6355906,
+    "hash": "04f0fe8422425ce07b79151a68a52969"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/docs/cycles/01-ingestao/PRODUCT.md": {
+    "mtime": 1785635728.6916258,
+    "hash": "42b33ce66a5fb96f12f5e65f5d3b63b3"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/docs/cycles/01-ingestao/STATE.md": {
+    "mtime": 1785644327.140782,
+    "hash": "40af7363a2cd87eba01eb7217dc2ba91"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/docs/cycles/01-ingestao/tickets/06-scheduler-docs.md": {
+    "mtime": 1785644322.5293782,
+    "hash": "299560a0a82c76c00e1cfe6aa14ec504"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/docs/cycles/01-ingestao/tickets/03-detalhes.md": {
+    "mtime": 1785638279.0940638,
+    "hash": "4238e767e766fa92d7d105cd7bd0478a"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/docs/cycles/01-ingestao/tickets/04-backfill.md": {
+    "mtime": 1785642138.433161,
+    "hash": "8676306c72a6fa16d5a03944cc401966"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/docs/cycles/01-ingestao/tickets/02-client-publicacao.md": {
+    "mtime": 1785637557.9465902,
+    "hash": "49c7e1a8d5c4f00c0f6e850d8c7b1519"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/docs/cycles/01-ingestao/tickets/05-incremental.md": {
+    "mtime": 1785644146.5944428,
+    "hash": "811b1242fa7e226896f9c3d4c4b81059"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/docs/cycles/01-ingestao/tickets/01-scaffold-schema.md": {
+    "mtime": 1785637185.2586603,
+    "hash": "dbfc047cc920972c89cb4ff90f21219b"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/public/file.svg": {
+    "mtime": 1786072360.2635758,
+    "hash": "d09f95206c3fa0bb9bd9fefabfd0ea71"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/public/vercel.svg": {
+    "mtime": 1786072360.2637067,
+    "hash": "c0af2f507b369b085b35ef4bbe3bcf1e"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/public/next.svg": {
+    "mtime": 1786072360.2636206,
+    "hash": "8e061864f388b47f33a1c3780831193e"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/public/globe.svg": {
+    "mtime": 1786072360.263679,
+    "hash": "2aaafa6a49b6563925fe440891e32717"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/public/window.svg": {
+    "mtime": 1786072360.2636476,
+    "hash": "a2760511c65806022ad20adf74370ff3"
+  }
+}

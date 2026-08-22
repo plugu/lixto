@@ -1,0 +1,63 @@
+# Deploys this app by calling Dokploy's deploy webhook on every push to
+# `main`. Dokploy builds the image from the Dockerfile on its own server —
+# there is no build/push-to-registry step here.
+#
+# Dokploy's webhook handler (pages/api/deploy/[refreshToken].ts) expects a
+# GitHub-shaped push payload: it checks `ref` against the app's branch and
+# `commits[].added/modified/removed` against the app's watchPaths, answering
+# HTTP 301 + {"message":"... Not Match"} otherwise. The `github.event`
+# available inside Actions OMITS those per-commit file lists, so we rebuild
+# a minimal payload from `git diff` and send it with `x-github-event: push`.
+#
+# Requires one repo secret:
+#   DOKPLOY_DEPLOY_WEBHOOK — https://dokploy.site.plugu.solutions/api/deploy/<app refreshToken>
+#     See docs/NEW_PROJECT.md (vps-infra repo) for where to get the token.
+#
+# If your Dokploy app has watchPaths set (e.g. `web/**`), mirror them in
+# `on.push.paths` below so unrelated pushes don't spawn a failing run.
+
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "web/**"
+      - ".github/workflows/deploy.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Trigger Dokploy deploy webhook
+        env:
+          DOKPLOY_DEPLOY_WEBHOOK: ${{ secrets.DOKPLOY_DEPLOY_WEBHOOK }}
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+          REF: ${{ github.ref }}
+          MESSAGE: ${{ github.event.head_commit.message }}
+        # curl -f would treat Dokploy's 301 "Not Match" replies as success —
+        # check the status explicitly and surface the body.
+        run: |
+          if git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            base="$BEFORE"
+          else
+            base="$AFTER~1"   # first push / force-push: fall back to parent
+          fi
+          files=$(git diff --name-only "$base" "$AFTER" | jq -R . | jq -s .)
+          payload=$(jq -n --arg ref "$REF" --arg msg "$MESSAGE" --argjson files "$files" \
+            '{ref: $ref, head_commit: {message: $msg}, commits: [{added: [], removed: [], modified: $files}]}')
+          body=$(mktemp)
+          code=$(curl -sS -o "$body" -w '%{http_code}' -X POST "$DOKPLOY_DEPLOY_WEBHOOK" \
+            -H 'Content-Type: application/json' \
+            -H 'x-github-event: push' \
+            --data-binary "$payload")
+          echo "dokploy: HTTP $code $(cat "$body")"
+          [ "$code" = "200" ]

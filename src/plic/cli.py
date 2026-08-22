@@ -6,6 +6,7 @@ from datetime import date
 import typer
 
 from plic import db
+from plic.agents.run import run_agents
 from plic.backfill import DEFAULT_SINCE
 from plic.backfill import backfill as run_backfill
 from plic.classify import classify as run_classify
@@ -53,6 +54,17 @@ sync_app = typer.Typer(help="Sync commands")
 app.add_typer(sync_app, name="sync")
 schedule_app = typer.Typer(help="Scheduler commands")
 app.add_typer(schedule_app, name="schedule")
+agents_app = typer.Typer(help="Agent pipeline commands")
+app.add_typer(agents_app, name="agents")
+
+_MAX_TRIAGE_OPTION = typer.Option(
+    200, "--max-triage", help="Max licitações to fit-triage in this run."
+)
+_MAX_DEEP_OPTION = typer.Option(
+    20,
+    "--max-deep",
+    help="Max licitações to deep-analyze in this run (stub until ticket 14).",
+)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
@@ -226,6 +238,28 @@ def schedule_uninstall_cmd() -> None:
     """Uninstall the macOS launchd job."""
     schedule_uninstall()
     typer.echo("Launchd job uninstalled.")
+
+
+@agents_app.command("run")
+def agents_run_cmd(
+    max_triage: int = _MAX_TRIAGE_OPTION,
+    max_deep: int = _MAX_DEEP_OPTION,
+) -> None:
+    """Run the agent pipeline: fit-triage (gpt-5-mini vs. company_profile.md)
+    then deep-analysis (stub — ticket 14). Resumable: only licitações without
+    an `analise` row are considered.
+    """
+    conn = db.get_connection()
+    try:
+        result = run_agents(conn, max_triage=max_triage, max_deep=max_deep)
+    finally:
+        conn.close()
+
+    typer.echo(
+        f"triage: {result['triage_processed']} processed, "
+        f"{result['triage_triaged']} triaged; "
+        f"deep: {result['deep_processed']} processed"
+    )
 
 
 if __name__ == "__main__":

@@ -1,7 +1,10 @@
 import Link from "next/link";
+import { AnalisePanel } from "@/components/analise-panel";
 import { DocumentosList } from "@/components/documentos-list";
+import { FitBadge } from "@/components/fit-badge";
 import { ItensTable } from "@/components/itens-table";
 import { StatusBadge } from "@/components/status-badge";
+import { fetchAnalise } from "@/lib/analise-queries";
 import {
   fetchDocumentos,
   fetchItens,
@@ -46,9 +49,10 @@ export default async function LicitacaoDetailPage(
     );
   }
 
-  const [itens, documentos] = await Promise.all([
+  const [itens, documentos, analise] = await Promise.all([
     fetchItens(numeroControlePncp),
     fetchDocumentos(numeroControlePncp),
+    fetchAnalise(numeroControlePncp),
   ]);
 
   const status = computeStatus(
@@ -68,7 +72,13 @@ export default async function LicitacaoDetailPage(
       <BackLink />
 
       <header className="flex flex-col gap-2">
-        <StatusBadge status={status} />
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusBadge status={status} />
+          <FitBadge
+            verdict={analise?.deep_verdict ?? analise?.verdict}
+            score={analise?.fit_score}
+          />
+        </div>
         <h1 className="font-display text-2xl font-bold leading-snug tracking-tight text-foreground">
           {detail.objeto_compra || "—"}
         </h1>
@@ -137,6 +147,8 @@ export default async function LicitacaoDetailPage(
           )}
         </div>
       </section>
+
+      <AnalisePanel analise={analise} />
 
       {detail.informacao_complementar && (
         <section>

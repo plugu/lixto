@@ -161,6 +161,23 @@ describe("parseFilters", () => {
     });
   });
 
+  describe("fit", () => {
+    it("parses a single fit value as a one-element array", () => {
+      expect(parseFilters({ fit: "fit" })).toEqual({ fit: ["fit"] });
+    });
+
+    it("parses repeated fit params, including sem_analise", () => {
+      expect(parseFilters({ fit: ["fit", "borderline", "sem_analise"] })).toEqual({
+        fit: ["fit", "borderline", "sem_analise"],
+      });
+    });
+
+    it("drops unknown fit values", () => {
+      expect(parseFilters({ fit: ["fit", "bogus"] })).toEqual({ fit: ["fit"] });
+      expect(parseFilters({ fit: "bogus" })).toEqual({});
+    });
+  });
+
   it("combines all filters together", () => {
     expect(
       parseFilters({
@@ -172,6 +189,7 @@ describe("parseFilters", () => {
         uf: ["SP", "MG"],
         valorMin: "1000",
         valorMax: "9000",
+        fit: ["fit", "borderline"],
       }),
     ).toEqual({
       q: "merenda",
@@ -182,6 +200,7 @@ describe("parseFilters", () => {
       ufs: ["SP", "MG"],
       valorMin: 1000,
       valorMax: 9000,
+      fit: ["fit", "borderline"],
     });
   });
 });
@@ -269,6 +288,32 @@ describe("buildWhereClause", () => {
     expect(values).toEqual([PORTAIS_ATIVOS, 50000, 500000]);
   });
 
+  describe("fit filter", () => {
+    it("builds a verdict = ANY predicate for known verdict values", () => {
+      const { where, values } = buildWhereClause({ fit: ["fit", "borderline"] });
+      expect(where).toBe(
+        "WHERE usuario_nome = ANY($1) AND (a.verdict = ANY($2))",
+      );
+      expect(values).toEqual([PORTAIS_ATIVOS, ["fit", "borderline"]]);
+    });
+
+    it("builds a verdict IS NULL predicate for sem_analise alone", () => {
+      const { where, values } = buildWhereClause({ fit: ["sem_analise"] });
+      expect(where).toBe(
+        "WHERE usuario_nome = ANY($1) AND (a.verdict IS NULL)",
+      );
+      expect(values).toEqual([PORTAIS_ATIVOS]);
+    });
+
+    it("OR-combines verdict values with sem_analise when both are selected", () => {
+      const { where, values } = buildWhereClause({ fit: ["fit", "sem_analise"] });
+      expect(where).toBe(
+        "WHERE usuario_nome = ANY($1) AND (a.verdict = ANY($2) OR a.verdict IS NULL)",
+      );
+      expect(values).toEqual([PORTAIS_ATIVOS, ["fit"]]);
+    });
+  });
+
   it("combines all filters with AND after the allowlist, each with correctly numbered params", () => {
     const { where, values } = buildWhereClause({
       q: "merenda",
@@ -336,6 +381,21 @@ describe("buildListQuery", () => {
     const { text } = buildListQuery({}, 25, 0);
     expect(text).toContain("ORDER BY status_group ASC, sort_val ASC NULLS LAST");
   });
+
+  it("left-joins analise and selects the fit/deep columns (ticket 15)", () => {
+    const { text } = buildListQuery({}, 25, 0);
+    expect(text).toContain("LEFT JOIN analise a USING (numero_controle_pncp)");
+    expect(text).toContain("a.verdict AS fit_verdict");
+    expect(text).toContain("a.fit_score");
+    expect(text).toContain("a.deep_verdict");
+    expect(text).toContain("a.deep_status");
+    expect(text).toContain("fit_verdict, fit_score, deep_verdict, deep_status");
+  });
+
+  it("builds a working fit filter with correctly numbered limit/offset params", () => {
+    const { values } = buildListQuery({ fit: ["fit"] }, 25, 0);
+    expect(values).toEqual([PORTAIS_ATIVOS, ["fit"], 25, 0]);
+  });
 });
 
 describe("buildCountQuery", () => {
@@ -351,6 +411,12 @@ describe("buildCountQuery", () => {
     const { text, values } = buildCountQuery({});
     expect(text).toContain("WHERE usuario_nome = ANY($1)");
     expect(values).toEqual([PORTAIS_ATIVOS]);
+  });
+
+  it("left-joins analise so the fit predicate can reference a.verdict", () => {
+    const { text } = buildCountQuery({ fit: ["fit"] });
+    expect(text).toContain("LEFT JOIN analise a USING (numero_controle_pncp)");
+    expect(text).toContain("a.verdict = ANY($2)");
   });
 });
 

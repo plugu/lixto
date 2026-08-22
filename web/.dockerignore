@@ -1,0 +1,7 @@
+node_modules
+.next
+.git
+.env*
+*.test.ts
+AGENTS.md
+CLAUDE.md
