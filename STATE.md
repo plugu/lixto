@@ -1,7 +1,10 @@
 # STATE — rewrite after every ticket completes; never append. ≤30 lines total.
 
 ## Now
-cycle 7 (mvp, multi-tenant) — ticket 23 doing (sonnet, attempt 1/3) in worktree `../plataforma-licitante-cycle7` branch `cycle7-tenant`
+cycle 7 (mvp, multi-tenant) — 23 done (1/3, 9cc4f08), 24 done (2/3, 7f8572e); 25/26/27/28 doing in parallel (sonnet, attempt 1/3) in worktrees `../plic-t25..t28`, branches `cycle7-t25..t28` off `cycle7-tenant`; ports 3101–3104
+- main advanced to 72b46ed (ticket 20 seed script, other session) — rebase/merge cycle7-tenant onto it before final merge
+- `npm run lint` red on pre-existing multi-select.tsx / db.ts errors → tickets lint scoped to own files
+- env: migrate = `uv run plic db init`; dev DB on :5433 shared w/ main checkout; psql via `docker exec plataforma-licitante-db-1`; run `npx next typegen` before tsc in fresh worktree
 
 ## Next
 24 (opus) after 23; then 25–28 parallel in sub-worktrees off 24; 29 last; merge to main; mvp final diff review (approval 2/2)
