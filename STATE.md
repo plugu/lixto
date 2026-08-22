@@ -1,21 +1,21 @@
 # STATE — rewrite after every ticket completes; never append. ≤30 lines total.
 
 ## Now
-cycle 6 (mvp, hosting on plugu-prod01) — 17–20 done (all attempt 1/3); ticket 21 (live Dokploy web) awaiting user go-ahead + SSH auth to plugu-prod01
+cycle 6 (mvp, hosting) — tickets 17–22 all done; awaiting final diff review (approval 2/2). Cycle 7 (multi-tenant, tickets 23–29) planned by another session, not started.
 
 ## Next
-21 live: commit → gh repo create → provision DB (SSH tunnel; shared PG has no external port, superuser `shared`, container `pg-shared-nyfajl`, postgres 18) → `plic db init` → scripts/seed_open.sh → Dokploy project/app/domain/env/deploy → webhook secret → 22 cli app + schedule → final diff review (approval 2/2)
+user reviews cycle 6 diff → then cycle 7 `/forge:run` (worktree required per its PRODUCT.md)
 
 ## Decisions
-- execution: sequential in place (user choice, cycle 6)
-- two Dokploy apps in project `plataforma-licitante`: `web` (domain, Dockerfile web/) + `cli` (no domain, Dockerfile.cli, `sleep infinity`); schedule type `application` execs `plic sync incremental` 3×/day 06/13/20 America/Sao_Paulo
-- shared-infra Postgres (postgresId saIpnX_itd9MEJd5zSFWN); provision via vps-infra provision-db.sh; seed only open/future rows via scripts/seed_open.sh (explicit column list for licitacao — `portal` is GENERATED) through SSH tunnel
-- no local psql: use `PSQL="docker compose exec -T db psql"` / `docker run postgres:18` for seed + provisioning
-- GitHub: alexazevedo/plataforma-licitante (private, to create in 21); Dokploy githubId PSIlIbDgqneh8skKGdnix; deploy.yml from vps-infra template + web/** paths filter
+- LIVE: https://plataforma-licitante.site.plugu.solutions — Dokploy project `plataforma-licitante` (projectId 6zlcPIz8zvmdi25gGoqlo, env GM50KTsFbvV5xrm-SFipE); app `web` k62Z-MLD6O005blue5dnc (web/Dockerfile, ctx web, watch web/**); app `cli` 1GYp7T_4WU3zT0dcs01mz (Dockerfile.cli, idle `sleep infinity`, watch src/** migrations/** pyproject uv.lock Dockerfile.cli)
+- schedule `sync-incremental` M_rVXMwieHeg-KQVaJtck on cli app: `0 6,13,20 * * *` America/Sao_Paulo → `plic sync incremental --max-detalhes 2000`; first manual run OK (rows 22864→23264, watermarks advanced)
+- DB: shared-infra pg18, role `plataforma-licitante_app`, db `plataforma-licitante_db`, host `pg-shared-nyfajl:5432` (no external port). Seeded 2026-08-22 with open/future only. Creds live only in Dokploy app env (both apps). Access from laptop: ssh plugu-prod01 (Tailscale SSH check-mode auth in browser; user in docker group) + socat bridge `docker run --network dokploy-network -p 127.0.0.1:15432:5432 alpine/socat TCP-LISTEN:5432,fork TCP:pg-shared-nyfajl:5432` + `ssh -L 15432:127.0.0.1:15432`
+- GitHub: git@github.com:alexazevedo/plataforma-licitante (private); origin uses SSH (gh token lacks `workflow` scope for HTTPS push). Secret DOKPLOY_DEPLOY_WEBHOOK set; Actions `Deploy` green on web/** pushes; Dokploy GitHub App (dokploy-plugu-prod01) also auto-deploys both apps on push
+- execution: sequential in place (cycle 6)
 - site public, no auth; agents not deployed (no OpenAI key on VPS)
-- cycle 4 work still uncommitted (agents, migration 006, tickets 13–15) — must be committed before repo push in ticket 21; cycle 5 committed dc54185
-- PRODUCT.md on disk replaced by cycle-7 spec (multi-tenant) mid-run by another session; cycle 6 implementers get scratchpad `PRODUCT.cycle6.md`. Backups cycle 4/5/6 in scratchpad
+- no local psql: use `PSQL="docker compose exec -T db psql"` with seed_open.sh
+- PRODUCT.md on disk = cycle 7 spec; cycle 6 spec kept in session scratchpad only
 - probe pkill `next-server` kills dev server — restart after runs
 
 ## Blockers
-- `ssh plugu-prod01` hangs non-interactively (no ~/.ssh/config entry; Tailscale SSH?) — user must auth once in-session
+- none
