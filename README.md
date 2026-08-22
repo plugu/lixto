@@ -77,6 +77,14 @@ npm run dev
 
 Opens at `http://localhost:3000`. It reads `PLIC_DATABASE_URL` (defaults to `postgresql://plic:plic@localhost:5433/plic`, matching the Docker Compose DB above).
 
+## Multi-Tenant (Cycle 7)
+
+The dashboard now supports multi-tenant company profiles. See [`docs/TENANT.md`](docs/TENANT.md) for the full architecture.
+
+**Key environment variables:**
+- `PLIC_DATABASE_URL` — PostgreSQL connection (default: `postgresql://plic:plic@localhost:5433/plic`).
+- `UPLOADS_DIR` — Document storage path (default: `./uploads`; production: `/app/uploads` volume).
+
 ## CLI Commands
 
 ### Database

@@ -47,6 +47,15 @@ flat, light, calm. Desktop-first. Tokens live in `web/app/globals.css` `@theme`.
   (`max-w-56`) — option text can be long.
 - Empty state: `min-h-[40vh] border border-dashed rounded-lg` centered muted text.
 
+## Formulários
+
+- **Label:** `text-xs font-medium text-muted-foreground`.
+- **Input controls:** `rounded-lg border-border bg-card shadow-subtle
+  focus-visible:ring-2 focus-visible:ring-accent/40`.
+- **Form card spacing:** `space-y-6` between field groups.
+- **Inline error:** `text-sm text-unclear`.
+- **Inline success:** `text-sm text-met`.
+
 ## pt-BR conventions
 
 - All UI strings pt-BR. Dates `dd/mm/aaaa` (+ `HH:mm` when relevant); currency
