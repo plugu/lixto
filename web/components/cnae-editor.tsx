@@ -2,19 +2,22 @@
 
 // Controlled list editor for empresa_cnae rows (ticket 26). Serializes into a
 // single hidden `cnaes` input (JSON) so the server action gets one field —
-// the form itself has no native multi-row input support.
+// the form itself has no native multi-row input support. Restyled on the
+// cycle 8 kit (ticket 36) as a hairline list with a `Badge` marking the
+// principal row; the serialized `cnaes` field shape is unchanged.
 
 import { useState } from "react";
 import { onlyDigits } from "@/lib/br-validators";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Plus, X } from "@/components/ui/icons";
 
 export type CnaeRow = {
   codigo: string;
   descricao: string;
   principal: boolean;
 };
-
-const INPUT_CLASS =
-  "w-full rounded-lg border border-border bg-card px-3 py-2 text-sm shadow-subtle outline-none focus-visible:ring-2 focus-visible:ring-accent/40 disabled:opacity-60 disabled:cursor-not-allowed";
 
 /** Masks digits as `0000-0/00` (7-digit CNAE code) as the user types. */
 function maskCodigo(value: string): string {
@@ -55,48 +58,48 @@ export function CnaeEditor({
       <input type="hidden" name="cnaes" value={JSON.stringify(rows)} />
 
       {rows.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Nenhum CNAE cadastrado.</p>
+        <p className="text-sm text-ink-muted">Nenhum CNAE cadastrado.</p>
       ) : (
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col divide-y divide-line border-t border-b border-line">
           {rows.map((row, index) => (
-            <div
-              key={index}
-              className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card p-3 shadow-subtle"
-            >
-              <input
+            <div key={index} className="flex flex-wrap items-center gap-3 py-3">
+              <Input
                 type="text"
                 value={maskCodigo(row.codigo)}
                 onChange={(e) => updateRow(index, { codigo: onlyDigits(e.target.value) })}
                 placeholder="0000-0/00"
                 disabled={readOnly}
-                className={`${INPUT_CLASS} max-w-32`}
+                className="max-w-32"
               />
-              <input
+              <Input
                 type="text"
                 value={row.descricao}
                 onChange={(e) => updateRow(index, { descricao: e.target.value })}
                 placeholder="Descrição"
                 disabled={readOnly}
-                className={`${INPUT_CLASS} min-w-0 flex-1`}
+                className="min-w-0 flex-1"
               />
-              <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <input
-                  type="radio"
-                  name="cnae-principal"
-                  checked={row.principal}
-                  onChange={() => setPrincipal(index)}
-                  disabled={readOnly}
-                />
-                Principal
-              </label>
-              {!readOnly ? (
+              {row.principal ? (
+                <Badge tone="accent">Principal</Badge>
+              ) : !readOnly ? (
                 <button
                   type="button"
-                  onClick={() => removeRow(index)}
-                  className="text-xs font-medium text-unclear hover:underline"
+                  onClick={() => setPrincipal(index)}
+                  className="shrink-0 text-xs font-medium text-ink-muted hover:text-ink"
                 >
-                  Remover
+                  Tornar principal
                 </button>
+              ) : null}
+              {!readOnly ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => removeRow(index)}
+                  aria-label="Remover CNAE"
+                >
+                  <X size={16} />
+                </Button>
               ) : null}
             </div>
           ))}
@@ -104,13 +107,10 @@ export function CnaeEditor({
       )}
 
       {!readOnly ? (
-        <button
-          type="button"
-          onClick={addRow}
-          className="self-start rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium shadow-subtle hover:bg-muted/30"
-        >
+        <Button type="button" variant="secondary" size="sm" onClick={addRow} className="self-start">
+          <Plus size={14} />
           Adicionar CNAE
-        </button>
+        </Button>
       ) : null}
     </div>
   );
