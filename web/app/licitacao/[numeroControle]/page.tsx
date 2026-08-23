@@ -1,9 +1,10 @@
-import Link from "next/link";
 import { AnalisePanel } from "@/components/analise-panel";
 import { DocumentosList } from "@/components/documentos-list";
 import { FitBadge } from "@/components/fit-badge";
 import { ItensTable } from "@/components/itens-table";
 import { StatusBadge } from "@/components/status-badge";
+import { LinkButton } from "@/components/ui/button";
+import { Section } from "@/components/ui/section";
 import { fetchAnalise } from "@/lib/analise-queries";
 import {
   fetchDocumentos,
@@ -40,9 +41,9 @@ export default async function LicitacaoDetailPage(
 
   if (!detail) {
     return (
-      <div className="flex flex-col gap-6">
+      <div className="page-wide flex flex-col gap-6">
         <BackLink />
-        <p className="py-16 text-center text-muted-foreground">
+        <p className="py-16 text-center text-sm text-ink-muted">
           Licitação não encontrada.
         </p>
       </div>
@@ -65,13 +66,21 @@ export default async function LicitacaoDetailPage(
   const orgaoUnidade = [detail.orgao_razao_social, detail.unidade_nome]
     .filter(Boolean)
     .join(" · ");
+  const metaLine = [orgaoUnidade, localizacao, detail.modalidade_nome]
+    .filter(Boolean)
+    .join(" · ");
   const pncpUrl = buildPncpUrl(detail);
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="page-wide flex flex-col gap-8">
       <BackLink />
 
-      <header className="flex flex-col gap-2">
+      <header className="flex flex-col gap-3">
+        <h1 className="font-display text-2xl leading-snug text-ink">
+          {detail.objeto_compra || "—"}
+        </h1>
+        <p className="text-sm text-ink-muted">{metaLine || "—"}</p>
+
         <div className="flex flex-wrap items-center gap-2">
           <StatusBadge status={status} />
           <FitBadge
@@ -79,122 +88,86 @@ export default async function LicitacaoDetailPage(
             score={analise?.fit_score}
           />
         </div>
-        <h1 className="font-display text-2xl font-bold leading-snug tracking-tight text-foreground">
-          {detail.objeto_compra || "—"}
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          {orgaoUnidade || "—"}
-          {localizacao ? ` · ${localizacao}` : ""}
-        </p>
-      </header>
 
-      <section>
-        <h2 className="mb-3 text-sm font-semibold text-foreground">
-          Dados da licitação
-        </h2>
-        <dl className="grid grid-cols-1 gap-x-8 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
-          <Field label="Modalidade" value={detail.modalidade_nome} />
-          <Field label="Modo de disputa" value={detail.modo_disputa_nome} />
-          <Field label="Situação PNCP" value={detail.situacao_compra_nome} />
-          <Field label="Amparo legal" value={detail.amparo_legal_nome} />
-          <Field label="Processo" value={detail.processo} />
-          <Field
-            label="SRP"
-            value={detail.srp === null ? null : detail.srp ? "Sim" : "Não"}
-          />
-          <Field
+        <dl className="mt-2 grid grid-cols-2 gap-x-8 gap-y-3 sm:grid-cols-4">
+          <Fact
             label="Valor estimado"
             value={formatCurrencyBRL(detail.valor_total_estimado)}
           />
-          <Field
-            label="Valor homologado"
-            value={formatCurrencyBRL(detail.valor_total_homologado)}
-          />
-          <Field
-            label="Publicação"
-            value={formatDateBR(detail.data_publicacao_pncp, true)}
-          />
-          <Field
+          <Fact
             label="Abertura"
             value={formatDateBR(detail.data_abertura_proposta, true)}
           />
-          <Field
+          <Fact
             label="Encerramento"
             value={formatDateBR(detail.data_encerramento_proposta, true)}
           />
+          <Fact label="Nº controle" value={detail.numero_controle_pncp} />
         </dl>
 
-        <div className="mt-4 flex flex-wrap gap-4">
-          {detail.link_sistema_origem && (
-            <a
-              href={detail.link_sistema_origem}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm text-accent hover:underline"
-            >
-              Abrir no sistema de origem
-            </a>
-          )}
-          {pncpUrl && (
-            <a
-              href={pncpUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm text-accent hover:underline"
-            >
-              Ver no PNCP
-            </a>
-          )}
+        {(detail.link_sistema_origem || pncpUrl) && (
+          <div className="flex flex-wrap gap-4 pt-1">
+            {detail.link_sistema_origem && (
+              <a
+                href={detail.link_sistema_origem}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-accent hover:underline"
+              >
+                Abrir no sistema de origem
+              </a>
+            )}
+            {pncpUrl && (
+              <a
+                href={pncpUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-accent hover:underline"
+              >
+                Ver no PNCP
+              </a>
+            )}
+          </div>
+        )}
+      </header>
+
+      <div className="grid gap-10 lg:grid-cols-[1fr_22rem]">
+        <div className="flex flex-col gap-10">
+          <Section title="Itens">
+            <ItensTable itens={itens} />
+          </Section>
+
+          <Section title="Documentos">
+            <DocumentosList documentos={documentos} />
+          </Section>
         </div>
-      </section>
 
-      <AnalisePanel analise={analise} />
-
-      {detail.informacao_complementar && (
-        <section>
-          <h2 className="mb-2 text-sm font-semibold text-foreground">
-            Informação complementar
-          </h2>
-          <p className="whitespace-pre-wrap text-sm text-foreground">
-            {detail.informacao_complementar}
-          </p>
-        </section>
-      )}
-
-      <section>
-        <h2 className="mb-3 text-sm font-semibold text-foreground">Itens</h2>
-        <ItensTable itens={itens} />
-      </section>
-
-      <section>
-        <h2 className="mb-3 text-sm font-semibold text-foreground">
-          Documentos
-        </h2>
-        <DocumentosList documentos={documentos} />
-      </section>
+        <div className="lg:sticky lg:top-8 lg:self-start">
+          <AnalisePanel analise={analise} />
+        </div>
+      </div>
     </div>
   );
 }
 
 function BackLink() {
   return (
-    <Link href="/licitacoes" className="text-sm text-accent hover:underline">
-      ← Voltar
-    </Link>
+    <LinkButton
+      href="/licitacoes"
+      variant="ghost"
+      size="sm"
+      className="self-start"
+    >
+      ← Licitações
+    </LinkButton>
   );
 }
 
-function Field({
-  label,
-  value,
-}: {
-  label: string;
-  value: string | null | undefined;
-}) {
+function Fact({ label, value }: { label: string; value: string }) {
   return (
-    <div>
-      <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="text-sm text-foreground">{value || "—"}</dd>
+    <div className="flex flex-col gap-0.5">
+      <dt className="text-xs text-ink-muted">{label}</dt>
+      <dd className="text-sm font-medium tabular-nums text-ink">{value}</dd>
     </div>
   );
 }
