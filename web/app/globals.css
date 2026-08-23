@@ -1,34 +1,56 @@
 @import "tailwindcss";
 
-/* Design tokens ported from the resume-copilot admin (frontend/src/index.css):
-   cool off-white canvas, deep navy ink, hairline borders, 0.7rem radius,
-   semantic verdict colors reused for licitação status. */
+/* Design tokens — cycle 8 "calm canvas, dense data" (docs/design/cycle8-direction.md).
+   Perplexity-style warm canvas + Attio-style dense chrome. Light only. */
 @theme {
-  --color-background: hsl(220 20% 97%);
-  --color-foreground: hsl(216 55% 14%);
-  --color-card: hsl(0 0% 100%);
-  --color-muted: hsl(220 16% 94%);
-  --color-muted-foreground: hsl(217 12% 45%);
-  --color-border: hsl(220 14% 89%);
-  --color-primary: hsl(216 88% 10%);
-  --color-primary-foreground: hsl(0 0% 100%);
-  --color-accent: hsl(224 70% 46%);
-  --color-met: hsl(152 58% 38%);
-  --color-partial: hsl(36 95% 46%);
-  --color-unclear: hsl(220 11% 56%);
+  --color-canvas: #faf9f6;
+  --color-surface: #ffffff;
+  --color-surface-raised: #f3f1ec;
+  --color-ink: #1c1b18;
+  --color-ink-muted: #6b6a64;
+  --color-ink-faint: #a3a19a;
+  --color-line: #e8e6e0;
+  --color-accent: #2f6bb3;
+  --color-accent-soft: #e7eff9;
+  --color-ok: #2e8b57;
+  --color-ok-soft: #e6f4ec;
+  --color-warn: #c8811a;
+  --color-warn-soft: #fbf0df;
+  --color-off: #8a8884;
+  --color-off-soft: #efeeea;
+  --color-danger: #b4413c;
 
-  --radius-lg: 0.7rem;
-  --radius-md: 0.5rem;
-  --radius-sm: 0.3rem;
+  /* Legacy aliases — kept until every page migrates (tickets 32-36). */
+  --color-background: var(--color-canvas);
+  --color-card: var(--color-surface);
+  --color-muted: var(--color-surface-raised);
+  --color-muted-foreground: var(--color-ink-muted);
+  --color-border: var(--color-line);
+  --color-foreground: var(--color-ink);
+  --color-primary: var(--color-ink);
+  --color-primary-foreground: var(--color-surface);
+  --color-met: var(--color-ok);
+  --color-partial: var(--color-warn);
+  --color-unclear: var(--color-off);
 
-  --font-sans: var(--font-hanken), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-bricolage), var(--font-hanken), ui-sans-serif, sans-serif;
+  --radius-pill: 9999px;
+  --radius-lg: 10px;
+  --radius-md: 6px;
+  --radius-sm: 6px;
 
-  --shadow-subtle: 0 1px 2px 0 hsl(220 30% 20% / 0.06);
-  --shadow-card: 0 2px 8px 0 hsl(220 30% 20% / 0.08);
+  --font-sans: var(--font-sans-var), system-ui, sans-serif;
+  --font-display: var(--font-serif), Georgia, serif;
+
+  --shadow-subtle: 0 1px 2px 0 rgba(28, 27, 24, 0.06);
+  --shadow-card: 0 1px 2px rgba(28, 27, 24, 0.06), 0 0 0 1px var(--color-line);
+  --shadow-popover: 0 8px 24px rgba(28, 27, 24, 0.1);
 }
 
 html,
 body {
   min-height: 100%;
+}
+
+body {
+  font-variant-numeric: tabular-nums;
 }

@@ -1,17 +1,20 @@
 import type { Metadata } from "next";
-import { Bricolage_Grotesque, Hanken_Grotesk } from "next/font/google";
+import { Instrument_Sans, Instrument_Serif } from "next/font/google";
 import "./globals.css";
 import { Sidebar } from "@/components/sidebar";
+import { TopBar } from "@/components/ui/top-bar";
 import { getSession } from "@/lib/auth";
 
-const hanken = Hanken_Grotesk({
+const instrumentSans = Instrument_Sans({
   subsets: ["latin"],
-  variable: "--font-hanken",
+  variable: "--font-sans-var",
 });
 
-const bricolage = Bricolage_Grotesque({
+const instrumentSerif = Instrument_Serif({
   subsets: ["latin"],
-  variable: "--font-bricolage",
+  weight: "400",
+  style: ["normal", "italic"],
+  variable: "--font-serif",
 });
 
 export const metadata: Metadata = {
@@ -24,21 +27,22 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   // the bare card. Cookie -> DB lookup happens once here, per request.
   const session = await getSession();
 
+  const sidebarSession = session
+    ? {
+        nome: session.usuario.nome,
+        empresa: session.empresa.nomeFantasia ?? session.empresa.razaoSocial,
+        role: session.usuario.role,
+      }
+    : null;
+
   return (
-    <html lang="pt-BR" className={`h-full ${hanken.variable} ${bricolage.variable}`}>
-      <body className="flex h-full min-h-screen bg-background font-sans text-sm text-foreground antialiased">
-        <Sidebar
-          session={
-            session
-              ? {
-                  nome: session.usuario.nome,
-                  empresa:
-                    session.empresa.nomeFantasia ?? session.empresa.razaoSocial,
-                  role: session.usuario.role,
-                }
-              : null
-          }
-        />
+    <html
+      lang="pt-BR"
+      className={`h-full ${instrumentSans.variable} ${instrumentSerif.variable}`}
+    >
+      <body className="flex h-full min-h-screen flex-col bg-canvas font-sans text-sm text-ink antialiased md:flex-row">
+        <TopBar session={sidebarSession} />
+        <Sidebar session={sidebarSession} />
         <main className="relative z-[1] min-w-0 flex-1 overflow-y-auto">
           <div className="mx-auto max-w-5xl px-8 py-10 has-[.page-wide]:max-w-screen-2xl">
             {children}
