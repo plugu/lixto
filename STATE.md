@@ -1,19 +1,19 @@
 # STATE — rewrite after every ticket completes; never append. ≤30 lines total.
 
 ## Now
-cycle 7 (mvp, multi-tenant) — tickets 23–29 all done, all attempts 1/3 except 24 (2/3). Branch `cycle7-tenant` in worktree `../plataforma-licitante-cycle7`, main (72b46ed) merged in. Integrated checks: tsc ok, vitest 312/312, build ok, Docker image builds.
+cycle 8 (mvp, redesign) — 30 done (design approved v2); ticket 31 doing (tokens + ui kit + chrome), attempt 1/3, sonnet. Branch `cycle8-redesign`, worktree `../plataforma-licitante-cycle8`.
 
 ## Next
-mvp final diff review with user (approval 2/2) → merge `cycle7-tenant` into main → apply `007_tenant.sql` on VPS (`uv run plic db init`) + mount `/app/uploads` volume in Dokploy per docs/TENANT.md → remove worktree
+31 → 32–36 parallel in sub-worktrees (3 concurrent) → 37 polish → merge to main → deploy → final diff review (approval 2/2)
 
 ## Decisions
-- execution: hybrid — 23→24 sequential; 25–28 parallel in sub-worktrees (cleaned up); 29 sequential
-- no new npm deps: Node crypto scrypt + DB `sessao` table; cookie `plic_session`; `proxy.ts` checks cookie presence only, pages call `requireSession()`
-- empresa_id always from session, never from request; `tenant-isolation.test.ts` sweeps every builder
-- invites = on-screen link, no email; BrasilAPI via server action with custom User-Agent (default Node UA → 403)
-- env: migrate = `uv run plic db init`; psql via `docker exec plataforma-licitante-db-1`; `npx next typegen` before tsc after route changes; never symlink node_modules across worktrees (Turbopack rejects)
-- `npm run lint` red on pre-existing multi-select.tsx / db.ts errors — not fixed this cycle
-- cycle 6 hosting (tickets 17–22): 20 landed on main from another session; 21–22 status per ticket files
+- execution: hybrid — 30, 31 sequential in cycle worktree; 32–36 parallel sub-worktrees (cap 3); 37 sequential
+- design: docs/design/cycle8-direction.md + canvas https://claude.ai/code/artifact/2d2def4e-ab1f-4066-b7d2-4f63331b183a ; fonts Instrument Serif (display) + Instrument Sans (body); tokens canvas/surface/raised/ink/line/accent/ok/warn/off
+- home hero = agent composer UI submitting plain `/licitacoes?q=`; NL→DB agent deferred to cycle 9 (user chose A)
+- URL/filter contract frozen; lib/ untouched; 312 tests must stay green
+- legacy token names aliased until every page migrates (ticket 31)
+- cycle 6/7 live: https://plataforma-licitante.site.plugu.solutions — deploy on push to main (web/**); migrations manual via tunnel (`plic db init`)
+- probe pkill `next-server` kills dev server — restart after runs
 
 ## Blockers
 - none

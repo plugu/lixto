@@ -1,6 +1,6 @@
 ---
 id: 31
-status: todo
+status: doing
 model: sonnet
 depends_on: [30]
 max_attempts: 3
@@ -29,14 +29,14 @@ New tokens, a small `components/ui` kit, and the Attio-style sidebar/top-bar chr
 ## Context
 Read `docs/design/cycle8-direction.md` first — it is the source of truth for every value below. Current `globals.css` has one `@theme` block (colors background/foreground/card/muted/muted-foreground/border/primary/primary-foreground/accent/met/partial/unclear, radius lg/md/sm, fonts `--font-sans`/`--font-display`, shadows subtle/card). Existing pages reference those token names — **keep every old token name as an alias** of the new palette so untouched pages don't break (e.g. `--color-card: var(--color-surface)`), and add the new names.
 
-`layout.tsx` (server): fonts Hanken (`--font-hanken`) + Bricolage (`--font-bricolage`), `getSession()` → `<Sidebar session>`; main `relative z-[1] min-w-0 flex-1 overflow-y-auto` > `div.mx-auto max-w-5xl px-8 py-10 has-[.page-wide]:max-w-screen-2xl`. Keep `page-wide` mechanism; change the body background to the new canvas token; add `<TopBar>` (mobile only, `md:hidden`) and make sidebar `hidden md:flex`.
+`layout.tsx` (server): currently fonts Hanken (`--font-hanken`) + Bricolage (`--font-bricolage`) — **replace with `Instrument_Serif` (weight "400", style ["normal","italic"], variable `--font-serif`) and `Instrument_Sans` (variable `--font-sans-var`) from `next/font/google`**; in `@theme`: `--font-sans: var(--font-sans-var), system-ui, sans-serif`, `--font-display: var(--font-serif), Georgia, serif`. `getSession()` → `<Sidebar session>`; main `relative z-[1] min-w-0 flex-1 overflow-y-auto` > `div.mx-auto max-w-5xl px-8 py-10 has-[.page-wide]:max-w-screen-2xl`. Keep `page-wide` mechanism; change the body background to the new canvas token; add `<TopBar>` (mobile only, `md:hidden`) and make sidebar `hidden md:flex`.
 
 `sidebar.tsx` (client): NAV `/` Visão geral, `/licitacoes` Licitações; EMPRESA `/empresa` Minha empresa; admin-only `/empresa/usuarios`, `/empresa/documentos`; `isActive()` rule (`/licitacoes` also matches `/licitacao/*`); footer empresa/nome + POST `/logout` "Sair"; returns null without session. Rebuild as Attio-style: 240px, logo row, `CommandSearch` trigger (⌘K pill that opens a dialog with a single input submitting GET `/licitacoes?q=`), nav items icon+label 13px, active = `bg-surface-raised` + accent text (no left bar), add `/painel` "Painel" item under Visão geral, collapsible to 56px icon-only via a button (state in `localStorage` key `plic.sidebar`, guarded try/catch). Footer: avatar initials circle, nome, empresa, Sair as ghost button.
 
 Kit (`components/ui/*.tsx`, all server-safe unless noted; Tailwind classes only, `cn()` helper inline via template strings — no clsx dep):
 - `button.tsx`: `Button({variant: "primary"|"secondary"|"ghost"|"pill", size: "sm"|"md", asChild?: false, ...buttonProps})` and `LinkButton` (same variants, `href`).
 - `input.tsx`: `Input`, `Select`, `Label`, `Field({label, hint?, error?, children})`.
-- `search-box.tsx`: Perplexity-style large input with leading search icon, trailing submit arrow; props `{name, placeholder, defaultValue?, action, size: "hero"|"inline"}` — renders a GET `<form>`.
+- `search-box.tsx`: props `{name, placeholder, defaultValue?, action, size: "hero"|"inline", children?}` — renders a GET `<form>`. `inline`: 34px pill with leading search icon. `hero`: the composer from the approved mockup — white box radius 18px, hairline ring, `<textarea rows={1}>` styled as 17px text (Enter submits, Shift+Enter newline — small client wrapper with `onKeyDown`), bottom row: left slot renders `children` (pages pass mode/scope pills), right: decorative mic ghost icon (`aria-hidden`) + 36px `ink` circle submit button with up-arrow icon.
 - `popover.tsx` (client): `Popover({trigger: ReactNode, children, align?})` using native `<details>`/`<summary>` for no-JS fallback + click-outside close via effect.
 - `badge.tsx`: `Badge({tone: "neutral"|"ok"|"warn"|"off"|"accent", children})` pill; `status-dot.tsx`: `StatusDot({tone, label})` = 8px dot + 13px text.
 - `table.tsx`: `Table`, `THead`, `TH({align?})`, `TBody`, `TR({href?})` (row-as-link via absolute inset `<Link>`), `TD({align?, numeric?})`, `density: "default"|"compact"` prop on `Table`. Sticky header, no outer border, hairline rows using `line` token.
