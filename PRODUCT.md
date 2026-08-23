@@ -5,34 +5,34 @@ parallel_default: sequential
 worktree: required
 ---
 
-# plataforma-licitante — multi-tenant empresa / usuário (cycle 7)
+# plataforma-licitante — redesign "calm canvas, dense data" (cycle 8)
 
 ## What / why
 
-The site is public and single-profile: fit-triage reads one `company_profile.md`. To serve more than one bidder it needs tenants. This cycle adds the two-level model **empresa → usuários**, email+password auth, and a document locker per empresa — modelled exclusively on Brazilian legal/market fields so later cycles can feed agents and habilitação checks from real company data. All work happens in a git worktree off `main`.
+The UI grew route by route (licitações, detalhe, login/signup, empresa, documentos, usuários) on a generic card-and-border look. A full presentation-layer redesign gives it one coherent flat identity, modelled on two references: **Perplexity** (warm off-white canvas, surfaces separated by tone not borders, one centered hero action, pill controls, generous whitespace) for chrome, home and empty states; **Attio** (compact icon+label sidebar with ⌘K search, toolbar row Filtrar · Ordenar · Colunas with count badges, status as colored dot + text, popover panels, neutral grays + one accent, dense rows) for lists, tables, filters and detail. Existing behavior, queries, auth and the 312-test suite stay untouched.
 
 ## Primary user story
 
-As a bidder, I sign up with my CNPJ; the form autofills razão social, natureza jurídica, porte, endereço and CNAEs from BrasilAPI (manual fallback if it fails); I become the empresa's `admin`, invite colleagues by email as `member`, upload our habilitação documents with validity dates, and every page from then on requires login and shows only my empresa's data.
+As an operator, I land on `/` and see a centered search box with quick-filter chips and a small KPI strip; I search or click a chip and arrive at `/licitacoes`, a dense table with a toolbar (filter/sort/columns), status dots and fit badges; row click opens a detail page laid out in the same system; empresa/usuários/documentos/login/signup share the identical chrome and components — everything reads as one product.
 
 ## Scope
 
-- **Empresa:** CNPJ (validated check digits, unique), razão social, nome fantasia, natureza jurídica, porte (`MEI|ME|EPP|MEDIO|GRANDE`), optante Simples flag, inscrição estadual/municipal, endereço (CEP, logradouro, número, complemento, bairro, município, UF), telefone, email. `empresa_cnae` table: código, descrição, `principal` flag.
-- **Usuário:** nome, email (unique, login), senha hash, CPF (optional, validated), telefone, cargo, `role` (`admin|member`), `empresa_id`. Signup creates empresa + first admin atomically. Admin: edit empresa, manage users/docs, invite by email (invite token, set password on accept). Member: read-only.
-- **Documentos:** fixed `tipo` list — contrato social, cartão CNPJ, certidão federal/FGTS/trabalhista/estadual/municipal, balanço patrimonial, atestado capacidade técnica, outros. Fields: arquivo, validade (optional), `vencido` derived. Files on local volume `UPLOADS_DIR`, metadata in Postgres; PDF/JPG/PNG, ≤20 MB; download only by same-empresa users.
-- **Auth:** session cookie, middleware guards all routes except login/signup/invite-accept. Tenant scoping enforced in queries (`empresa_id` from session, never from request).
-- **Migration `007_tenant.sql`;** pages: `/signup`, `/login`, `/empresa` (profile + CNAEs), `/empresa/usuarios`, `/empresa/documentos`.
-- **Tests:** CNPJ/CPF validators, tenant-scoping of queries, role checks, signup transaction.
+- **Design tokens** (`globals.css`, Tailwind v4 `@theme`): warm neutral palette, one accent, status/fit semantic colors, type scale (display + body sans), spacing/radius, focus rings. Document in `docs/WEB_STYLE.md` (rewrite).
+- **Component kit** (`web/components/ui/`): Button (primary/secondary/ghost/pill), Input, SearchBox, Popover, Badge/StatusDot, Table (sticky header, density), Toolbar, Sidebar, TopBar (mobile), EmptyState, Card-less "Section". Inline SVG icon set. No new deps.
+- **Chrome:** Attio-style sidebar (logo, ⌘K search, nav, empresa/user footer), collapsible; mobile → top bar.
+- **Home `/`:** Perplexity-style hero (search + chips: Abertas hoje · Meu setor · Fit alto · Encerrando em 7 dias) + KPI strip; current charts move to `/painel`.
+- **`/licitacoes`:** toolbar with Filtrar/Ordenar/Colunas popovers (counts as badges), existing multi-select filters re-skinned inside; table restyle; fit/status as dot+label; pagination/footer.
+- **`/licitacao/[id]`:** header (objeto, órgão, status, fit), two-column body (itens/documentos · análise panel) in the new system.
+- **Auth + empresa pages:** login/signup/convite centered Perplexity-style forms; empresa/usuários/documentos as Attio-style settings pages with the same table kit.
+- **Process:** first ticket produces token sheet + static mockups of home and `/licitacoes` for approval before touching pages.
 
 ## Out of scope
 
-- Licitações remain a shared feed; no per-empresa favorites or filters.
-- Agents/fit-triage still read `company_profile.md`; wiring to empresa record = next cycle.
-- OAuth, magic link, 2FA, password-reset email flow (reset by admin-only manual path acceptable).
-- S3/R2 storage; virus scanning; document OCR.
-- Billing, plans, super-admin panel across tenants.
-- Deploy changes beyond adding `UPLOADS_DIR` volume + env to existing Dokploy app.
+- Dark mode; new UI/icon libraries (no shadcn); kanban view.
+- Any change to queries, filters semantics, auth, tenant logic, agents, sync.
+- Pixel-designed mobile (must be usable, not designed).
+- New features (favorites, notifications, column persistence per user).
 
 ## Success demo
 
-Done when I can sign up with a real CNPJ and see it autofilled, invite a second user who logs in as member and cannot edit the empresa, upload a certidão with a past validity and see it flagged `vencido`, and confirm a user from a second empresa sees none of the first empresa's users or documents.
+Done when I can walk `/` → search → `/licitacoes` → detail → `/empresa` → `/login` and every screen uses the same tokens and components, the old card/border look is gone, `npm run build` and `vitest` (312) pass, and the site deploys via the existing pipeline.
