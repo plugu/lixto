@@ -1,17 +1,15 @@
+// Thin wrapper over the kit's StatusDot (cycle 8): status reads as a colored
+// dot + text, not a bordered pill. Props are frozen (`{status}`) — the detail
+// page imports this component too.
+import { StatusDot, type StatusDotTone } from "@/components/ui/status-dot";
 import { STATUS_LABELS, type StatusLicitacao } from "@/lib/status";
 
-const STYLES: Record<StatusLicitacao, string> = {
-  aberta: "border-met/30 bg-met/10 text-met",
-  vai_abrir: "border-partial/30 bg-partial/10 text-partial",
-  fechada: "border-unclear/30 bg-unclear/10 text-muted-foreground",
+const TONES: Record<StatusLicitacao, StatusDotTone> = {
+  aberta: "ok",
+  vai_abrir: "warn",
+  fechada: "off",
 };
 
 export function StatusBadge({ status }: { status: StatusLicitacao }) {
-  return (
-    <span
-      className={`inline-flex shrink-0 items-center self-start rounded-full border px-2.5 py-0.5 text-xs font-semibold ${STYLES[status]}`}
-    >
-      {STATUS_LABELS[status]}
-    </span>
-  );
+  return <StatusDot tone={TONES[status]} label={STATUS_LABELS[status]} />;
 }

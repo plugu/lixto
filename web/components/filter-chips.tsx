@@ -1,5 +1,12 @@
 import Link from "next/link";
-import type { CategoriaLicitacao, LicitacaoFilters, ModalidadeOption } from "@/lib/queries";
+import { Badge } from "@/components/ui/badge";
+import { X } from "@/components/ui/icons";
+import type {
+  CategoriaLicitacao,
+  FitFilterValue,
+  LicitacaoFilters,
+  ModalidadeOption,
+} from "@/lib/queries";
 import { STATUS_LABELS } from "@/lib/status";
 
 type RawSearchParams = Record<string, string | string[] | undefined>;
@@ -12,8 +19,12 @@ const CATEGORIA_LABELS: Record<CategoriaLicitacao, string> = {
   mista: "Mista",
 };
 
-const CHIP_CLASS =
-  "inline-flex items-center gap-1.5 rounded-full border border-border bg-muted px-3 py-1 text-xs font-medium text-foreground transition-colors hover:bg-muted/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/40";
+const FIT_LABELS: Record<FitFilterValue, string> = {
+  fit: "Fit",
+  borderline: "Borderline",
+  no_fit: "No fit",
+  sem_analise: "Sem análise",
+};
 
 function formatValor(value: number): string {
   return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 }).format(value);
@@ -119,6 +130,14 @@ export function FilterChips({
     });
   });
 
+  filters.fit?.forEach((value) => {
+    chips.push({
+      key: `fit-${value}`,
+      label: FIT_LABELS[value],
+      href: buildHref(withoutValue(params, "fit", value)),
+    });
+  });
+
   if (filters.categoria) {
     chips.push({
       key: "categoria",
@@ -148,14 +167,21 @@ export function FilterChips({
   return (
     <div className="flex flex-wrap items-center gap-2">
       {chips.map((chip) => (
-        <Link key={chip.key} href={chip.href} className={CHIP_CLASS}>
-          {chip.label}
-          <span aria-hidden="true">×</span>
+        <Link
+          key={chip.key}
+          href={chip.href}
+          title={`Remover ${chip.label}`}
+          className="rounded-[9999px] transition-opacity hover:opacity-70 focus:outline-none focus-visible:ring-[3px] focus-visible:ring-accent-soft"
+        >
+          <Badge tone="neutral">
+            {chip.label}
+            <X size={12} />
+          </Badge>
         </Link>
       ))}
       <Link
         href="/licitacoes"
-        className="text-xs font-medium text-accent hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+        className="text-[13px] font-medium text-ink-muted hover:text-ink focus:outline-none focus-visible:ring-[3px] focus-visible:ring-accent-soft"
       >
         Limpar tudo
       </Link>
