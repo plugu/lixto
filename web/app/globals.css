@@ -21,8 +21,8 @@
   --radius-md: 0.5rem;
   --radius-sm: 0.3rem;
 
-  --font-sans: var(--font-hanken), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-bricolage), var(--font-hanken), ui-sans-serif, sans-serif;
+  --font-sans: ui-sans-serif, system-ui, sans-serif;
+  --font-display: ui-sans-serif, system-ui, sans-serif;
 
   --shadow-subtle: 0 1px 2px 0 hsl(220 30% 20% / 0.06);
   --shadow-card: 0 2px 8px 0 hsl(220 30% 20% / 0.08);

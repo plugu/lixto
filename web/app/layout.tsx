@@ -1,18 +1,7 @@
 import type { Metadata } from "next";
-import { Bricolage_Grotesque, Hanken_Grotesk } from "next/font/google";
 import "./globals.css";
 import { Sidebar } from "@/components/sidebar";
 import { getSession } from "@/lib/auth";
-
-const hanken = Hanken_Grotesk({
-  subsets: ["latin"],
-  variable: "--font-hanken",
-});
-
-const bricolage = Bricolage_Grotesque({
-  subsets: ["latin"],
-  variable: "--font-bricolage",
-});
 
 export const metadata: Metadata = {
   title: "Plataforma Licitante",
@@ -25,7 +14,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   const session = await getSession();
 
   return (
-    <html lang="pt-BR" className={`h-full ${hanken.variable} ${bricolage.variable}`}>
+    <html lang="pt-BR" className="h-full">
       <body className="flex h-full min-h-screen bg-background font-sans text-sm text-foreground antialiased">
         <Sidebar
           session={

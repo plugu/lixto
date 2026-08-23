@@ -48,8 +48,8 @@
     "hash": "091e8a6ed94a04e7e9b441738c48acfc"
   },
   "/Users/aazevedo/dev/plataforma-licitante/web/app/layout.tsx": {
-    "mtime": 1787419341.583335,
-    "hash": "2e642b4651b5422d8a77a43eb42c9cfb"
+    "mtime": 1787526572.9329114,
+    "hash": "f2556ca920ac293696728ca8039bdcf6"
   },
   "/Users/aazevedo/dev/plataforma-licitante/web/app/page.tsx": {
     "mtime": 1786116125.1810195,
@@ -416,12 +416,12 @@
     "hash": "55b5673aab5565a244f1658781134880"
   },
   "/Users/aazevedo/dev/plataforma-licitante/PRODUCT.md": {
-    "mtime": 1787367017.9042003,
-    "hash": "3dd7b72bb073b401b5dcb3c7796e6aec"
+    "mtime": 1787525998.6967702,
+    "hash": "5f4ecbf79c5ae1e80512fd5fa13a922f"
   },
   "/Users/aazevedo/dev/plataforma-licitante/STATE.md": {
-    "mtime": 1787419346.0951009,
-    "hash": "9ad9d6eae12e6fe82712573d614b1fb5"
+    "mtime": 1787526618.2415986,
+    "hash": "4b0386a21c24cbc27f0d01b653043073"
   },
   "/Users/aazevedo/dev/plataforma-licitante/README.md": {
     "mtime": 1787419341.5661032,
@@ -439,6 +439,10 @@
     "mtime": 1787417093.6341133,
     "hash": "a6d2f5927b403617b1605dc40948b4a8"
   },
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/37-polish-deploy.md": {
+    "mtime": 1787505066.6283488,
+    "hash": "0c996a8ec29ba2772e027ad65aaf656e"
+  },
   "/Users/aazevedo/dev/plataforma-licitante/tickets/11-query-layer-v2.md": {
     "mtime": 1786130709.9557734,
     "hash": "f323b97bb210a4acd16396bea4d9e63e"
@@ -450,6 +454,10 @@
   "/Users/aazevedo/dev/plataforma-licitante/tickets/15-analise-web-ui.md": {
     "mtime": 1786454806.2221303,
     "hash": "e54551a883f1393e774d8c5c73ce33e2"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/36-empresa-settings-pages.md": {
+    "mtime": 1787505056.7496288,
+    "hash": "6f5a057174b0f2b7a9bc761a0d6a4d89"
   },
   "/Users/aazevedo/dev/plataforma-licitante/tickets/14-edital-deep-analysis.md": {
     "mtime": 1786454322.7776916,
@@ -479,9 +487,21 @@
     "mtime": 1787419341.5781808,
     "hash": "b4dbe3f6beb3853ca1d84c472fb15805"
   },
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/35-auth-pages.md": {
+    "mtime": 1787505043.9914086,
+    "hash": "107f1c027448a0b7dd86ed2c59db2eba"
+  },
   "/Users/aazevedo/dev/plataforma-licitante/tickets/27-usuarios-convites.md": {
     "mtime": 1787419341.576444,
     "hash": "d9ec3d65f521d65938595301bc718e32"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/33-licitacoes-toolbar-table.md": {
+    "mtime": 1787505021.3925567,
+    "hash": "9ce418c1a7205a7688e70584781fda6d"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/32-home-hero-painel.md": {
+    "mtime": 1787505002.2920547,
+    "hash": "36cfd0b2417b68cb25c9a797973ebb31"
   },
   "/Users/aazevedo/dev/plataforma-licitante/tickets/29-tenant-isolation-deploy.md": {
     "mtime": 1787419341.578473,
@@ -503,6 +523,14 @@
     "mtime": 1787365928.940936,
     "hash": "39cd53910be0022e25387138d8f4eb14"
   },
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/30-design-direction.md": {
+    "mtime": 1787504955.025104,
+    "hash": "98497829579d871af3ef0dffd3a05613"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/38-revert-system-fonts.md": {
+    "mtime": 1787526614.0075083,
+    "hash": "b7658574150939985160cfca5d53eb77"
+  },
   "/Users/aazevedo/dev/plataforma-licitante/tickets/23-tenant-schema-validators.md": {
     "mtime": 1787419341.5749602,
     "hash": "7a56ba4f24da3b13ad403b84de6ac116"
@@ -514,6 +542,10 @@
   "/Users/aazevedo/dev/plataforma-licitante/tickets/17-web-dockerfile.md": {
     "mtime": 1787367123.1364994,
     "hash": "5d5e61d6ea98e94f700a3ce9e2eadb19"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/34-detail-page.md": {
+    "mtime": 1787505034.12045,
+    "hash": "d9ea9806aa029cfc83a289092c44a659"
   },
   "/Users/aazevedo/dev/plataforma-licitante/web/README.md": {
     "mtime": 1786072360.2632458,
