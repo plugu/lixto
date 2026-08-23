@@ -10,4 +10,6 @@ RUN uv sync --frozen --no-dev
 RUN useradd --create-home --shell /usr/sbin/nologin appuser && chown -R appuser:appuser /app
 USER appuser
 ENV PATH="/app/.venv/bin:$PATH"
-CMD ["sleep", "infinity"]
+# Apply pending SQL migrations on every deploy (idempotent), then idle so
+# Dokploy schedules can exec `plic sync` inside this container.
+CMD ["sh", "-c", "plic db init && exec sleep infinity"]
