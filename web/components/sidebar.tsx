@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ComponentType } from "react";
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { Button } from "@/components/ui/button";
 import { CommandSearch } from "@/components/ui/command-search";
 import {
@@ -24,6 +24,47 @@ export type SidebarSession = {
 };
 
 const STORAGE_KEY = "plic.sidebar";
+
+// Collapsed state lives in a module-level store read through
+// useSyncExternalStore (server snapshot = expanded) so we avoid a
+// setState-in-effect hydration dance while still surviving reloads.
+let collapsedStore: boolean | null = null;
+const collapsedListeners = new Set<() => void>();
+
+function readCollapsed(): boolean {
+  try {
+    return window.localStorage.getItem(STORAGE_KEY) === "collapsed";
+  } catch {
+    // localStorage unavailable (private mode, disabled) — default expanded.
+    return false;
+  }
+}
+
+function getCollapsedSnapshot(): boolean {
+  if (collapsedStore === null) collapsedStore = readCollapsed();
+  return collapsedStore;
+}
+
+function getCollapsedServerSnapshot(): boolean {
+  return false;
+}
+
+function subscribeCollapsed(listener: () => void): () => void {
+  collapsedListeners.add(listener);
+  return () => {
+    collapsedListeners.delete(listener);
+  };
+}
+
+function setCollapsedStore(next: boolean) {
+  collapsedStore = next;
+  try {
+    window.localStorage.setItem(STORAGE_KEY, next ? "collapsed" : "expanded");
+  } catch {
+    // ignore
+  }
+  for (const listener of collapsedListeners) listener();
+}
 
 export const NAV_ITEMS = [
   { href: "/", label: "Visão geral", icon: Home },
@@ -87,27 +128,14 @@ function NavLink({
 }
 
 export function Sidebar({ session }: { session: SidebarSession | null }) {
-  const [collapsed, setCollapsed] = useState(false);
-
-  useEffect(() => {
-    try {
-      const stored = window.localStorage.getItem(STORAGE_KEY);
-      if (stored === "collapsed") setCollapsed(true);
-    } catch {
-      // localStorage unavailable (private mode, disabled) — default expanded.
-    }
-  }, []);
+  const collapsed = useSyncExternalStore(
+    subscribeCollapsed,
+    getCollapsedSnapshot,
+    getCollapsedServerSnapshot,
+  );
 
   function toggle() {
-    setCollapsed((prev) => {
-      const next = !prev;
-      try {
-        window.localStorage.setItem(STORAGE_KEY, next ? "collapsed" : "expanded");
-      } catch {
-        // ignore
-      }
-      return next;
-    });
+    setCollapsedStore(!collapsed);
   }
 
   // Logged out (e.g. /login, /signup): no chrome at all.

@@ -5,7 +5,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { LinkButton } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Search } from "@/components/ui/icons";
-import { TBody, THead, TR, Table, TH } from "@/components/ui/table";
+import { TBody, THead, TR, Table } from "@/components/ui/table";
 import { formatCurrencyBRL, formatDateBR } from "@/lib/format";
 import {
   fetchFacetCounts,
@@ -82,10 +82,7 @@ export default async function Home({ searchParams }: PageProps<"/licitacoes">) {
       ) : (
         <div className="overflow-x-auto">
           <Table density="default" className="min-w-[960px]">
-            <THead>
-              {/* Matches the zero-width cell `TR href` prepends for the
-                  whole-row link, keeping header and body columns aligned. */}
-              <TH aria-hidden="true" style={{ width: 0, padding: 0 }} />
+            <THead rowLinks>
               <ColTH className="min-w-[24rem] max-w-[40rem]">Objeto</ColTH>
               <ColTH col="modalidade">Modalidade</ColTH>
               <ColTH col="status">Status</ColTH>

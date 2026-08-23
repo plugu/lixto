@@ -37,10 +37,21 @@ export function Table({
   );
 }
 
-export function THead({ children }: { children: ReactNode }) {
+export function THead({
+  rowLinks,
+  children,
+}: {
+  rowLinks?: boolean;
+  children: ReactNode;
+}) {
   return (
     <thead className="sticky top-0 z-10 bg-canvas">
-      <tr>{children}</tr>
+      <tr>
+        {rowLinks ? (
+          <th className="w-0 border-0 p-0" aria-hidden="true" />
+        ) : null}
+        {children}
+      </tr>
     </thead>
   );
 }
@@ -91,12 +102,12 @@ export function TR({
       )}
     >
       {href ? (
-        <td className="w-0 p-0">
+        <td className="relative w-0 border-0 p-0">
           <Link
             href={href}
-            className="absolute inset-0"
+            className="absolute inset-y-0 left-0 z-[1] w-[100vw]"
+            aria-label="Ver detalhes"
             tabIndex={-1}
-            aria-hidden="true"
           />
         </td>
       ) : null}
@@ -118,7 +129,7 @@ export function TD({
   return (
     <td
       className={cn(
-        "relative px-4 text-ink",
+        "px-4 text-ink",
         numeric && "tabular-nums",
         align === "right"
           ? "text-right"

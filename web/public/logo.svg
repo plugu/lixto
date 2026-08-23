@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 32" width="160" height="32">
+  <rect width="32" height="32" rx="8" fill="#2F6BB3" />
+  <text
+    x="16"
+    y="21"
+    text-anchor="middle"
+    font-family="Arial, Helvetica, sans-serif"
+    font-size="14"
+    font-weight="700"
+    fill="#FFFFFF"
+  >PL</text>
+  <text
+    x="42"
+    y="22"
+    font-family="Georgia, 'Times New Roman', serif"
+    font-style="italic"
+    font-size="20"
+    fill="#1C1B18"
+  >Licitante</text>
+</svg>

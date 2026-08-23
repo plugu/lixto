@@ -149,10 +149,7 @@ export function ColTH({
   );
 }
 
-/** Body cell that disappears when its column is toggled off.
- * `position: static` is deliberate: the kit's TD is `relative`, which paints
- * cells above the absolutely positioned row link of `TR href` and swallows
- * row clicks. Kit files are frozen this ticket, so cells opt out here. */
+/** Body cell that disappears when its column is toggled off. */
 export function ColTD({
   col,
   align,
@@ -169,12 +166,7 @@ export function ColTD({
   const visible = useColumnVisibility();
   if (col && !visible[col]) return null;
   return (
-    <TD
-      align={align}
-      numeric={numeric}
-      className={className}
-      style={{ position: "static" }}
-    >
+    <TD align={align} numeric={numeric} className={className}>
       {children}
     </TD>
   );

@@ -20,6 +20,7 @@ const instrumentSerif = Instrument_Serif({
 export const metadata: Metadata = {
   title: "Plataforma Licitante",
   description: "Dashboard de licitações públicas (PNCP)",
+  icons: { icon: "/favicon.svg" },
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
