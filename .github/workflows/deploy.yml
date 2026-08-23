@@ -1,5 +1,5 @@
-# Deploys this app by calling Dokploy's deploy webhook on every push to
-# `main`. Dokploy builds the image from the Dockerfile on its own server —
+# Deploys this app by calling Dokploy's deploy webhooks on every push to
+# `main`. Dokploy builds the images from the Dockerfiles on its own server —
 # there is no build/push-to-registry step here.
 #
 # Dokploy's webhook handler (pages/api/deploy/[refreshToken].ts) expects a
@@ -9,12 +9,16 @@
 # available inside Actions OMITS those per-commit file lists, so we rebuild
 # a minimal payload from `git diff` and send it with `x-github-event: push`.
 #
-# Requires one repo secret:
-#   DOKPLOY_DEPLOY_WEBHOOK — https://dokploy.site.plugu.solutions/api/deploy/<app refreshToken>
-#     See docs/NEW_PROJECT.md (vps-infra repo) for where to get the token.
+# Two apps, two webhooks; each is only called when its watched paths changed:
+#   web — web/**
+#   cli — src/**, migrations/**, pyproject.toml, uv.lock, Dockerfile.cli
+#     (the cli container runs `plic db init` on start, so a cli deploy is
+#     also how migrations reach the shared Postgres)
 #
-# If your Dokploy app has watchPaths set (e.g. `web/**`), mirror them in
-# `on.push.paths` below so unrelated pushes don't spawn a failing run.
+# Requires repo secrets:
+#   DOKPLOY_DEPLOY_WEBHOOK     — https://dokploy.site.plugu.solutions/api/deploy/<web refreshToken>
+#   DOKPLOY_DEPLOY_WEBHOOK_CLI — https://dokploy.site.plugu.solutions/api/deploy/<cli refreshToken>
+#     See docs/NEW_PROJECT.md (vps-infra repo) for where to get the tokens.
 
 name: Deploy
 
@@ -23,6 +27,11 @@ on:
     branches: [main]
     paths:
       - "web/**"
+      - "src/**"
+      - "migrations/**"
+      - "pyproject.toml"
+      - "uv.lock"
+      - "Dockerfile.cli"
       - ".github/workflows/deploy.yml"
 
 permissions:
@@ -36,28 +45,50 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Trigger Dokploy deploy webhook
+      - name: Trigger Dokploy deploy webhooks
         env:
           DOKPLOY_DEPLOY_WEBHOOK: ${{ secrets.DOKPLOY_DEPLOY_WEBHOOK }}
+          DOKPLOY_DEPLOY_WEBHOOK_CLI: ${{ secrets.DOKPLOY_DEPLOY_WEBHOOK_CLI }}
           BEFORE: ${{ github.event.before }}
           AFTER: ${{ github.sha }}
           REF: ${{ github.ref }}
           MESSAGE: ${{ github.event.head_commit.message }}
         # curl -f would treat Dokploy's 301 "Not Match" replies as success —
-        # check the status explicitly and surface the body.
+        # check the status explicitly and surface the body. Retries cover the
+        # occasional unreachability of the public Dokploy host (seen 2026-08-23).
         run: |
           if git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
             base="$BEFORE"
           else
             base="$AFTER~1"   # first push / force-push: fall back to parent
           fi
-          files=$(git diff --name-only "$base" "$AFTER" | jq -R . | jq -s .)
+          changed=$(git diff --name-only "$base" "$AFTER")
+          echo "changed files:"; echo "$changed"
+          files=$(printf '%s\n' "$changed" | jq -R . | jq -s .)
           payload=$(jq -n --arg ref "$REF" --arg msg "$MESSAGE" --argjson files "$files" \
             '{ref: $ref, head_commit: {message: $msg}, commits: [{added: [], removed: [], modified: $files}]}')
-          body=$(mktemp)
-          code=$(curl -sS -o "$body" -w '%{http_code}' -X POST "$DOKPLOY_DEPLOY_WEBHOOK" \
-            -H 'Content-Type: application/json' \
-            -H 'x-github-event: push' \
-            --data-binary "$payload")
-          echo "dokploy: HTTP $code $(cat "$body")"
-          [ "$code" = "200" ]
+
+          hook() { # $1=name $2=url
+            body=$(mktemp)
+            code=$(curl -sS -o "$body" -w '%{http_code}' -X POST "$2" \
+              --connect-timeout 15 --max-time 120 \
+              --retry 5 --retry-delay 15 --retry-all-errors \
+              -H 'Content-Type: application/json' \
+              -H 'x-github-event: push' \
+              --data-binary "$payload")
+            echo "dokploy $1: HTTP $code $(cat "$body")"
+            [ "$code" = "200" ]
+          }
+
+          rc=0
+          if printf '%s\n' "$changed" | grep -q '^web/'; then
+            hook web "$DOKPLOY_DEPLOY_WEBHOOK" || rc=1
+          else
+            echo "web: no matching changes, skipped"
+          fi
+          if printf '%s\n' "$changed" | grep -Eq '^(src/|migrations/|pyproject\.toml$|uv\.lock$|Dockerfile\.cli$)'; then
+            hook cli "$DOKPLOY_DEPLOY_WEBHOOK_CLI" || rc=1
+          else
+            echo "cli: no matching changes, skipped"
+          fi
+          exit $rc
