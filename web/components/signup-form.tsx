@@ -5,12 +5,11 @@ import { formatCNPJ, onlyDigits } from "@/lib/br-validators";
 import type { CnpjCnae } from "@/lib/cnpj-lookup";
 import { lookupAction, signupAction, type SignupState } from "@/app/signup/actions";
 import { PORTES, UF_LIST } from "@/lib/tenant-types";
-
-const INPUT_CLASS =
-  "w-full rounded-lg border border-border bg-card px-3 py-2 text-sm shadow-subtle outline-none focus-visible:ring-2 focus-visible:ring-accent/40";
-const LABEL_CLASS = "text-xs font-medium text-muted-foreground";
-const SECTION_TITLE_CLASS =
-  "font-display text-base font-bold tracking-tight";
+import { Field, Input, Select } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Section } from "@/components/ui/section";
+import { StatusDot } from "@/components/ui/status-dot";
+import { Check, X } from "@/components/ui/icons";
 
 const INITIAL_STATE: SignupState = { erro: null };
 
@@ -115,95 +114,97 @@ export function SignupForm() {
   }
 
   return (
-    <form
-      action={formAction}
-      className="mt-6 flex flex-col gap-8"
-    >
+    <form action={formAction} className="mt-2 flex flex-col gap-8">
       {state.erro ? (
         <p
           role="alert"
-          className="rounded-lg border border-unclear/30 bg-unclear/10 px-3 py-2 text-sm text-foreground"
+          className="rounded-md bg-warn-soft px-3 py-2 text-sm text-warn"
         >
           {state.erro}
         </p>
       ) : null}
 
-      <section className="flex flex-col gap-4">
-        <h2 className={SECTION_TITLE_CLASS}>Dados da empresa</h2>
+      <div className="flex items-center gap-6">
+        <StatusDot tone="accent" label="Empresa" />
+        <StatusDot tone="neutral" label="CNAEs" />
+        <StatusDot tone="neutral" label="Usuário" />
+      </div>
 
+      <Section title="Dados da empresa">
         <div className="flex items-end gap-3">
-          <label className="flex flex-1 flex-col gap-1.5">
-            <span className={LABEL_CLASS}>CNPJ</span>
-            <input
-              type="text"
-              name="cnpj"
-              required
-              value={cnpj}
-              onChange={(e) => setCnpj(e.target.value)}
-              onBlur={(e) => setCnpj(formatCNPJ(onlyDigits(e.target.value)))}
-              className={INPUT_CLASS}
-              placeholder="00.000.000/0000-00"
-            />
-          </label>
-          <button
+          <div className="flex-1">
+            <Field label="CNPJ">
+              <Input
+                type="text"
+                name="cnpj"
+                required
+                value={cnpj}
+                onChange={(e) => setCnpj(e.target.value)}
+                onBlur={(e) => setCnpj(formatCNPJ(onlyDigits(e.target.value)))}
+                placeholder="00.000.000/0000-00"
+              />
+            </Field>
+          </div>
+          <Button
             type="button"
+            variant="secondary"
+            size="md"
             onClick={handleBuscar}
             disabled={buscando || onlyDigits(cnpj).length !== 14}
-            className="mb-[1px] rounded-lg border border-border bg-card px-4 py-2 text-sm font-semibold shadow-subtle transition-all duration-150 hover:bg-muted/30 disabled:opacity-50"
           >
             {buscando ? "Buscando…" : "Buscar dados"}
-          </button>
+          </Button>
         </div>
         {buscaFalhou ? (
-          <p className="text-xs text-muted-foreground">
+          <p className="text-[13px] text-ink-faint">
             Não foi possível buscar os dados automaticamente. Preencha os
             campos manualmente.
           </p>
         ) : null}
+        {razaoSocial && !buscaFalhou ? (
+          <div className="flex items-center gap-2 rounded-[10px] bg-surface-raised px-3 py-2 text-[13px] text-ink-muted">
+            <Check size={16} className="shrink-0 text-ok" />
+            <span>
+              Dados encontrados: <strong className="text-ink">{razaoSocial}</strong>
+            </span>
+          </div>
+        ) : null}
 
-        <label className="flex flex-col gap-1.5">
-          <span className={LABEL_CLASS}>Razão social</span>
-          <input
+        <Field label="Razão social">
+          <Input
             type="text"
             name="razaoSocial"
             required
             value={razaoSocial}
             onChange={(e) => setRazaoSocial(e.target.value)}
-            className={INPUT_CLASS}
           />
-        </label>
+        </Field>
 
         <div className="grid grid-cols-2 gap-4">
-          <label className="flex flex-col gap-1.5">
-            <span className={LABEL_CLASS}>Nome fantasia</span>
-            <input
+          <Field label="Nome fantasia">
+            <Input
               type="text"
               name="nomeFantasia"
               value={nomeFantasia}
               onChange={(e) => setNomeFantasia(e.target.value)}
-              className={INPUT_CLASS}
             />
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className={LABEL_CLASS}>Natureza jurídica</span>
-            <input
+          </Field>
+          <Field label="Natureza jurídica">
+            <Input
               type="text"
               name="naturezaJuridica"
               value={naturezaJuridica}
               onChange={(e) => setNaturezaJuridica(e.target.value)}
-              className={INPUT_CLASS}
             />
-          </label>
+          </Field>
         </div>
 
         <div className="grid grid-cols-3 gap-4">
-          <label className="flex flex-col gap-1.5">
-            <span className={LABEL_CLASS}>Porte</span>
-            <select
+          <Field label="Porte">
+            <Select
               name="porte"
               value={porte}
               onChange={(e) => setPorte(e.target.value)}
-              className={`${INPUT_CLASS} max-w-56`}
             >
               <option value="">Selecione</option>
               {PORTES.map((p) => (
@@ -211,114 +212,99 @@ export function SignupForm() {
                   {p}
                 </option>
               ))}
-            </select>
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className={LABEL_CLASS}>Inscrição estadual</span>
-            <input
+            </Select>
+          </Field>
+          <Field label="Inscrição estadual">
+            <Input
               type="text"
               name="inscricaoEstadual"
               value={inscricaoEstadual}
               onChange={(e) => setInscricaoEstadual(e.target.value)}
-              className={INPUT_CLASS}
             />
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className={LABEL_CLASS}>Inscrição municipal</span>
-            <input
+          </Field>
+          <Field label="Inscrição municipal">
+            <Input
               type="text"
               name="inscricaoMunicipal"
               value={inscricaoMunicipal}
               onChange={(e) => setInscricaoMunicipal(e.target.value)}
-              className={INPUT_CLASS}
             />
-          </label>
+          </Field>
         </div>
 
-        <label className="flex items-center gap-2 text-sm">
+        <label className="flex items-center gap-2 text-sm text-ink">
           <input
             type="checkbox"
             name="optanteSimples"
             checked={optanteSimples}
             onChange={(e) => setOptanteSimples(e.target.checked)}
+            className="h-4 w-4 rounded border-line accent-accent"
           />
           Optante pelo Simples Nacional
         </label>
 
         <div className="grid grid-cols-3 gap-4">
-          <label className="flex flex-col gap-1.5">
-            <span className={LABEL_CLASS}>CEP</span>
-            <input
+          <Field label="CEP">
+            <Input
               type="text"
               name="cep"
               value={cep}
               onChange={(e) => setCep(e.target.value)}
-              className={INPUT_CLASS}
             />
-          </label>
-          <label className="col-span-2 flex flex-col gap-1.5">
-            <span className={LABEL_CLASS}>Logradouro</span>
-            <input
-              type="text"
-              name="logradouro"
-              value={logradouro}
-              onChange={(e) => setLogradouro(e.target.value)}
-              className={INPUT_CLASS}
-            />
-          </label>
+          </Field>
+          <div className="col-span-2">
+            <Field label="Logradouro">
+              <Input
+                type="text"
+                name="logradouro"
+                value={logradouro}
+                onChange={(e) => setLogradouro(e.target.value)}
+              />
+            </Field>
+          </div>
         </div>
 
         <div className="grid grid-cols-4 gap-4">
-          <label className="flex flex-col gap-1.5">
-            <span className={LABEL_CLASS}>Número</span>
-            <input
+          <Field label="Número">
+            <Input
               type="text"
               name="numero"
               value={numero}
               onChange={(e) => setNumero(e.target.value)}
-              className={INPUT_CLASS}
             />
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className={LABEL_CLASS}>Complemento</span>
-            <input
+          </Field>
+          <Field label="Complemento">
+            <Input
               type="text"
               name="complemento"
               value={complemento}
               onChange={(e) => setComplemento(e.target.value)}
-              className={INPUT_CLASS}
             />
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className={LABEL_CLASS}>Bairro</span>
-            <input
+          </Field>
+          <Field label="Bairro">
+            <Input
               type="text"
               name="bairro"
               value={bairro}
               onChange={(e) => setBairro(e.target.value)}
-              className={INPUT_CLASS}
             />
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className={LABEL_CLASS}>Município</span>
-            <input
+          </Field>
+          <Field label="Município">
+            <Input
               type="text"
               name="municipio"
               value={municipio}
               onChange={(e) => setMunicipio(e.target.value)}
-              className={INPUT_CLASS}
             />
-          </label>
+          </Field>
         </div>
 
         <div className="grid grid-cols-3 gap-4">
-          <label className="flex flex-col gap-1.5">
-            <span className={LABEL_CLASS}>UF</span>
-            <select
+          <Field label="UF">
+            <Select
               name="uf"
               value={uf}
               onChange={(e) => setUf(e.target.value)}
-              className={`${INPUT_CLASS} max-w-56`}
             >
               <option value="">Selecione</option>
               {UF_LIST.map((sigla) => (
@@ -326,196 +312,180 @@ export function SignupForm() {
                   {sigla}
                 </option>
               ))}
-            </select>
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className={LABEL_CLASS}>Telefone</span>
-            <input
+            </Select>
+          </Field>
+          <Field label="Telefone">
+            <Input
               type="text"
               name="empresaTelefone"
               value={empresaTelefone}
               onChange={(e) => setEmpresaTelefone(e.target.value)}
-              className={INPUT_CLASS}
             />
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className={LABEL_CLASS}>E-mail da empresa</span>
-            <input
+          </Field>
+          <Field label="E-mail da empresa">
+            <Input
               type="email"
               name="empresaEmail"
               value={empresaEmail}
               onChange={(e) => setEmpresaEmail(e.target.value)}
-              className={INPUT_CLASS}
             />
-          </label>
+          </Field>
         </div>
-      </section>
+      </Section>
 
-      <section className="flex flex-col gap-3">
-        <h2 className={SECTION_TITLE_CLASS}>CNAEs</h2>
-
+      <Section title="CNAEs">
         {cnaes.length === 0 ? (
-          <p className="text-xs text-muted-foreground">
+          <p className="text-[13px] text-ink-faint">
             Nenhum CNAE adicionado ainda.
           </p>
         ) : (
-          <ul className="flex flex-col divide-y divide-border rounded-lg border border-border bg-card shadow-subtle">
+          <div className="flex flex-wrap gap-2">
             {cnaes.map((c, i) => (
-              <li key={`${c.codigo}-${i}`} className="flex items-center gap-3 px-3 py-2">
-                <label className="flex items-center gap-2 text-xs">
+              <span
+                key={`${c.codigo}-${i}`}
+                className={`inline-flex items-center gap-2 rounded-[9999px] px-3 py-1.5 text-[13px] font-medium ${
+                  i === principalIndex
+                    ? "bg-accent-soft text-accent"
+                    : "bg-surface-raised text-ink-muted"
+                }`}
+              >
+                <label className="flex items-center gap-1.5">
                   <input
                     type="radio"
                     name="cnae_principal_ui"
                     checked={i === principalIndex}
                     onChange={() => handleSetPrincipal(i)}
+                    className="h-3 w-3 accent-accent"
                   />
-                  principal
+                  <span>
+                    {c.codigo} — {c.descricao}
+                  </span>
                 </label>
-                <span className="text-sm">
-                  {c.codigo} — {c.descricao}
-                </span>
                 <button
                   type="button"
                   onClick={() => handleRemoverCnae(i)}
-                  className="ml-auto text-xs font-medium text-accent hover:underline"
+                  aria-label="Remover CNAE"
+                  className="text-ink-faint hover:text-ink"
                 >
-                  Remover
+                  <X size={12} />
                 </button>
                 <input type="hidden" name="cnae_codigo" value={c.codigo} />
                 <input type="hidden" name="cnae_descricao" value={c.descricao} />
-              </li>
+              </span>
             ))}
-          </ul>
+          </div>
         )}
         <input type="hidden" name="cnae_principal" value={principalIndex} />
 
         <div className="flex items-end gap-3">
-          <label className="flex flex-col gap-1.5">
-            <span className={LABEL_CLASS}>Código</span>
-            <input
-              type="text"
-              value={novoCnaeCodigo}
-              onChange={(e) => setNovoCnaeCodigo(e.target.value)}
-              className={`${INPUT_CLASS} max-w-32`}
-              placeholder="6201501"
-            />
-          </label>
-          <label className="flex flex-1 flex-col gap-1.5">
-            <span className={LABEL_CLASS}>Descrição</span>
-            <input
-              type="text"
-              value={novoCnaeDescricao}
-              onChange={(e) => setNovoCnaeDescricao(e.target.value)}
-              className={INPUT_CLASS}
-            />
-          </label>
-          <button
-            type="button"
-            onClick={handleAdicionarCnae}
-            className="mb-[1px] rounded-lg border border-border bg-card px-4 py-2 text-sm font-semibold shadow-subtle transition-all duration-150 hover:bg-muted/30"
-          >
+          <div className="w-32">
+            <Field label="Código">
+              <Input
+                type="text"
+                value={novoCnaeCodigo}
+                onChange={(e) => setNovoCnaeCodigo(e.target.value)}
+                placeholder="6201501"
+              />
+            </Field>
+          </div>
+          <div className="flex-1">
+            <Field label="Descrição">
+              <Input
+                type="text"
+                value={novoCnaeDescricao}
+                onChange={(e) => setNovoCnaeDescricao(e.target.value)}
+              />
+            </Field>
+          </div>
+          <Button type="button" variant="secondary" size="md" onClick={handleAdicionarCnae}>
             Adicionar CNAE
-          </button>
+          </Button>
         </div>
-      </section>
+      </Section>
 
-      <section className="flex flex-col gap-4">
-        <h2 className={SECTION_TITLE_CLASS}>Seu usuário (administrador)</h2>
-
-        <label className="flex flex-col gap-1.5">
-          <span className={LABEL_CLASS}>Nome</span>
-          <input
+      <Section title="Seu usuário (administrador)">
+        <Field label="Nome">
+          <Input
             type="text"
             name="nome"
             required
             value={nome}
             onChange={(e) => setNome(e.target.value)}
-            className={INPUT_CLASS}
           />
-        </label>
+        </Field>
 
         <div className="grid grid-cols-2 gap-4">
-          <label className="flex flex-col gap-1.5">
-            <span className={LABEL_CLASS}>E-mail</span>
-            <input
+          <Field label="E-mail">
+            <Input
               type="email"
               name="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className={INPUT_CLASS}
             />
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className={LABEL_CLASS}>CPF (opcional)</span>
-            <input
+          </Field>
+          <Field label="CPF (opcional)">
+            <Input
               type="text"
               name="cpf"
               value={cpf}
               onChange={(e) => setCpf(e.target.value)}
-              className={INPUT_CLASS}
             />
-          </label>
+          </Field>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-          <label className="flex flex-col gap-1.5">
-            <span className={LABEL_CLASS}>Senha</span>
-            <input
+          <Field label="Senha">
+            <Input
               type="password"
               name="senha"
               required
               minLength={8}
               value={senha}
               onChange={(e) => setSenha(e.target.value)}
-              className={INPUT_CLASS}
             />
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className={LABEL_CLASS}>Confirmar senha</span>
-            <input
+          </Field>
+          <Field label="Confirmar senha">
+            <Input
               type="password"
               name="confirmarSenha"
               required
               minLength={8}
               value={confirmarSenha}
               onChange={(e) => setConfirmarSenha(e.target.value)}
-              className={INPUT_CLASS}
             />
-          </label>
+          </Field>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-          <label className="flex flex-col gap-1.5">
-            <span className={LABEL_CLASS}>Telefone</span>
-            <input
+          <Field label="Telefone">
+            <Input
               type="text"
               name="telefone"
               value={telefone}
               onChange={(e) => setTelefone(e.target.value)}
-              className={INPUT_CLASS}
             />
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className={LABEL_CLASS}>Cargo</span>
-            <input
+          </Field>
+          <Field label="Cargo">
+            <Input
               type="text"
               name="cargo"
               value={cargo}
               onChange={(e) => setCargo(e.target.value)}
-              className={INPUT_CLASS}
             />
-          </label>
+          </Field>
         </div>
-      </section>
+      </Section>
 
-      <button
+      <Button
         type="submit"
+        variant="primary"
+        size="md"
         disabled={pending}
-        className="mt-1 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition-all duration-150 hover:bg-primary/90 active:scale-[0.98] disabled:opacity-50"
+        className="w-full"
       >
         {pending ? "Criando conta…" : "Criar conta"}
-      </button>
+      </Button>
     </form>
   );
 }

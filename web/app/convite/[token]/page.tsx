@@ -1,8 +1,7 @@
 import { aceitarConviteAction } from "./actions";
 import { getConvite } from "@/lib/usuario-queries";
-
-const INPUT_CLASS =
-  "w-full rounded-lg border border-border bg-card px-3 py-2 text-sm shadow-subtle outline-none focus-visible:ring-2 focus-visible:ring-accent/40";
+import { Field, Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 function first(value: string | string[] | undefined): string {
   if (Array.isArray(value)) return value[0] ?? "";
@@ -20,121 +19,103 @@ export default async function ConvitePage(
 
   if (!convite) {
     return (
-      <div className="mx-auto mt-24 max-w-sm rounded-lg border border-border bg-card p-8 shadow-subtle">
-        <h1 className="font-display text-2xl font-bold tracking-tight">
-          Convite inválido ou expirado.
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Peça ao administrador da empresa para gerar um novo convite.
-        </p>
+      <div className="mx-auto flex min-h-[70vh] max-w-sm flex-col items-center justify-center gap-10 text-center">
+        <span className="font-display text-2xl italic text-ink">
+          Licitante
+        </span>
+        <div className="flex flex-col gap-2">
+          <h1 className="font-display text-[28px] leading-[34px] text-ink">
+            Convite inválido ou expirado.
+          </h1>
+          <p className="text-sm text-ink-muted">
+            Peça ao administrador da empresa para gerar um novo convite.
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto mt-16 max-w-sm rounded-lg border border-border bg-card p-8 shadow-subtle">
-      <h1 className="font-display text-2xl font-bold tracking-tight">
-        Você foi convidado para{" "}
-        <strong>{convite.empresaRazaoSocial}</strong>
-      </h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Defina sua senha para acessar a plataforma.
-      </p>
+    <div className="mx-auto flex min-h-[70vh] max-w-sm flex-col items-center justify-center gap-10">
+      <span className="font-display text-2xl italic text-ink">Licitante</span>
 
-      {erro ? (
-        <p
-          role="alert"
-          className="mt-5 rounded-lg border border-unclear/30 bg-unclear/10 px-3 py-2 text-sm text-foreground"
+      <div className="flex w-full flex-col gap-6">
+        <div className="flex flex-col gap-1 text-center">
+          <h1 className="font-display text-[28px] leading-[34px] text-ink">
+            Você foi convidado para{" "}
+            <span className="italic">{convite.empresaRazaoSocial}</span>
+          </h1>
+          <p className="text-sm text-ink-muted">
+            Defina sua senha para acessar a plataforma.
+          </p>
+        </div>
+
+        {erro ? (
+          <p
+            role="alert"
+            className="rounded-md bg-warn-soft px-3 py-2 text-sm text-warn"
+          >
+            {erro}
+          </p>
+        ) : null}
+
+        <form
+          action={aceitarConviteAction}
+          className="flex flex-col gap-5"
         >
-          {erro}
-        </p>
-      ) : null}
+          <input type="hidden" name="token" value={token} />
 
-      <form action={aceitarConviteAction} className="mt-6 flex flex-col gap-4">
-        <input type="hidden" name="token" value={token} />
+          <Field label="Nome">
+            <Input type="text" name="nome" defaultValue={convite.nome} required />
+          </Field>
 
-        <label className="flex flex-col gap-1.5">
-          <span className="text-xs font-medium text-muted-foreground">
-            Nome
-          </span>
-          <input
-            type="text"
-            name="nome"
-            defaultValue={convite.nome}
-            required
-            className={INPUT_CLASS}
-          />
-        </label>
+          <Field label="E-mail">
+            <Input
+              type="email"
+              value={convite.email}
+              readOnly
+              disabled
+              className="opacity-70"
+            />
+          </Field>
 
-        <label className="flex flex-col gap-1.5">
-          <span className="text-xs font-medium text-muted-foreground">
-            E-mail
-          </span>
-          <input
-            type="email"
-            value={convite.email}
-            readOnly
-            disabled
-            className={`${INPUT_CLASS} opacity-70`}
-          />
-        </label>
+          <Field label="Senha">
+            <Input
+              type="password"
+              name="senha"
+              autoComplete="new-password"
+              required
+              minLength={8}
+            />
+          </Field>
 
-        <label className="flex flex-col gap-1.5">
-          <span className="text-xs font-medium text-muted-foreground">
-            Senha
-          </span>
-          <input
-            type="password"
-            name="senha"
-            autoComplete="new-password"
-            required
-            minLength={8}
-            className={INPUT_CLASS}
-          />
-        </label>
+          <Field label="Confirmar senha">
+            <Input
+              type="password"
+              name="confirmarSenha"
+              autoComplete="new-password"
+              required
+              minLength={8}
+            />
+          </Field>
 
-        <label className="flex flex-col gap-1.5">
-          <span className="text-xs font-medium text-muted-foreground">
-            Confirmar senha
-          </span>
-          <input
-            type="password"
-            name="confirmarSenha"
-            autoComplete="new-password"
-            required
-            minLength={8}
-            className={INPUT_CLASS}
-          />
-        </label>
+          <Field label="CPF (opcional)">
+            <Input type="text" name="cpf" />
+          </Field>
 
-        <label className="flex flex-col gap-1.5">
-          <span className="text-xs font-medium text-muted-foreground">
-            CPF (opcional)
-          </span>
-          <input type="text" name="cpf" className={INPUT_CLASS} />
-        </label>
+          <Field label="Telefone">
+            <Input type="text" name="telefone" />
+          </Field>
 
-        <label className="flex flex-col gap-1.5">
-          <span className="text-xs font-medium text-muted-foreground">
-            Telefone
-          </span>
-          <input type="text" name="telefone" className={INPUT_CLASS} />
-        </label>
+          <Field label="Cargo">
+            <Input type="text" name="cargo" />
+          </Field>
 
-        <label className="flex flex-col gap-1.5">
-          <span className="text-xs font-medium text-muted-foreground">
-            Cargo
-          </span>
-          <input type="text" name="cargo" className={INPUT_CLASS} />
-        </label>
-
-        <button
-          type="submit"
-          className="mt-1 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition-all duration-150 hover:bg-primary/90 active:scale-[0.98]"
-        >
-          Entrar
-        </button>
-      </form>
+          <Button type="submit" variant="primary" size="md" className="w-full">
+            Entrar
+          </Button>
+        </form>
+      </div>
     </div>
   );
 }
