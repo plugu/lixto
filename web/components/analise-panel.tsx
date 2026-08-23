@@ -1,9 +1,13 @@
-// Agent-analysis card for the licitação detail page (ticket 15).
-// Renders the triage verdict/score/reasoning, and — when the deep-analysis
-// agent has run (deep_status='done') — its requirements table, prazos and
-// risks. Hidden entirely when there's no analise row.
+// Agent-analysis panel for the licitação detail page (ticket 34, cycle 8
+// restyle). Renders the triage verdict/score/reasoning, and — when the
+// deep-analysis agent has run (deep_status='done') — its requirements table,
+// prazos and risks. Hidden entirely when there's no analise row. Rendered by
+// the page as a kit `Section`, no border/shadow card wrapper.
 
 import { FitBadge } from "@/components/fit-badge";
+import { Alert } from "@/components/ui/icons";
+import { Section } from "@/components/ui/section";
+import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import type { AnaliseRow } from "@/lib/analise-queries";
 
 const ATENDE_LABELS: Record<string, string> = {
@@ -26,76 +30,62 @@ export function AnalisePanel({ analise }: { analise: AnaliseRow | null }) {
   const hasRisks = (analise.risks?.length ?? 0) > 0;
 
   return (
-    <section className="space-y-4 rounded-lg border border-border bg-card p-5 shadow-card">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold text-foreground">
-          Análise do agente
-        </h2>
+    <Section eyebrow="Análise">
+      <div className="flex items-center gap-2">
         <FitBadge verdict={verdict} score={analise.fit_score} />
       </div>
 
       {analise.reasoning && (
-        <p className="whitespace-pre-wrap text-sm text-foreground">
+        <p className="whitespace-pre-wrap text-sm text-ink">
           {analise.reasoning}
         </p>
       )}
 
-      {(analise.deep_status === "skipped" || analise.deep_status === "error") && (
-        <p className="text-xs text-muted-foreground">
+      {(analise.deep_status === "skipped" ||
+        analise.deep_status === "error") && (
+        <p className="text-xs text-ink-muted">
           {DEEP_STATUS_NOTES[analise.deep_status]}
           {analise.error ? ` ${analise.error}` : ""}
         </p>
       )}
 
       {analise.deep_status === "done" && (
-        <div className="space-y-4">
+        <div className="flex flex-col gap-5">
           {hasRequirements && (
-            <div>
-              <h3 className="mb-2 text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+            <div className="flex flex-col gap-2">
+              <h3 className="text-xs font-medium uppercase tracking-[0.08em] text-ink-faint">
                 Requisitos
               </h3>
-              <div className="overflow-hidden rounded-lg border border-border">
-                <table className="w-full text-sm">
-                  <thead className="bg-muted/50">
-                    <tr>
-                      <th className="px-3 py-2 text-left font-medium text-muted-foreground">
-                        Tipo
-                      </th>
-                      <th className="px-3 py-2 text-left font-medium text-muted-foreground">
-                        Descrição
-                      </th>
-                      <th className="px-3 py-2 text-left font-medium text-muted-foreground">
-                        Atende
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
+              <div className="overflow-x-auto">
+                <Table density="compact">
+                  <THead>
+                    <TH>Tipo</TH>
+                    <TH>Descrição</TH>
+                    <TH>Atende</TH>
+                  </THead>
+                  <TBody>
                     {analise.requirements!.map((req, index) => (
-                      <tr key={index}>
-                        <td className="px-3 py-2 text-foreground">{req.tipo}</td>
-                        <td className="px-3 py-2 text-foreground">
-                          {req.descricao}
-                        </td>
-                        <td className="px-3 py-2 text-foreground">
-                          {ATENDE_LABELS[req.atende] ?? req.atende}
-                        </td>
-                      </tr>
+                      <TR key={index}>
+                        <TD>{req.tipo}</TD>
+                        <TD>{req.descricao}</TD>
+                        <TD>{ATENDE_LABELS[req.atende] ?? req.atende}</TD>
+                      </TR>
                     ))}
-                  </tbody>
-                </table>
+                  </TBody>
+                </Table>
               </div>
             </div>
           )}
 
           {hasPrazos && (
-            <div>
-              <h3 className="mb-2 text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+            <div className="flex flex-col gap-2">
+              <h3 className="text-xs font-medium uppercase tracking-[0.08em] text-ink-faint">
                 Prazos
               </h3>
-              <ul className="space-y-1 text-sm text-foreground">
+              <ul className="flex flex-col gap-1 text-sm text-ink">
                 {analise.prazos!.map((prazo, index) => (
                   <li key={index}>
-                    <span className="text-muted-foreground">{prazo.evento}:</span>{" "}
+                    <span className="text-ink-muted">{prazo.evento}:</span>{" "}
                     {prazo.data}
                   </li>
                 ))}
@@ -104,19 +94,22 @@ export function AnalisePanel({ analise }: { analise: AnaliseRow | null }) {
           )}
 
           {hasRisks && (
-            <div>
-              <h3 className="mb-2 text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+            <div className="flex flex-col gap-2">
+              <h3 className="text-xs font-medium uppercase tracking-[0.08em] text-ink-faint">
                 Riscos
               </h3>
-              <ul className="list-disc space-y-1 pl-5 text-sm text-foreground">
+              <ul className="flex flex-col gap-1.5 text-sm text-ink">
                 {analise.risks!.map((risk, index) => (
-                  <li key={index}>{risk}</li>
+                  <li key={index} className="flex items-start gap-2">
+                    <Alert size={16} className="mt-0.5 shrink-0 text-warn" />
+                    <span>{risk}</span>
+                  </li>
                 ))}
               </ul>
             </div>
           )}
         </div>
       )}
-    </section>
+    </Section>
   );
 }
