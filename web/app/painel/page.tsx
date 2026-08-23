@@ -1,0 +1,96 @@
+import Link from "next/link";
+import { BarList } from "@/components/charts/bar-list";
+import { DailyLine } from "@/components/charts/daily-line";
+import { StatTile } from "@/components/charts/stat-tile";
+import { StatusStack } from "@/components/charts/status-stack";
+import { Section } from "@/components/ui/section";
+import {
+  fetchPorDia,
+  fetchPorModalidade,
+  fetchPorPortal,
+  fetchStatusCounts,
+  parseChartScope,
+  type ChartScope,
+} from "@/lib/stats-queries";
+
+export const dynamic = "force-dynamic";
+
+const SCOPES: { value: ChartScope; label: string }[] = [
+  { value: "abertas", label: "Abertas agora" },
+  { value: "vai_abrir", label: "Vão abrir" },
+  { value: "tudo", label: "Tudo" },
+];
+
+const SCOPE_SUBTITLES: Record<ChartScope, string> = {
+  abertas: "Somente licitações abertas agora",
+  vai_abrir: "Somente licitações que vão abrir",
+  tudo: "Todas as licitações desde jan/2026",
+};
+
+export default async function Painel({ searchParams }: PageProps<"/painel">) {
+  const resolved = await searchParams;
+  const scope = parseChartScope(resolved.escopo);
+
+  const [counts, porModalidade, porPortal, porDia] = await Promise.all([
+    fetchStatusCounts(),
+    fetchPorModalidade(scope),
+    fetchPorPortal(scope),
+    fetchPorDia(),
+  ]);
+
+  return (
+    <div className="flex flex-col gap-10">
+      <h1 className="font-display text-[30px] leading-[34px] text-ink">
+        Visão geral
+      </h1>
+
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <StatTile label="Licitações no total" value={counts.total} />
+        <StatTile label="Abertas agora" value={counts.abertas} />
+        <StatTile label="Vão abrir" value={counts.vaiAbrir} />
+        <StatTile label="Publicadas nas últimas 24h" value={counts.novas24h} />
+      </div>
+
+      <Section title="Licitações por status">
+        <StatusStack counts={counts} />
+      </Section>
+
+      <Section title="Licitações publicadas por dia" eyebrow="Últimos 30 dias">
+        <DailyLine data={porDia} />
+      </Section>
+
+      <nav
+        aria-label="Escopo dos gráficos de modalidade e portal"
+        className="flex items-center gap-1"
+      >
+        <span className="mr-2 text-xs font-medium text-ink-muted">
+          Escopo
+        </span>
+        {SCOPES.map((s) => (
+          <Link
+            key={s.value}
+            href={s.value === "abertas" ? "/painel" : `/painel?escopo=${s.value}`}
+            className={`rounded-[9999px] px-3 py-1 text-[13px] font-medium transition-colors ${
+              s.value === scope
+                ? "bg-ink text-surface"
+                : "bg-surface-raised text-ink-muted hover:bg-line/60 hover:text-ink"
+            }`}
+          >
+            {s.label}
+          </Link>
+        ))}
+      </nav>
+
+      <div className="grid grid-cols-1 gap-10 lg:grid-cols-2">
+        <Section title="Licitações por modalidade">
+          <p className="text-[13px] text-ink-muted">{SCOPE_SUBTITLES[scope]}</p>
+          <BarList data={porModalidade} />
+        </Section>
+        <Section title="Licitações por portal">
+          <p className="text-[13px] text-ink-muted">{SCOPE_SUBTITLES[scope]}</p>
+          <BarList data={porPortal} />
+        </Section>
+      </div>
+    </div>
+  );
+}

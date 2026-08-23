@@ -11,7 +11,6 @@ function createPool(): Pool {
 
 // Reuse a single pool across hot reloads in dev so we don't leak connections.
 declare global {
-  // eslint-disable-next-line no-var
   var __plicPool: Pool | undefined;
 }
 

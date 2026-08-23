@@ -2,6 +2,20 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import type { ComponentType } from "react";
+import { useSyncExternalStore } from "react";
+import { Button } from "@/components/ui/button";
+import { CommandSearch } from "@/components/ui/command-search";
+import {
+  Building,
+  Chart,
+  FileText,
+  Home,
+  List,
+  LogOut,
+  Sidebar as SidebarIcon,
+  Users,
+} from "@/components/ui/icons";
 
 export type SidebarSession = {
   nome: string;
@@ -9,19 +23,65 @@ export type SidebarSession = {
   role: string;
 };
 
-const NAV_ITEMS = [
-  { href: "/", label: "Visão geral" },
-  { href: "/licitacoes", label: "Licitações" },
+const STORAGE_KEY = "plic.sidebar";
+
+// Collapsed state lives in a module-level store read through
+// useSyncExternalStore (server snapshot = expanded) so we avoid a
+// setState-in-effect hydration dance while still surviving reloads.
+let collapsedStore: boolean | null = null;
+const collapsedListeners = new Set<() => void>();
+
+function readCollapsed(): boolean {
+  try {
+    return window.localStorage.getItem(STORAGE_KEY) === "collapsed";
+  } catch {
+    // localStorage unavailable (private mode, disabled) — default expanded.
+    return false;
+  }
+}
+
+function getCollapsedSnapshot(): boolean {
+  if (collapsedStore === null) collapsedStore = readCollapsed();
+  return collapsedStore;
+}
+
+function getCollapsedServerSnapshot(): boolean {
+  return false;
+}
+
+function subscribeCollapsed(listener: () => void): () => void {
+  collapsedListeners.add(listener);
+  return () => {
+    collapsedListeners.delete(listener);
+  };
+}
+
+function setCollapsedStore(next: boolean) {
+  collapsedStore = next;
+  try {
+    window.localStorage.setItem(STORAGE_KEY, next ? "collapsed" : "expanded");
+  } catch {
+    // ignore
+  }
+  for (const listener of collapsedListeners) listener();
+}
+
+export const NAV_ITEMS = [
+  { href: "/", label: "Visão geral", icon: Home },
+  { href: "/painel", label: "Painel", icon: Chart },
+  { href: "/licitacoes", label: "Licitações", icon: List },
 ] as const;
 
-const EMPRESA_ITEMS = [{ href: "/empresa", label: "Minha empresa" }] as const;
-
-const EMPRESA_ADMIN_ITEMS = [
-  { href: "/empresa/usuarios", label: "Usuários" },
-  { href: "/empresa/documentos", label: "Documentos" },
+export const EMPRESA_ITEMS = [
+  { href: "/empresa", label: "Minha empresa", icon: Building },
 ] as const;
 
-function isActive(pathname: string, href: string): boolean {
+export const EMPRESA_ADMIN_ITEMS = [
+  { href: "/empresa/usuarios", label: "Usuários", icon: Users },
+  { href: "/empresa/documentos", label: "Documentos", icon: FileText },
+] as const;
+
+export function isActive(pathname: string, href: string): boolean {
   if (href === "/") return pathname === "/";
   if (href === "/empresa") return pathname === "/empresa";
   if (href === "/licitacoes") {
@@ -30,75 +90,140 @@ function isActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-function NavLink({ href, label }: { href: string; label: string }) {
+function initials(nome: string): string {
+  const parts = nome.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  const first = parts[0]?.[0] ?? "";
+  const last = parts.length > 1 ? (parts[parts.length - 1]?.[0] ?? "") : "";
+  return (first + last).toUpperCase();
+}
+
+function NavLink({
+  href,
+  label,
+  icon: Icon,
+  collapsed,
+}: {
+  href: string;
+  label: string;
+  icon: ComponentType<{ size?: number }>;
+  collapsed: boolean;
+}) {
   const pathname = usePathname();
   const active = isActive(pathname, href);
   return (
     <Link
       href={href}
-      className={`relative flex items-center rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+      title={collapsed ? label : undefined}
+      className={`flex h-8 items-center gap-2.5 rounded-md px-3 text-[13px] font-medium transition-colors ${
         active
-          ? "bg-muted text-foreground"
-          : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-      }`}
+          ? "bg-surface-raised text-ink"
+          : "text-ink-muted hover:bg-surface-raised/60 hover:text-ink"
+      } ${collapsed ? "justify-center px-0" : ""}`}
     >
-      <span
-        className={`absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-primary transition-opacity ${
-          active ? "opacity-100" : "opacity-0"
-        }`}
-      />
-      {label}
+      <Icon size={18} />
+      {collapsed ? null : <span>{label}</span>}
     </Link>
   );
 }
 
 export function Sidebar({ session }: { session: SidebarSession | null }) {
+  const collapsed = useSyncExternalStore(
+    subscribeCollapsed,
+    getCollapsedSnapshot,
+    getCollapsedServerSnapshot,
+  );
+
+  function toggle() {
+    setCollapsedStore(!collapsed);
+  }
+
   // Logged out (e.g. /login, /signup): no chrome at all.
   if (!session) return null;
 
   return (
-    <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col gap-8 border-r border-border bg-card/80 px-5 py-6 backdrop-blur-sm">
-      <Link href="/" className="px-3">
-        <span className="font-display text-lg font-bold tracking-tight text-foreground">
-          Plataforma Licitante
-        </span>
-      </Link>
+    <aside
+      className={`hidden h-screen shrink-0 flex-col gap-6 border-r border-line bg-canvas py-5 md:flex ${
+        collapsed ? "w-14 px-2" : "w-60 px-3"
+      }`}
+    >
+      <div className={`flex items-center ${collapsed ? "justify-center px-0" : "justify-between px-1"}`}>
+        <Link href="/" className={collapsed ? "hidden" : "flex items-center"}>
+          <span className="font-display text-lg italic text-ink">Licitante</span>
+        </Link>
+        <button
+          type="button"
+          onClick={toggle}
+          aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
+          className="flex h-7 w-7 items-center justify-center rounded-md text-ink-muted hover:bg-surface-raised hover:text-ink"
+        >
+          <SidebarIcon size={16} />
+        </button>
+      </div>
 
-      <nav aria-label="Navegação principal" className="flex flex-col gap-1">
-        <p className="px-3 pb-1 text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground/70">
-          Painel
-        </p>
+      {collapsed ? null : <CommandSearch />}
+
+      <nav aria-label="Navegação principal" className="flex flex-col gap-0.5">
         {NAV_ITEMS.map((item) => (
-          <NavLink key={item.href} href={item.href} label={item.label} />
+          <NavLink
+            key={item.href}
+            href={item.href}
+            label={item.label}
+            icon={item.icon}
+            collapsed={collapsed}
+          />
         ))}
 
-        <p className="mt-5 px-3 pb-1 text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground/70">
-          Empresa
-        </p>
+        {collapsed ? (
+          <div className="my-2 h-px bg-line" />
+        ) : (
+          <p className="mt-5 px-3 pb-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-faint">
+            Empresa
+          </p>
+        )}
         {EMPRESA_ITEMS.map((item) => (
-          <NavLink key={item.href} href={item.href} label={item.label} />
+          <NavLink
+            key={item.href}
+            href={item.href}
+            label={item.label}
+            icon={item.icon}
+            collapsed={collapsed}
+          />
         ))}
         {session.role === "admin"
           ? EMPRESA_ADMIN_ITEMS.map((item) => (
-              <NavLink key={item.href} href={item.href} label={item.label} />
+              <NavLink
+                key={item.href}
+                href={item.href}
+                label={item.label}
+                icon={item.icon}
+                collapsed={collapsed}
+              />
             ))
           : null}
       </nav>
 
       <div className="flex-1" />
 
-      <div className="flex flex-col gap-1 px-1">
-        <span className="text-sm font-medium text-foreground">
-          {session.empresa}
+      <div className={`flex items-center gap-2 px-1 ${collapsed ? "flex-col" : ""}`}>
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-raised text-[12px] font-semibold text-ink">
+          {initials(session.nome)}
         </span>
-        <span className="text-xs text-muted-foreground">{session.nome}</span>
-        <form action="/logout" method="post" className="mt-2">
-          <button
-            type="submit"
-            className="text-xs font-medium text-muted-foreground transition-colors hover:text-foreground hover:underline"
-          >
-            Sair
-          </button>
+        {collapsed ? null : (
+          <div className="flex min-w-0 flex-1 flex-col">
+            <span className="truncate text-[13px] font-medium text-ink">
+              {session.nome}
+            </span>
+            <span className="truncate text-[12px] text-ink-muted">
+              {session.empresa}
+            </span>
+          </div>
+        )}
+        <form action="/logout" method="post">
+          <Button type="submit" variant="ghost" size="sm" aria-label="Sair" className={collapsed ? "!px-0" : ""}>
+            <LogOut size={14} />
+            {collapsed ? null : "Sair"}
+          </Button>
         </form>
       </div>
     </aside>
