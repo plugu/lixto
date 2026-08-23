@@ -1,5 +1,9 @@
 import Link from "next/link";
 import { removerDocumentoAction } from "@/app/empresa/documentos/actions";
+import { Button } from "@/components/ui/button";
+import { X } from "@/components/ui/icons";
+import { StatusDot, type StatusDotTone } from "@/components/ui/status-dot";
+import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import type { DocumentoRow } from "@/lib/documento-queries";
 import { formatDateBR } from "@/lib/format";
 import { DOCUMENTO_TIPOS } from "@/lib/tenant-types";
@@ -18,12 +22,10 @@ const STATUS_LABELS: Record<StatusDocumento, string> = {
   valido: "Válido",
 };
 
-// Reuses the existing --color-unclear/--color-partial/--color-met tokens
-// (docs/WEB_STYLE.md) instead of introducing a new palette for this badge.
-const STATUS_STYLES: Record<StatusDocumento, string> = {
-  vencido: "border-unclear/30 bg-unclear/10 text-unclear",
-  vence_em_breve: "border-partial/30 bg-partial/10 text-partial",
-  valido: "border-met/30 bg-met/10 text-met",
+const STATUS_TONES: Record<StatusDocumento, StatusDotTone> = {
+  vencido: "off",
+  vence_em_breve: "warn",
+  valido: "ok",
 };
 
 function statusOf(doc: DocumentoRow): StatusDocumento | null {
@@ -43,77 +45,57 @@ export function DocumentosEmpresaTable({
   isAdmin: boolean;
 }) {
   return (
-    <div className="overflow-hidden rounded-lg border border-border bg-card shadow-subtle">
-      <table className="w-full text-sm">
-        <thead className="bg-muted/50">
-          <tr>
-            <th className="px-4 py-3 text-left font-medium text-muted-foreground">
-              Tipo
-            </th>
-            <th className="px-4 py-3 text-left font-medium text-muted-foreground">
-              Arquivo
-            </th>
-            <th className="px-4 py-3 text-left font-medium text-muted-foreground">
-              Validade
-            </th>
-            <th className="px-4 py-3 text-left font-medium text-muted-foreground">
-              Status
-            </th>
-            <th className="px-4 py-3 text-left font-medium text-muted-foreground">
-              Enviado em
-            </th>
-            {isAdmin ? (
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">
-                Ações
-              </th>
-            ) : null}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-border">
-          {documentos.map((doc) => {
-            const status = statusOf(doc);
-            return (
-              <tr key={doc.id} className="transition-colors hover:bg-muted/30">
-                <td className="px-4 py-3">{TIPO_LABELS[doc.tipo] ?? doc.tipo}</td>
-                <td className="px-4 py-3">
-                  <Link
-                    href={`/empresa/documentos/${doc.id}/download`}
-                    className="text-accent hover:underline"
-                  >
-                    {doc.nome_arquivo}
-                  </Link>
-                </td>
-                <td className="px-4 py-3">{formatDateBR(doc.validade)}</td>
-                <td className="px-4 py-3">
-                  {status ? (
-                    <span
-                      className={`inline-flex shrink-0 items-center self-start rounded-full border px-2.5 py-0.5 text-xs font-semibold ${STATUS_STYLES[status]}`}
+    <Table density="compact">
+      <THead>
+        <TH>Tipo</TH>
+        <TH>Arquivo</TH>
+        <TH>Validade</TH>
+        <TH>Status</TH>
+        <TH>Enviado em</TH>
+        {isAdmin ? <TH>Ações</TH> : null}
+      </THead>
+      <TBody>
+        {documentos.map((doc) => {
+          const status = statusOf(doc);
+          return (
+            <TR key={doc.id}>
+              <TD>{TIPO_LABELS[doc.tipo] ?? doc.tipo}</TD>
+              <TD>
+                <Link
+                  href={`/empresa/documentos/${doc.id}/download`}
+                  className="text-accent hover:underline"
+                >
+                  {doc.nome_arquivo}
+                </Link>
+              </TD>
+              <TD>{formatDateBR(doc.validade)}</TD>
+              <TD>
+                {status ? (
+                  <StatusDot tone={STATUS_TONES[status]} label={STATUS_LABELS[status]} />
+                ) : (
+                  "—"
+                )}
+              </TD>
+              <TD>{formatDateBR(doc.created_at)}</TD>
+              {isAdmin ? (
+                <TD>
+                  <form action={removerDocumentoAction}>
+                    <input type="hidden" name="id" value={doc.id} />
+                    <Button
+                      type="submit"
+                      variant="ghost"
+                      size="sm"
+                      aria-label={`Remover ${doc.nome_arquivo}`}
                     >
-                      {STATUS_LABELS[status]}
-                    </span>
-                  ) : (
-                    "—"
-                  )}
-                </td>
-                <td className="px-4 py-3">{formatDateBR(doc.created_at)}</td>
-                {isAdmin ? (
-                  <td className="px-4 py-3">
-                    <form action={removerDocumentoAction}>
-                      <input type="hidden" name="id" value={doc.id} />
-                      <button
-                        type="submit"
-                        className="text-sm text-accent hover:underline"
-                      >
-                        Remover
-                      </button>
-                    </form>
-                  </td>
-                ) : null}
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
+                      <X size={16} />
+                    </Button>
+                  </form>
+                </TD>
+              ) : null}
+            </TR>
+          );
+        })}
+      </TBody>
+    </Table>
   );
 }
