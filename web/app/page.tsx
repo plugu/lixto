@@ -1,121 +1,89 @@
-import Link from "next/link";
-import { BarList } from "@/components/charts/bar-list";
-import { DailyLine } from "@/components/charts/daily-line";
+import { LinkButton, Button } from "@/components/ui/button";
+import { SearchBox } from "@/components/ui/search-box";
+import { Chevron, List } from "@/components/ui/icons";
 import { StatTile } from "@/components/charts/stat-tile";
-import { StatusStack } from "@/components/charts/status-stack";
-import {
-  fetchPorDia,
-  fetchPorModalidade,
-  fetchPorPortal,
-  fetchStatusCounts,
-  parseChartScope,
-  type ChartScope,
-} from "@/lib/stats-queries";
+import { fetchStatusCounts } from "@/lib/stats-queries";
 
 export const dynamic = "force-dynamic";
 
-const SCOPES: { value: ChartScope; label: string }[] = [
-  { value: "abertas", label: "Abertas agora" },
-  { value: "vai_abrir", label: "Vão abrir" },
-  { value: "tudo", label: "Tudo" },
+const CHIPS: { label: string; href: string }[] = [
+  { label: "O que fecha esta semana?", href: "/licitacoes?status=aberta" },
+  { label: "Meus melhores fits", href: "/licitacoes?fit=fit" },
+  { label: "Vão abrir", href: "/licitacoes?status=vai_abrir" },
+  { label: "Valor médio por modalidade", href: "/painel" },
 ];
 
-const SCOPE_SUBTITLES: Record<ChartScope, string> = {
-  abertas: "Somente licitações abertas agora",
-  vai_abrir: "Somente licitações que vão abrir",
-  tudo: "Todas as licitações desde jan/2026",
-};
-
-export default async function Dashboard({ searchParams }: PageProps<"/">) {
-  const resolved = await searchParams;
-  const scope = parseChartScope(resolved.escopo);
-
-  const [counts, porModalidade, porPortal, porDia] = await Promise.all([
-    fetchStatusCounts(),
-    fetchPorModalidade(scope),
-    fetchPorPortal(scope),
-    fetchPorDia(),
-  ]);
+export default async function Home() {
+  const counts = await fetchStatusCounts();
 
   return (
-    <div className="space-y-6">
-      <h1 className="font-display text-2xl font-bold tracking-tight text-foreground">
-        Visão geral
-      </h1>
-
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatTile label="Licitações no total" value={counts.total} />
-        <StatTile label="Abertas agora" value={counts.abertas} />
-        <StatTile label="Vão abrir" value={counts.vaiAbrir} />
-        <StatTile label="Publicadas nas últimas 24h" value={counts.novas24h} />
+    <div className="flex min-h-[calc(100vh-5rem)] flex-col items-center justify-center gap-8">
+      <div className="flex w-full max-w-2xl flex-col items-center gap-3 text-center">
+        <h1 className="font-display text-[44px] leading-[48px] text-ink">
+          O que você quer saber{" "}
+          <em className="italic text-accent">hoje</em>?
+        </h1>
+        <p className="text-[15px] text-ink-muted">
+          Pergunte em português sobre as {counts.abertas} licitações abertas
+          — o agente consulta a base e responde.
+        </p>
       </div>
 
-      <ChartCard title="Licitações por status">
-        <StatusStack counts={counts} />
-      </ChartCard>
+      <div className="w-full max-w-2xl">
+        <SearchBox
+          size="hero"
+          name="q"
+          action="/licitacoes"
+          placeholder="Ex.: pregões de material escolar em SP que fecham esta semana"
+        >
+          <Button variant="pill" size="sm" type="button">
+            <SparkleIcon size={14} />
+            Agente
+            <Chevron size={14} className="rotate-90" />
+          </Button>
+          <Button variant="pill" size="sm" type="button">
+            <List size={14} />
+            Abertas
+            <Chevron size={14} className="rotate-90" />
+          </Button>
+        </SearchBox>
+      </div>
 
-      <ChartCard title="Licitações publicadas por dia" subtitle="Últimos 30 dias">
-        <DailyLine data={porDia} />
-      </ChartCard>
-
-      <nav
-        aria-label="Escopo dos gráficos de modalidade e portal"
-        className="flex items-center gap-1 pt-2"
-      >
-        <span className="mr-2 text-xs font-medium text-muted-foreground">
-          Escopo
-        </span>
-        {SCOPES.map((s) => (
-          <Link
-            key={s.value}
-            href={s.value === "abertas" ? "/" : `/?escopo=${s.value}`}
-            className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
-              s.value === scope
-                ? "border-primary bg-primary text-primary-foreground"
-                : "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
-            }`}
-          >
-            {s.label}
-          </Link>
+      <div className="flex w-full max-w-2xl flex-wrap items-center justify-center gap-2">
+        {CHIPS.map((chip) => (
+          <LinkButton key={chip.label} href={chip.href} variant="pill" size="sm">
+            {chip.label}
+          </LinkButton>
         ))}
-      </nav>
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <ChartCard
-          title="Licitações por modalidade"
-          subtitle={SCOPE_SUBTITLES[scope]}
-        >
-          <BarList data={porModalidade} />
-        </ChartCard>
-        <ChartCard
-          title="Licitações por portal"
-          subtitle={SCOPE_SUBTITLES[scope]}
-        >
-          <BarList data={porPortal} />
-        </ChartCard>
       </div>
+
+      <div className="grid w-full max-w-2xl grid-cols-3 gap-4">
+        <StatTile label="Abertas" value={counts.abertas} />
+        <StatTile label="Vão abrir" value={counts.vaiAbrir} />
+        <StatTile label="Fechadas" value={counts.fechadas} />
+      </div>
+
+      <LinkButton href="/painel" variant="ghost" size="sm">
+        Ver painel completo →
+      </LinkButton>
     </div>
   );
 }
 
-function ChartCard({
-  title,
-  subtitle,
-  children,
-}: {
-  title: string;
-  subtitle?: string;
-  children: React.ReactNode;
-}) {
+function SparkleIcon({ size = 16 }: { size?: number }) {
   return (
-    <section className="rounded-lg border border-border bg-card p-5 shadow-subtle">
-      <header className="mb-4">
-        <h2 className="text-sm font-semibold text-foreground">{title}</h2>
-        {subtitle && (
-          <p className="text-xs text-muted-foreground">{subtitle}</p>
-        )}
-      </header>
-      {children}
-    </section>
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z" />
+    </svg>
   );
 }

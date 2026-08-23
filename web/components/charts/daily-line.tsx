@@ -12,7 +12,9 @@ const PAD_R = 16;
 const PAD_T = 12;
 const PAD_B = 24;
 
-const ACCENT = "#234FC8";
+const ACCENT = "var(--color-accent)";
+const LINE = "var(--color-line)";
+const CROSSHAIR = "var(--color-ink-faint)";
 
 function formatDay(iso: string): string {
   const [, month, day] = iso.split("-");
@@ -92,14 +94,14 @@ export function DailyLine({ data }: { data: DailyCount[] }) {
               x2={W - PAD_R}
               y1={t.y}
               y2={t.y}
-              stroke="hsl(220 14% 91%)"
+              stroke={LINE}
               strokeWidth="1"
             />
             <text
               x={PAD_L - 8}
               y={t.y + 3}
               textAnchor="end"
-              className="fill-muted-foreground"
+              className="fill-ink-muted"
               fontSize="10"
             >
               {numberFormat.format(t.value)}
@@ -123,7 +125,7 @@ export function DailyLine({ data }: { data: DailyCount[] }) {
               x={points[0].x}
               y={H - 8}
               textAnchor="start"
-              className="fill-muted-foreground"
+              className="fill-ink-muted"
               fontSize="10"
             >
               {formatDay(points[0].day)}
@@ -132,7 +134,7 @@ export function DailyLine({ data }: { data: DailyCount[] }) {
               x={points[points.length - 1].x}
               y={H - 8}
               textAnchor="end"
-              className="fill-muted-foreground"
+              className="fill-ink-muted"
               fontSize="10"
             >
               {formatDay(points[points.length - 1].day)}
@@ -147,7 +149,7 @@ export function DailyLine({ data }: { data: DailyCount[] }) {
               x2={hovered.x}
               y1={PAD_T}
               y2={H - PAD_B}
-              stroke="hsl(217 12% 45%)"
+              stroke={CROSSHAIR}
               strokeWidth="1"
             />
             <circle
@@ -155,7 +157,7 @@ export function DailyLine({ data }: { data: DailyCount[] }) {
               cy={hovered.y}
               r="4"
               fill={ACCENT}
-              stroke="hsl(0 0% 100%)"
+              stroke="var(--color-surface)"
               strokeWidth="2"
             />
           </>
@@ -164,16 +166,16 @@ export function DailyLine({ data }: { data: DailyCount[] }) {
 
       {hovered && (
         <div
-          className="pointer-events-none absolute -top-1 rounded-md border border-border bg-card px-2.5 py-1.5 text-xs shadow-card"
+          className="pointer-events-none absolute -top-1 rounded-md bg-surface px-2.5 py-1.5 text-xs shadow-card"
           style={{
             left: `${(hovered.x / W) * 100}%`,
             transform: hovered.x > W / 2 ? "translateX(-110%)" : "translateX(10%)",
           }}
         >
-          <span className="font-semibold text-foreground tabular-nums">
+          <span className="font-semibold text-ink tabular-nums">
             {numberFormat.format(hovered.count)}
           </span>{" "}
-          <span className="text-muted-foreground">
+          <span className="text-ink-muted">
             em {formatDay(hovered.day)}
           </span>
         </div>
