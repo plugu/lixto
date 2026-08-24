@@ -131,8 +131,8 @@ export default async function LicitacaoDetailPage(
         )}
       </header>
 
-      <div className="grid gap-10 lg:grid-cols-[1fr_22rem]">
-        <div className="flex flex-col gap-10">
+      <div className="grid min-w-0 gap-10 lg:grid-cols-[1fr_22rem]">
+        <div className="flex min-w-0 flex-col gap-10">
           <Section title="Itens">
             <ItensTable itens={itens} />
           </Section>
@@ -142,7 +142,7 @@ export default async function LicitacaoDetailPage(
           </Section>
         </div>
 
-        <div className="lg:sticky lg:top-8 lg:self-start">
+        <div className="min-w-0 lg:sticky lg:top-8 lg:self-start">
           <AnalisePanel analise={analise} />
         </div>
       </div>
@@ -165,9 +165,11 @@ function BackLink() {
 
 function Fact({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex flex-col gap-0.5">
+    <div className="flex min-w-0 flex-col gap-0.5">
       <dt className="text-xs text-ink-muted">{label}</dt>
-      <dd className="text-sm font-medium tabular-nums text-ink">{value}</dd>
+      <dd className="break-words text-sm font-medium tabular-nums text-ink">
+        {value}
+      </dd>
     </div>
   );
 }
