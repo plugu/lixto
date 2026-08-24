@@ -1,18 +1,18 @@
 # STATE — rewrite after every ticket completes; never append. ≤30 lines total.
 
 ## Now
-- 53 (eval + docs) — doing, haiku, in place on main.
+- Tickets 50–53 done, merged to main (576cd7d..8c5e949). Checks green (ruff, 129 py tests, lint, build, 321 web tests). Live smoke: `plic cnae eval --limit 2` vs local Ollama OK. Awaiting mvp gate 2/2.
 
 ## Next
-- after 53: run graphify update, mvp gate 2/2 — diff review with user, then live smoke (`plic cnae classify --limit 5` vs real Ollama).
+- gate 2/2: user reviews diff → close cycle.
+- post-gate: run `plic cnae classify` backlog drain; eval gemma4:12b-mlx vs gpt-oss:20b (~20 rows) before fixing default; deploy + prod env (`PLIC_OLLAMA_URL=http://plugu-local-m4:11434`).
 
 ## Decisions
-- execution: parallel×2 (51∥52 done in worktrees, merged + pruned; 50, 53 sequential in place). Cycle 11: CNAE matching, mvp.
-- 50 done 22d2e55: cnae ref (1332 rows, 87 divisões), licitacao_cnae, stamp col, `plic cnae seed` idempotent.
-- 51 done (forge/t51 merged): two-stage classify, commit/stamp PER ROW (not per batch); abort on httpx error leaves in-flight row unstamped, CLI exit 1 + `aborted` counter.
-- 52 done (forge/t52 merged): `compat=1` filter; predicate skipped when logged out or zero empresa CNAEs; facet counts untouched.
-- pending/retry semantics = `cnae_classificado_em IS NULL`, no status column.
-- engine: Ollama via `PLIC_OLLAMA_URL` (VPS→plugu-local-m4 over Tailscale); model `PLIC_CNAE_MODEL` (default gpt-oss:20b, eval before fixing).
+- execution: parallel×2 (51∥52 worktrees, merged + pruned). Cycle 11: CNAE matching, mvp.
+- pending/retry = `cnae_classificado_em IS NULL`; classify stamps PER ROW; httpx error → in-flight row unstamped, exit 1.
+- two-stage prompt: 87 divisões (batch 10) → subclasses of ≤4 chosen divisões per row; confidence REAL persisted.
+- compat filter: predicate skipped when logged out / zero empresa CNAEs; facet counts untouched.
+- engine: `PLIC_OLLAMA_URL` + `PLIC_CNAE_MODEL` (default gpt-oss:20b); eval command persists nothing.
 - INFRA (keep): symlinked node_modules breaks Turbopack in worktrees — use `cp -Rc`.
 
 ## Blockers
