@@ -50,13 +50,13 @@ export function AnalisePanel({ analise }: { analise: AnaliseRow | null }) {
       )}
 
       {analise.deep_status === "done" && (
-        <div className="flex flex-col gap-5">
+        <div className="flex min-w-0 flex-col gap-5">
           {hasRequirements && (
-            <div className="flex flex-col gap-2">
+            <div className="flex min-w-0 flex-col gap-2">
               <h3 className="text-xs font-medium uppercase tracking-[0.08em] text-ink-faint">
                 Requisitos
               </h3>
-              <div className="overflow-x-auto">
+              <div className="min-w-0 overflow-x-auto">
                 <Table density="compact">
                   <THead>
                     <TH>Tipo</TH>
