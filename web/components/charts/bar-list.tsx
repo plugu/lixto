@@ -13,10 +13,10 @@ export function BarList({ data }: { data: CategoryCount[] }) {
       {data.map((d) => (
         <li
           key={d.label}
-          className="grid grid-cols-[minmax(0,11rem)_1fr_auto] items-center gap-3 border-b border-line py-2 last:border-b-0"
+          className="grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-1 border-b border-line py-2 last:border-b-0 sm:grid-cols-[minmax(0,11rem)_1fr_auto]"
           title={`${d.label}: ${numberFormat.format(d.count)}`}
         >
-          <span className="truncate text-[13px] text-ink-muted">
+          <span className="col-span-2 truncate text-[13px] text-ink-muted sm:col-span-1">
             {d.label}
           </span>
           <span className="h-4 overflow-hidden rounded-r-[4px]">

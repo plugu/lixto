@@ -1,11 +1,15 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { DailyCount } from "@/lib/stats-queries";
 
 const numberFormat = new Intl.NumberFormat("pt-BR");
 
-const W = 720;
+/** Layout width used at md+ (matches the fixed desktop design). Below that
+ * breakpoint we swap in the measured container width so the SVG isn't
+ * uniformly scaled down (which shrinks axis text to illegible sizes). */
+const DESKTOP_W = 720;
+const NARROW_BREAKPOINT = 768;
 const H = 180;
 const PAD_L = 44;
 const PAD_R = 16;
@@ -35,6 +39,27 @@ function niceMax(max: number): number {
 export function DailyLine({ data }: { data: DailyCount[] }) {
   const [hover, setHover] = useState<number | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
+  const [measuredWidth, setMeasuredWidth] = useState<number | null>(null);
+
+  useEffect(() => {
+    const el = svgRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width;
+      if (width) setMeasuredWidth(width);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  // Below the narrow breakpoint, size the SVG's own coordinate space to the
+  // measured pixel width instead of the fixed desktop layout so axis text
+  // and strokes render at a legible, constant physical size.
+  const W =
+    measuredWidth !== null && measuredWidth < NARROW_BREAKPOINT
+      ? Math.max(280, Math.round(measuredWidth))
+      : DESKTOP_W;
+  const isNarrow = W < NARROW_BREAKPOINT;
 
   const { points, yMax, path, area, ticks } = useMemo(() => {
     const yMax = niceMax(Math.max(1, ...data.map((d) => d.count)));
@@ -50,12 +75,14 @@ export function DailyLine({ data }: { data: DailyCount[] }) {
       .join(" ");
     const baseline = PAD_T + innerH;
     const area = `${path} L${points[points.length - 1]?.x.toFixed(1)},${baseline} L${PAD_L},${baseline} Z`;
-    const ticks = [0, 0.5, 1].map((f) => ({
+    // Fewer ticks on narrow screens keeps the y-axis from feeling cramped.
+    const tickFractions = isNarrow ? [0, 1] : [0, 0.5, 1];
+    const ticks = tickFractions.map((f) => ({
       value: Math.round(yMax * f),
       y: PAD_T + innerH - f * innerH,
     }));
     return { points, yMax, path, area, ticks };
-  }, [data]);
+  }, [data, W, isNarrow]);
 
   function onPointerMove(event: React.PointerEvent<SVGSVGElement>) {
     const svg = svgRef.current;
