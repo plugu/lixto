@@ -1,20 +1,13 @@
 import type { Metadata } from "next";
-import { Instrument_Sans, Instrument_Serif } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import { Sidebar } from "@/components/sidebar";
 import { TopBar } from "@/components/ui/top-bar";
 import { getSession } from "@/lib/auth";
 
-const instrumentSans = Instrument_Sans({
+const inter = Inter({
   subsets: ["latin"],
   variable: "--font-sans-var",
-});
-
-const instrumentSerif = Instrument_Serif({
-  subsets: ["latin"],
-  weight: "400",
-  style: ["normal", "italic"],
-  variable: "--font-serif",
 });
 
 export const metadata: Metadata = {
@@ -39,7 +32,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="pt-BR"
-      className={`h-full ${instrumentSans.variable} ${instrumentSerif.variable}`}
+      className={`h-full ${inter.variable}`}
     >
       <body className="flex h-full min-h-screen flex-col bg-canvas font-sans text-sm text-ink antialiased md:flex-row">
         <TopBar session={sidebarSession} />

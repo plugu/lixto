@@ -1,19 +1,19 @@
 # STATE — rewrite after every ticket completes; never append. ≤30 lines total.
 
 ## Now
-idle — cycle 8 (redesign, tickets 30–37) merged to main (8020037), deployed, verified in prod. All attempts 1/3. Cycle-8 worktree removed.
+idle — Attio restyle prototype (tickets 39–40) finished: user picked "Slate" in live app; Slate hardcoded as default in globals.css @theme, palette widget deleted. Lint+build green. Committing on main.
 
 ## Next
-cycle 9 candidates: NL→DB agent behind the home composer (deferred by user choice); wire fit-triage to empresa record; Dokploy UPLOADS_DIR volume for documentos
+- push to main when user says so (auto-deploys web+cli)
+- PRODUCT.md on disk now defines cycle 9 = responsive layout (mvp, floor 375px) — awaiting /forge:plan
 
 ## Decisions
-- design system: docs/design/cycle8-direction.md + docs/WEB_STYLE.md; canvas https://claude.ai/code/artifact/2d2def4e-ab1f-4066-b7d2-4f63331b183a ; Instrument Serif (display) + Instrument Sans (body) — ticket-38 system-font revert superseded by user decision at merge
-- components/ui kit is the styling contract; TR href row-link overlay pattern (THead rowLinks); columns toggle via useSyncExternalStore + localStorage `plic.licitacoes.cols`; sidebar collapse `plic.sidebar`
-- home composer submits plain `/licitacoes?q=`; "Agente"/"Abertas" pills decorative until NL agent cycle
-- URL/filter contract unchanged; 312 tests green; repo lint green (multi-select t33, sidebar/db t37)
-- accepted in review: detail page dropped "Informação complementar"; CNAE principal = button+badge; wordmark "Licitante"
-- live: https://plataforma-licitante.site.plugu.solutions — push to main deploys web (web/**) + cli (Actions webhooks; cli runs `plic db init` on start); sync 3×/day 06/13/20 BRT
-- company_profile.md still template → triage stays borderline/50
+- final palette "Slate": canvas #f8fafc, surface #fff, raised #f1f5f9, ink #0f172a, ink-muted #64748b, ink-faint #94a3b8, line #e2e8f0, accent #0f766e (+soft #e5f4f2), ok #15803d, warn #b45309, off #8a94a6, danger #be3536
+- fonts: Inter only (next/font, --font-sans-var); --font-display = same sans; Instrument Sans/Serif removed
+- @theme var NAMES frozen; only values changed → zero component edits
+- palette widget was throwaway — deleted after pick; stale localStorage `plic.palette` harmless (nothing reads it)
+- restyle supersedes cycle-8 "calm warm" values; docs/design/cycle8-direction.md palette section now historical
+- live: https://plataforma-licitante.site.plugu.solutions — push to main deploys web+cli; sync 3×/day 06/13/20 BRT
 - probe pkill `next-server` kills dev server — restart after runs
 
 ## Blockers

@@ -1,24 +1,23 @@
 @import "tailwindcss";
 
-/* Design tokens — cycle 8 "calm canvas, dense data" (docs/design/cycle8-direction.md).
-   Perplexity-style warm canvas + Attio-style dense chrome. Light only. */
+/* Design tokens — "Slate" cool neutrals (picked via palette-try widget, cycle 9). */
 @theme {
-  --color-canvas: #faf9f6;
+  --color-canvas: #f8fafc;
   --color-surface: #ffffff;
-  --color-surface-raised: #f3f1ec;
-  --color-ink: #1c1b18;
-  --color-ink-muted: #6b6a64;
-  --color-ink-faint: #a3a19a;
-  --color-line: #e8e6e0;
-  --color-accent: #2f6bb3;
-  --color-accent-soft: #e7eff9;
-  --color-ok: #2e8b57;
-  --color-ok-soft: #e6f4ec;
-  --color-warn: #c8811a;
-  --color-warn-soft: #fbf0df;
-  --color-off: #8a8884;
-  --color-off-soft: #efeeea;
-  --color-danger: #b4413c;
+  --color-surface-raised: #f1f5f9;
+  --color-ink: #0f172a;
+  --color-ink-muted: #64748b;
+  --color-ink-faint: #94a3b8;
+  --color-line: #e2e8f0;
+  --color-accent: #0f766e;
+  --color-accent-soft: #e5f4f2;
+  --color-ok: #15803d;
+  --color-ok-soft: #e8f5ec;
+  --color-warn: #b45309;
+  --color-warn-soft: #faf0e2;
+  --color-off: #8a94a6;
+  --color-off-soft: #eef1f5;
+  --color-danger: #be3536;
 
   /* Legacy aliases — kept until every page migrates (tickets 32-36). */
   --color-background: var(--color-canvas);
@@ -39,11 +38,11 @@
   --radius-sm: 6px;
 
   --font-sans: var(--font-sans-var), system-ui, sans-serif;
-  --font-display: var(--font-serif), Georgia, serif;
+  --font-display: var(--font-sans-var), system-ui, sans-serif;
 
-  --shadow-subtle: 0 1px 2px 0 rgba(28, 27, 24, 0.06);
-  --shadow-card: 0 1px 2px rgba(28, 27, 24, 0.06), 0 0 0 1px var(--color-line);
-  --shadow-popover: 0 8px 24px rgba(28, 27, 24, 0.1);
+  --shadow-subtle: 0 1px 2px 0 rgba(24, 24, 27, 0.06);
+  --shadow-card: 0 1px 2px rgba(24, 24, 27, 0.06), 0 0 0 1px var(--color-line);
+  --shadow-popover: 0 8px 24px rgba(24, 24, 27, 0.1);
 }
 
 html,
