@@ -6,7 +6,7 @@ export type ButtonSize = "sm" | "md";
 
 const SIZE_CLASSES: Record<ButtonSize, string> = {
   sm: "h-[30px] px-3 text-[13px]",
-  md: "h-9 px-4 text-sm",
+  md: "h-10 px-4 text-sm",
 };
 
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {

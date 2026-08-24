@@ -180,7 +180,7 @@ export function SignupForm() {
           />
         </Field>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Nome fantasia">
             <Input
               type="text"
@@ -199,7 +199,7 @@ export function SignupForm() {
           </Field>
         </div>
 
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <Field label="Porte">
             <Select
               name="porte"
@@ -243,7 +243,7 @@ export function SignupForm() {
           Optante pelo Simples Nacional
         </label>
 
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <Field label="CEP">
             <Input
               type="text"
@@ -252,7 +252,7 @@ export function SignupForm() {
               onChange={(e) => setCep(e.target.value)}
             />
           </Field>
-          <div className="col-span-2">
+          <div className="col-span-1 sm:col-span-2">
             <Field label="Logradouro">
               <Input
                 type="text"
@@ -264,7 +264,7 @@ export function SignupForm() {
           </div>
         </div>
 
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Field label="Número">
             <Input
               type="text"
@@ -299,7 +299,7 @@ export function SignupForm() {
           </Field>
         </div>
 
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <Field label="UF">
             <Select
               name="uf"
@@ -377,8 +377,8 @@ export function SignupForm() {
         )}
         <input type="hidden" name="cnae_principal" value={principalIndex} />
 
-        <div className="flex items-end gap-3">
-          <div className="w-32">
+        <div className="grid grid-cols-1 gap-3 sm:flex sm:items-end">
+          <div className="sm:w-32">
             <Field label="Código">
               <Input
                 type="text"
@@ -397,7 +397,7 @@ export function SignupForm() {
               />
             </Field>
           </div>
-          <Button type="button" variant="secondary" size="md" onClick={handleAdicionarCnae}>
+          <Button type="button" variant="secondary" size="md" onClick={handleAdicionarCnae} className="sm:flex-none">
             Adicionar CNAE
           </Button>
         </div>
@@ -414,7 +414,7 @@ export function SignupForm() {
           />
         </Field>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="E-mail">
             <Input
               type="email"
@@ -434,7 +434,7 @@ export function SignupForm() {
           </Field>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Senha">
             <Input
               type="password"
@@ -457,7 +457,7 @@ export function SignupForm() {
           </Field>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Telefone">
             <Input
               type="text"
