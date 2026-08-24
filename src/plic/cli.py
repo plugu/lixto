@@ -10,6 +10,7 @@ from plic.agents.run import run_agents
 from plic.backfill import DEFAULT_SINCE
 from plic.backfill import backfill as run_backfill
 from plic.classify import classify as run_classify
+from plic.cnae_match import classify as run_cnae_classify
 from plic.cnae_seed import seed as run_cnae_seed
 from plic.schedule import install as schedule_install
 from plic.schedule import uninstall as schedule_uninstall
@@ -225,6 +226,32 @@ def cnae_seed_cmd() -> None:
     finally:
         conn.close()
     typer.echo(f"cnae: {result['seeded']} row(s) seeded")
+
+
+@cnae_app.command("classify")
+def cnae_classify_cmd(limit: int = _LIMIT_OPTION) -> None:
+    """Two-stage CNAE tagging of abertas/futuras licitações via Ollama
+    (PLIC_OLLAMA_URL / PLIC_CNAE_MODEL). Resumable: only rows with
+    cnae_classificado_em IS NULL are processed. If Ollama is unreachable, the
+    run aborts leaving the in-flight row unstamped and exits non-zero — a
+    later rerun retries it.
+    """
+    conn = db.get_connection()
+    try:
+        result = run_cnae_classify(conn, limit=limit)
+    finally:
+        conn.close()
+    typer.echo(
+        f"cnae classify: {result['processed']} processadas, "
+        f"{result['tagged']} com tags ({result['tags']} tags totais)"
+    )
+    if result.get("aborted"):
+        typer.echo(
+            "Ollama indisponível ou erro na requisição — execução abortada; "
+            "linha(s) pendente(s) permanecem na fila",
+            err=True,
+        )
+        raise typer.Exit(code=1)
 
 
 @app.command("status")
