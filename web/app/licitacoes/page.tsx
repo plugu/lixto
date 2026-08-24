@@ -1,6 +1,7 @@
 import { FilterChips } from "@/components/filter-chips";
 import { ColTD, ColTH, Filters } from "@/components/filters";
 import { FitBadge } from "@/components/fit-badge";
+import { LicitacaoCard } from "@/components/licitacao-card";
 import { StatusBadge } from "@/components/status-badge";
 import { LinkButton } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -80,7 +81,20 @@ export default async function Home({ searchParams }: PageProps<"/licitacoes">) {
           }
         />
       ) : (
-        <div className="overflow-x-auto">
+        <>
+        <div className="flex flex-col gap-2.5 md:hidden">
+          {rows.map((row) => (
+            <LicitacaoCard
+              key={row.numero_controle_pncp}
+              row={row}
+              status={computeStatus(
+                row.data_abertura_proposta,
+                row.data_encerramento_proposta,
+              )}
+            />
+          ))}
+        </div>
+        <div className="hidden overflow-x-auto md:block">
           <Table density="default" className="min-w-[960px]">
             <THead rowLinks>
               <ColTH className="min-w-[24rem] max-w-[40rem]">Objeto</ColTH>
@@ -152,6 +166,7 @@ export default async function Home({ searchParams }: PageProps<"/licitacoes">) {
             </TBody>
           </Table>
         </div>
+        </>
       )}
 
       <Pagination pagina={pagina} totalPages={totalPages} filters={filters} />
