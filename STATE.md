@@ -4,7 +4,8 @@
 - Idle. Cycle 9 (responsive layout, mvp) SHIPPED: tickets 41–46 done, approved as-is at gate 2/2.
 
 ## Next
-- Nothing queued. Candidate future cycle: Attio restyle + palette widget (tickets 39–40, superseded PRODUCT, still on disk).
+- push to main when user says so (auto-deploys web+cli via https://plataforma-licitante.site.plugu.solutions pipeline)
+- note: tickets 39–40 (Slate restyle) already shipped in f85a391 — not a future cycle
 
 ## Decisions
 - Gate 2/2: approved as-is, incl. global 40px button height (ui/button.tsx md h-9→h-10).
