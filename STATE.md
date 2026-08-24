@@ -1,16 +1,19 @@
 # STATE — rewrite after every ticket completes; never append. ≤30 lines total.
 
 ## Now
-- Idle. Cycle 9 (responsive layout, mvp) SHIPPED: tickets 41–46 done, approved as-is at gate 2/2.
+- Tickets 47–49 done + orchestrator micro-fix (empty analise sidebar collapses to single column). Checks green. Awaiting gate 2/2.
 
 ## Next
-- push to main when user says so (auto-deploys web+cli via https://plataforma-licitante.site.plugu.solutions pipeline)
-- note: tickets 39–40 (Slate restyle) already shipped in f85a391 — not a future cycle
+- gate 2/2: user reviews diff + screenshots → then commit
+- note: AnalisePanel visual not verified locally (dev DB has no analise rows) — verify in prod after deploy
 
 ## Decisions
-- Gate 2/2: approved as-is, incl. global 40px button height (ui/button.tsx md h-9→h-10).
-- INFRA (keep for future runs): symlinked node_modules breaks Turbopack in git worktrees — use real APFS clones (`cp -Rc`).
-- Card reflow pattern: table `hidden md:block` + cards `md:hidden`, same data array.
+- execution: sequential, in place (cycle 10: detail-page cards, mvp)
+- 47: Card primitive `bg-surface rounded-lg shadow-card p-4 sm:p-6`; page gaps →6.
+- 48: `THead` prop `bg?: "canvas"|"surface"`; full-bleed scroll `-mx-4 px-4 sm:-mx-6 sm:px-6`; Descrição wraps at `max-w-[28rem]`.
+- 49: análise = Card com `border-t-2 border-t-accent` (teal top border).
+- micro-fix: grid vira coluna única quando `!analise` (sem sidebar 22rem vazia).
+- INFRA (keep): symlinked node_modules breaks Turbopack in worktrees — use `cp -Rc`.
 
 ## Blockers
 - none

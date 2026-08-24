@@ -4,6 +4,7 @@ import { FitBadge } from "@/components/fit-badge";
 import { ItensTable } from "@/components/itens-table";
 import { StatusBadge } from "@/components/status-badge";
 import { LinkButton } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Section } from "@/components/ui/section";
 import { fetchAnalise } from "@/lib/analise-queries";
 import {
@@ -43,9 +44,11 @@ export default async function LicitacaoDetailPage(
     return (
       <div className="page-wide flex flex-col gap-6">
         <BackLink />
-        <p className="py-16 text-center text-sm text-ink-muted">
-          Licitação não encontrada.
-        </p>
+        <Card>
+          <p className="py-16 text-center text-sm text-ink-muted">
+            Licitação não encontrada.
+          </p>
+        </Card>
       </div>
     );
   }
@@ -72,79 +75,93 @@ export default async function LicitacaoDetailPage(
   const pncpUrl = buildPncpUrl(detail);
 
   return (
-    <div className="page-wide flex flex-col gap-8">
+    <div className="page-wide flex flex-col gap-6">
       <BackLink />
 
-      <header className="flex flex-col gap-3">
-        <h1 className="font-display text-2xl leading-snug text-ink">
-          {detail.objeto_compra || "—"}
-        </h1>
-        <p className="text-sm text-ink-muted">{metaLine || "—"}</p>
+      <Card>
+        <header className="flex flex-col gap-3">
+          <h1 className="font-display text-2xl leading-snug text-ink">
+            {detail.objeto_compra || "—"}
+          </h1>
+          <p className="text-sm text-ink-muted">{metaLine || "—"}</p>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <StatusBadge status={status} />
-          <FitBadge
-            verdict={analise?.deep_verdict ?? analise?.verdict}
-            score={analise?.fit_score}
-          />
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusBadge status={status} />
+            <FitBadge
+              verdict={analise?.deep_verdict ?? analise?.verdict}
+              score={analise?.fit_score}
+            />
+          </div>
+
+          <dl className="mt-2 grid grid-cols-2 gap-x-8 gap-y-3 sm:grid-cols-4">
+            <Fact
+              label="Valor estimado"
+              value={formatCurrencyBRL(detail.valor_total_estimado)}
+            />
+            <Fact
+              label="Abertura"
+              value={formatDateBR(detail.data_abertura_proposta, true)}
+            />
+            <Fact
+              label="Encerramento"
+              value={formatDateBR(detail.data_encerramento_proposta, true)}
+            />
+            <Fact label="Nº controle" value={detail.numero_controle_pncp} />
+          </dl>
+
+          {(detail.link_sistema_origem || pncpUrl) && (
+            <div className="flex flex-wrap gap-4 pt-1">
+              {detail.link_sistema_origem && (
+                <a
+                  href={detail.link_sistema_origem}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-accent hover:underline"
+                >
+                  Abrir no sistema de origem
+                </a>
+              )}
+              {pncpUrl && (
+                <a
+                  href={pncpUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-accent hover:underline"
+                >
+                  Ver no PNCP
+                </a>
+              )}
+            </div>
+          )}
+        </header>
+      </Card>
+
+      <div
+        className={
+          analise
+            ? "grid min-w-0 gap-6 lg:grid-cols-[1fr_22rem]"
+            : "grid min-w-0 gap-6"
+        }
+      >
+        <div className="flex min-w-0 flex-col gap-6">
+          <Card>
+            <Section title="Itens">
+              <ItensTable itens={itens} />
+            </Section>
+          </Card>
+
+          <Card>
+            <Section title="Documentos">
+              <DocumentosList documentos={documentos} />
+            </Section>
+          </Card>
         </div>
 
-        <dl className="mt-2 grid grid-cols-2 gap-x-8 gap-y-3 sm:grid-cols-4">
-          <Fact
-            label="Valor estimado"
-            value={formatCurrencyBRL(detail.valor_total_estimado)}
-          />
-          <Fact
-            label="Abertura"
-            value={formatDateBR(detail.data_abertura_proposta, true)}
-          />
-          <Fact
-            label="Encerramento"
-            value={formatDateBR(detail.data_encerramento_proposta, true)}
-          />
-          <Fact label="Nº controle" value={detail.numero_controle_pncp} />
-        </dl>
-
-        {(detail.link_sistema_origem || pncpUrl) && (
-          <div className="flex flex-wrap gap-4 pt-1">
-            {detail.link_sistema_origem && (
-              <a
-                href={detail.link_sistema_origem}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-accent hover:underline"
-              >
-                Abrir no sistema de origem
-              </a>
-            )}
-            {pncpUrl && (
-              <a
-                href={pncpUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-accent hover:underline"
-              >
-                Ver no PNCP
-              </a>
-            )}
+        {analise && (
+          <div className="min-w-0 lg:sticky lg:top-8 lg:self-start">
+            <AnalisePanel analise={analise} />
           </div>
         )}
-      </header>
-
-      <div className="grid min-w-0 gap-10 lg:grid-cols-[1fr_22rem]">
-        <div className="flex min-w-0 flex-col gap-10">
-          <Section title="Itens">
-            <ItensTable itens={itens} />
-          </Section>
-
-          <Section title="Documentos">
-            <DocumentosList documentos={documentos} />
-          </Section>
-        </div>
-
-        <div className="min-w-0 lg:sticky lg:top-8 lg:self-start">
-          <AnalisePanel analise={analise} />
-        </div>
       </div>
     </div>
   );

@@ -39,13 +39,20 @@ export function Table({
 
 export function THead({
   rowLinks,
+  bg = "canvas",
   children,
 }: {
   rowLinks?: boolean;
+  bg?: "canvas" | "surface";
   children: ReactNode;
 }) {
   return (
-    <thead className="sticky top-0 z-10 bg-canvas">
+    <thead
+      className={cn(
+        "sticky top-0 z-10",
+        bg === "surface" ? "bg-surface" : "bg-canvas",
+      )}
+    >
       <tr>
         {rowLinks ? (
           <th className="w-0 border-0 p-0" aria-hidden="true" />

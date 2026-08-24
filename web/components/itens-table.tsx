@@ -25,9 +25,9 @@ export function ItensTable({ itens }: { itens: ItemRow[] }) {
 
   return (
     <>
-      <div className="hidden overflow-x-auto md:block">
+      <div className="hidden overflow-x-auto md:block -mx-4 px-4 sm:-mx-6 sm:px-6">
         <Table density="compact">
-          <THead>
+          <THead bg="surface">
             <TH>Nº</TH>
             <TH>Descrição</TH>
             <TH align="right">Quantidade</TH>
@@ -41,7 +41,9 @@ export function ItensTable({ itens }: { itens: ItemRow[] }) {
             {itens.map((item) => (
               <TR key={item.numero_item}>
                 <TD>{item.numero_item}</TD>
-                <TD>{item.descricao || "—"}</TD>
+                <TD className="max-w-[28rem] whitespace-normal break-words align-top">
+                  {item.descricao || "—"}
+                </TD>
                 <TD align="right" numeric>
                   {formatQuantidade(item.quantidade)}
                 </TD>
