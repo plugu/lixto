@@ -215,6 +215,21 @@ def test_classify_happy_path_inserts_tags_and_stamps():
     assert conn.commits == 1
 
 
+def test_classify_days_threads_into_batch_select():
+    conn = FakeConn(divisions=DIVISIONS, batches=[[ROW1], []], subclasses=[SUBCLASS])
+    client = FakeHTTPClient(
+        ['[{"n":1,"divisoes":["62"]}]', '[{"codigo":"6201500","confidence":0.9}]']
+    )
+
+    classify(conn, days=30, client=client)
+
+    batch_params = [p for sql, p in conn.executed if p and "limit" in p]
+    assert batch_params and all(p["days"] == 30 for p in batch_params)
+    assert "data_publicacao_pncp" in next(
+        sql for sql, p in conn.executed if p and "limit" in p
+    )
+
+
 def test_classify_empty_stage2_still_stamps_row():
     conn = FakeConn(divisions=DIVISIONS, batches=[[ROW1], []], subclasses=[SUBCLASS])
     client = FakeHTTPClient(['[{"n":1,"divisoes":["62"]}]', "[]"])

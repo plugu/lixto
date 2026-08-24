@@ -49,6 +49,8 @@ SELECT l.numero_controle_pncp,
 FROM licitacao l
 WHERE l.cnae_classificado_em IS NULL
   AND (l.data_encerramento_proposta >= now() OR l.data_abertura_proposta > now())
+  AND (%(days)s::int IS NULL
+       OR l.data_publicacao_pncp >= now() - make_interval(days => %(days)s))
 ORDER BY l.data_encerramento_proposta ASC NULLS LAST
 LIMIT %(limit)s
 """
@@ -232,10 +234,12 @@ def classify(
     conn: psycopg.Connection,
     *,
     limit: int | None = None,
+    days: int | None = None,
     client: httpx.Client | None = None,
 ) -> dict[str, int]:
     """Tags pending abertas/futuras with CNAE subclasses in batches until
-    drained (or `limit` licitações processed). Commits per row, so a
+    drained (or `limit` licitações processed). `days` restricts the queue to
+    rows with data_publicacao_pncp inside the last N days. Commits per row, so a
     connection/HTTP error mid-run only leaves the in-flight row unstamped —
     the run then aborts (result carries "aborted": 1) so the next invocation
     retries it; already-committed rows in the same or prior batches stay
@@ -255,7 +259,7 @@ def classify(
         while not aborted and (limit is None or processed < limit):
             batch_limit = BATCH_SIZE if limit is None else min(BATCH_SIZE, limit - processed)
             with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
-                cur.execute(_SELECT_BATCH_SQL, {"limit": batch_limit})
+                cur.execute(_SELECT_BATCH_SQL, {"limit": batch_limit, "days": days})
                 rows = cur.fetchall()
             if not rows:
                 break
@@ -326,6 +330,7 @@ def eval_pending(
     conn: psycopg.Connection,
     *,
     limit: int | None = None,
+    days: int | None = None,
     client: httpx.Client | None = None,
 ) -> list[dict[str, Any]]:
     """Dry-run evaluation: tags pending abertas/futuras without persisting.
@@ -344,7 +349,7 @@ def eval_pending(
         while not aborted and (limit is None or processed < limit):
             batch_limit = BATCH_SIZE if limit is None else min(BATCH_SIZE, limit - processed)
             with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
-                cur.execute(_SELECT_BATCH_SQL, {"limit": batch_limit})
+                cur.execute(_SELECT_BATCH_SQL, {"limit": batch_limit, "days": days})
                 rows = cur.fetchall()
             if not rows:
                 break

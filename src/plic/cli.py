@@ -230,7 +230,12 @@ def cnae_seed_cmd() -> None:
 
 
 @cnae_app.command("classify")
-def cnae_classify_cmd(limit: int = _LIMIT_OPTION) -> None:
+def cnae_classify_cmd(
+    limit: int = _LIMIT_OPTION,
+    days: int = typer.Option(
+        None, "--days", help="Só licitações com data_publicacao_pncp nos últimos N dias."
+    ),
+) -> None:
     """Two-stage CNAE tagging of abertas/futuras licitações via Ollama
     (PLIC_OLLAMA_URL / PLIC_CNAE_MODEL). Resumable: only rows with
     cnae_classificado_em IS NULL are processed. If Ollama is unreachable, the
@@ -239,7 +244,7 @@ def cnae_classify_cmd(limit: int = _LIMIT_OPTION) -> None:
     """
     conn = db.get_connection()
     try:
-        result = run_cnae_classify(conn, limit=limit)
+        result = run_cnae_classify(conn, limit=limit, days=days)
     finally:
         conn.close()
     typer.echo(
@@ -256,7 +261,12 @@ def cnae_classify_cmd(limit: int = _LIMIT_OPTION) -> None:
 
 
 @cnae_app.command("eval")
-def cnae_eval_cmd(limit: int = _LIMIT_OPTION) -> None:
+def cnae_eval_cmd(
+    limit: int = _LIMIT_OPTION,
+    days: int = typer.Option(
+        None, "--days", help="Só licitações com data_publicacao_pncp nos últimos N dias."
+    ),
+) -> None:
     """Dry-run evaluation of CNAE tagging via Ollama. Runs the two-stage
     classification on pending licitações but persists nothing — prints
     per licitação: numero_controle_pncp, objeto (truncated 80 chars),
@@ -266,7 +276,7 @@ def cnae_eval_cmd(limit: int = _LIMIT_OPTION) -> None:
     """
     conn = db.get_connection()
     try:
-        results = run_cnae_eval(conn, limit=limit)
+        results = run_cnae_eval(conn, limit=limit, days=days)
     finally:
         conn.close()
 
