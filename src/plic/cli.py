@@ -10,6 +10,7 @@ from plic.agents.run import run_agents
 from plic.backfill import DEFAULT_SINCE
 from plic.backfill import backfill as run_backfill
 from plic.classify import classify as run_classify
+from plic.cnae_seed import seed as run_cnae_seed
 from plic.schedule import install as schedule_install
 from plic.schedule import uninstall as schedule_uninstall
 from plic.status import format_status, get_status
@@ -56,6 +57,8 @@ schedule_app = typer.Typer(help="Scheduler commands")
 app.add_typer(schedule_app, name="schedule")
 agents_app = typer.Typer(help="Agent pipeline commands")
 app.add_typer(agents_app, name="agents")
+cnae_app = typer.Typer(help="CNAE reference table commands")
+app.add_typer(cnae_app, name="cnae")
 
 _MAX_TRIAGE_OPTION = typer.Option(
     200, "--max-triage", help="Max licitações to fit-triage in this run."
@@ -210,6 +213,18 @@ def classify_cmd(limit: int = _LIMIT_OPTION) -> None:
         f"({result['classified']} pelo modelo, "
         f"{result['processed'] - result['classified']} fallback Outros)"
     )
+
+
+@cnae_app.command("seed")
+def cnae_seed_cmd() -> None:
+    """Fetch the IBGE CNAE subclasses list and upsert it into `cnae`
+    (idempotent — safe to rerun to refresh descriptions)."""
+    conn = db.get_connection()
+    try:
+        result = run_cnae_seed(conn)
+    finally:
+        conn.close()
+    typer.echo(f"cnae: {result['seeded']} row(s) seeded")
 
 
 @app.command("status")
