@@ -17,7 +17,10 @@ export function DocumentoUploadForm() {
 
   return (
     <Section title="Enviar documento">
-      <form action={formAction} className="flex flex-wrap items-end gap-4">
+      <form
+        action={formAction}
+        className="flex flex-col gap-4 md:flex-row md:flex-wrap md:items-end"
+      >
         <Field label="Tipo">
           <Select name="tipo" required>
             {DOCUMENTO_TIPOS.map((tipo) => (
@@ -36,7 +39,7 @@ export function DocumentoUploadForm() {
           <Input type="file" name="arquivo" accept=".pdf,.jpg,.jpeg,.png" required />
         </Field>
 
-        <Button type="submit" disabled={pending}>
+        <Button type="submit" disabled={pending} className="w-full md:w-auto">
           {pending ? "Enviando…" : "Enviar"}
         </Button>
 

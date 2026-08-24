@@ -62,14 +62,17 @@ export function CnaeEditor({
       ) : (
         <div className="flex flex-col divide-y divide-line border-t border-b border-line">
           {rows.map((row, index) => (
-            <div key={index} className="flex flex-wrap items-center gap-3 py-3">
+            <div
+              key={index}
+              className="flex flex-col gap-2 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3"
+            >
               <Input
                 type="text"
                 value={maskCodigo(row.codigo)}
                 onChange={(e) => updateRow(index, { codigo: onlyDigits(e.target.value) })}
                 placeholder="0000-0/00"
                 disabled={readOnly}
-                className="max-w-32"
+                className="sm:max-w-32"
               />
               <Input
                 type="text"
@@ -77,30 +80,32 @@ export function CnaeEditor({
                 onChange={(e) => updateRow(index, { descricao: e.target.value })}
                 placeholder="Descrição"
                 disabled={readOnly}
-                className="min-w-0 flex-1"
+                className="min-w-0 sm:flex-1"
               />
-              {row.principal ? (
-                <Badge tone="accent">Principal</Badge>
-              ) : !readOnly ? (
-                <button
-                  type="button"
-                  onClick={() => setPrincipal(index)}
-                  className="shrink-0 text-xs font-medium text-ink-muted hover:text-ink"
-                >
-                  Tornar principal
-                </button>
-              ) : null}
-              {!readOnly ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => removeRow(index)}
-                  aria-label="Remover CNAE"
-                >
-                  <X size={16} />
-                </Button>
-              ) : null}
+              <div className="flex items-center justify-between gap-3 sm:contents">
+                {row.principal ? (
+                  <Badge tone="accent">Principal</Badge>
+                ) : !readOnly ? (
+                  <button
+                    type="button"
+                    onClick={() => setPrincipal(index)}
+                    className="shrink-0 text-xs font-medium text-ink-muted hover:text-ink"
+                  >
+                    Tornar principal
+                  </button>
+                ) : null}
+                {!readOnly ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeRow(index)}
+                    aria-label="Remover CNAE"
+                  >
+                    <X size={16} />
+                  </Button>
+                ) : null}
+              </div>
             </div>
           ))}
         </div>

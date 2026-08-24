@@ -64,15 +64,21 @@ export function ConviteForm({ origin }: { origin: string }) {
       {conviteUrl ? (
         <div className="mt-4">
           <Field label="Link do convite — envie para o convidado">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <Input
                 type="text"
                 readOnly
                 value={conviteUrl}
                 onFocus={(e) => e.currentTarget.select()}
-                className="font-mono text-xs"
+                className="min-w-0 font-mono text-xs"
               />
-              <Button type="button" variant="ghost" size="sm" onClick={copyLink}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={copyLink}
+                className="self-start sm:self-auto"
+              >
                 {copied ? "Copiado" : "Copiar"}
               </Button>
             </div>
