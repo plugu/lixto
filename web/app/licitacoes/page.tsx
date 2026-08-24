@@ -7,6 +7,8 @@ import { LinkButton } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Search } from "@/components/ui/icons";
 import { TBody, THead, TR, Table } from "@/components/ui/table";
+import { getSession } from "@/lib/auth";
+import { getCnaes } from "@/lib/empresa-queries";
 import { formatCurrencyBRL, formatDateBR } from "@/lib/format";
 import {
   fetchFacetCounts,
@@ -38,6 +40,7 @@ function buildQueryString(
     params.set("valorMax", String(filters.valorMax));
   }
   filters.fit?.forEach((v) => params.append("fit", v));
+  if (filters.compat) params.set("compat", "1");
   if (pagina && pagina > 1) params.set("pagina", String(pagina));
   const qs = params.toString();
   return qs ? `?${qs}` : "";
@@ -51,8 +54,24 @@ export default async function Home({ searchParams }: PageProps<"/licitacoes">) {
   const paginaRaw = Array.isArray(paginaParam) ? paginaParam[0] : paginaParam;
   const pagina = Math.max(1, Math.trunc(Number(paginaRaw)) || 1);
 
+  // "Compatível com minha empresa" (ticket 52): only logged-in visitors whose
+  // empresa has at least one CNAE get the filter — everyone else has
+  // `compat` stripped so the query, the toggle and the removable chip all
+  // agree it's absent (`?compat=1` is a no-op when logged out).
+  const session = await getSession();
+  const empresaCnaes = session
+    ? (await getCnaes(session.usuario.empresaId)).map((c) => c.codigo)
+    : [];
+  const showCompat = empresaCnaes.length > 0;
+  if (!showCompat) delete filters.compat;
+
   const [{ rows, total }, modalidadeOptions, facetCounts] = await Promise.all([
-    fetchLicitacoes(filters, PAGE_SIZE, (pagina - 1) * PAGE_SIZE),
+    fetchLicitacoes(
+      filters,
+      PAGE_SIZE,
+      (pagina - 1) * PAGE_SIZE,
+      empresaCnaes,
+    ),
     fetchModalidadeOptions(),
     fetchFacetCounts(filters),
   ]);
@@ -61,7 +80,12 @@ export default async function Home({ searchParams }: PageProps<"/licitacoes">) {
 
   return (
     <div className="page-wide flex flex-col gap-5">
-      <Filters filters={filters} facetCounts={facetCounts} total={total} />
+      <Filters
+        filters={filters}
+        facetCounts={facetCounts}
+        total={total}
+        showCompat={showCompat}
+      />
 
       <FilterChips
         filters={filters}

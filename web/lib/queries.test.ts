@@ -178,6 +178,22 @@ describe("parseFilters", () => {
     });
   });
 
+  describe("compat", () => {
+    it("sets compat: true when compat=1", () => {
+      expect(parseFilters({ compat: "1" })).toEqual({ compat: true });
+    });
+
+    it("ignores any other compat value", () => {
+      expect(parseFilters({ compat: "0" })).toEqual({});
+      expect(parseFilters({ compat: "true" })).toEqual({});
+      expect(parseFilters({ compat: "" })).toEqual({});
+    });
+
+    it("unwraps an array-valued compat param (first value wins)", () => {
+      expect(parseFilters({ compat: ["1", "0"] })).toEqual({ compat: true });
+    });
+  });
+
   it("combines all filters together", () => {
     expect(
       parseFilters({
@@ -190,6 +206,7 @@ describe("parseFilters", () => {
         valorMin: "1000",
         valorMax: "9000",
         fit: ["fit", "borderline"],
+        compat: "1",
       }),
     ).toEqual({
       q: "merenda",
@@ -201,6 +218,7 @@ describe("parseFilters", () => {
       valorMin: 1000,
       valorMax: 9000,
       fit: ["fit", "borderline"],
+      compat: true,
     });
   });
 });
@@ -314,6 +332,37 @@ describe("buildWhereClause", () => {
     });
   });
 
+  describe("compat filter (ticket 52)", () => {
+    it("builds an EXISTS-against-licitacao_cnae predicate when compat is set and codes are supplied", () => {
+      const { where, values } = buildWhereClause({ compat: true }, [
+        "6201500",
+        "4712100",
+      ]);
+      expect(where).toBe(
+        "WHERE usuario_nome = ANY($1) AND EXISTS (SELECT 1 FROM licitacao_cnae lc WHERE lc.numero_controle_pncp = licitacao.numero_controle_pncp AND lc.codigo = ANY($2))",
+      );
+      expect(values).toEqual([PORTAIS_ATIVOS, ["6201500", "4712100"]]);
+    });
+
+    it("ignores compat when no empresaCnaes are supplied (logged out / no session)", () => {
+      const { where, values } = buildWhereClause({ compat: true });
+      expect(where).toBe("WHERE usuario_nome = ANY($1)");
+      expect(values).toEqual([PORTAIS_ATIVOS]);
+    });
+
+    it("ignores compat when empresaCnaes is an empty array (empresa has no CNAEs)", () => {
+      const { where, values } = buildWhereClause({ compat: true }, []);
+      expect(where).toBe("WHERE usuario_nome = ANY($1)");
+      expect(values).toEqual([PORTAIS_ATIVOS]);
+    });
+
+    it("ignores empresaCnaes when compat is not set", () => {
+      const { where, values } = buildWhereClause({}, ["6201500"]);
+      expect(where).toBe("WHERE usuario_nome = ANY($1)");
+      expect(values).toEqual([PORTAIS_ATIVOS]);
+    });
+  });
+
   it("combines all filters with AND after the allowlist, each with correctly numbered params", () => {
     const { where, values } = buildWhereClause({
       q: "merenda",
@@ -395,6 +444,18 @@ describe("buildListQuery", () => {
   it("builds a working fit filter with correctly numbered limit/offset params", () => {
     const { values } = buildListQuery({ fit: ["fit"] }, 25, 0);
     expect(values).toEqual([PORTAIS_ATIVOS, ["fit"], 25, 0]);
+  });
+
+  it("threads empresaCnaes into the compat predicate with correctly numbered limit/offset params", () => {
+    const { text, values } = buildListQuery({ compat: true }, 25, 0, ["6201500"]);
+    expect(text).toContain("EXISTS (SELECT 1 FROM licitacao_cnae lc");
+    expect(values).toEqual([PORTAIS_ATIVOS, ["6201500"], 25, 0]);
+  });
+
+  it("ignores compat when empresaCnaes isn't passed", () => {
+    const { text, values } = buildListQuery({ compat: true }, 25, 0);
+    expect(text).not.toContain("licitacao_cnae");
+    expect(values).toEqual([PORTAIS_ATIVOS, 25, 0]);
   });
 });
 

@@ -28,6 +28,11 @@ export type LicitacaoFilters = {
   /** Agent verdict filter (ticket 15): `fit`/`borderline`/`no_fit` match
    * analise.verdict; `sem_analise` means no analise row (verdict IS NULL). */
   fit?: FitFilterValue[];
+  /** "Compatível com minha empresa" toggle (ticket 52, searchParam
+   * `compat=1`). Only meaningful when the caller also supplies the logged-in
+   * empresa's CNAE codes to buildWhereClause/buildListQuery/buildCountQuery —
+   * with no codes (logged out, or empresa has none), the filter is ignored. */
+  compat?: boolean;
 };
 
 /** The five filter dimensions with per-option facet counts (ticket 11). */
@@ -127,6 +132,8 @@ export function parseFilters(
       v === "fit" || v === "borderline" || v === "no_fit" || v === "sem_analise",
   );
   if (fit.length > 0) filters.fit = fit;
+
+  if (firstValue(raw.compat) === "1") filters.compat = true;
 
   return filters;
 }
@@ -258,15 +265,41 @@ function buildFitPredicate(
   return predicates.length > 0 ? `(${predicates.join(" OR ")})` : null;
 }
 
+/** Builds the `compat` ("Compatível com minha empresa", ticket 52) predicate:
+ * an EXISTS against `licitacao_cnae` for any of the logged-in empresa's CNAE
+ * codes. Appends to `values` and returns the predicate text, or null when
+ * the filter isn't active or no codes were supplied (`compat=1` set but no
+ * session/empresa, or an empresa with zero CNAEs, both no-op). Used only by
+ * buildWhereClause (list + count queries), same as buildFitPredicate — the
+ * facet-count queries are untouched, matching the fit filter's precedent. */
+function buildCompatPredicate(
+  filters: LicitacaoFilters,
+  empresaCnaes: string[] | undefined,
+  values: unknown[],
+): string | null {
+  if (!filters.compat) return null;
+  if (!empresaCnaes || empresaCnaes.length === 0) return null;
+
+  values.push(empresaCnaes);
+  return `EXISTS (SELECT 1 FROM licitacao_cnae lc WHERE lc.numero_controle_pncp = licitacao.numero_controle_pncp AND lc.codigo = ANY($${values.length}))`;
+}
+
 /** Builds the WHERE clause + params shared by the list and count queries.
- * `values` starts at $1; callers append further params (limit/offset) after. */
-export function buildWhereClause(filters: LicitacaoFilters): {
+ * `values` starts at $1; callers append further params (limit/offset) after.
+ * `empresaCnaes` is the logged-in empresa's CNAE codes (ticket 52), threaded
+ * from the page — omit/empty when logged out or the filter is a no-op. */
+export function buildWhereClause(
+  filters: LicitacaoFilters,
+  empresaCnaes?: string[],
+): {
   where: string;
   values: unknown[];
 } {
   const { conditions, values } = buildFilterConditions(filters);
   const fitPredicate = buildFitPredicate(filters, values);
   if (fitPredicate) conditions.push(fitPredicate);
+  const compatPredicate = buildCompatPredicate(filters, empresaCnaes, values);
+  if (compatPredicate) conditions.push(compatPredicate);
   const where = `WHERE ${conditions.join(" AND ")}`;
   return { where, values };
 }
@@ -277,8 +310,9 @@ export function buildListQuery(
   filters: LicitacaoFilters,
   limit: number,
   offset: number,
+  empresaCnaes?: string[],
 ): SqlQuery {
-  const { where, values } = buildWhereClause(filters);
+  const { where, values } = buildWhereClause(filters, empresaCnaes);
   const limitIdx = values.length + 1;
   const offsetIdx = values.length + 2;
 
@@ -328,8 +362,11 @@ export function buildListQuery(
   return { text, values: [...values, limit, offset] };
 }
 
-export function buildCountQuery(filters: LicitacaoFilters): SqlQuery {
-  const { where, values } = buildWhereClause(filters);
+export function buildCountQuery(
+  filters: LicitacaoFilters,
+  empresaCnaes?: string[],
+): SqlQuery {
+  const { where, values } = buildWhereClause(filters, empresaCnaes);
   return {
     text: `SELECT count(*)::text AS count FROM licitacao LEFT JOIN analise a USING (numero_controle_pncp) ${where}`,
     values,
@@ -467,9 +504,10 @@ export async function fetchLicitacoes(
   filters: LicitacaoFilters,
   limit: number,
   offset: number,
+  empresaCnaes?: string[],
 ) {
-  const listQuery = buildListQuery(filters, limit, offset);
-  const countQuery = buildCountQuery(filters);
+  const listQuery = buildListQuery(filters, limit, offset, empresaCnaes);
+  const countQuery = buildCountQuery(filters, empresaCnaes);
 
   const [rowsResult, countResult] = await Promise.all([
     pool.query<LicitacaoRow>(listQuery.text, listQuery.values),
