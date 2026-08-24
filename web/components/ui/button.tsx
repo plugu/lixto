@@ -11,13 +11,13 @@ const SIZE_CLASSES: Record<ButtonSize, string> = {
 
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   primary:
-    "bg-ink text-surface hover:bg-ink/90 rounded-[9999px] font-medium",
+    "bg-ink text-surface hover:bg-ink/90 rounded-md font-medium",
   secondary:
-    "bg-surface text-ink border border-line hover:bg-surface-raised rounded-[9999px] font-medium",
+    "bg-surface text-ink border border-line hover:bg-surface-raised rounded-md font-medium",
   ghost:
-    "bg-transparent text-ink-muted hover:bg-surface-raised hover:text-ink rounded-[9999px] font-medium",
+    "bg-transparent text-ink-muted hover:bg-surface-raised hover:text-ink rounded-md font-medium",
   pill:
-    "bg-surface-raised text-ink hover:bg-line/60 rounded-[9999px] font-medium",
+    "bg-surface-raised text-ink hover:bg-line/60 rounded-md font-medium",
 };
 
 const BASE =

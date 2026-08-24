@@ -29,7 +29,7 @@ export function SearchBox({
         ref={formRef}
         action={action}
         method="get"
-        className="flex h-[34px] items-center gap-2 rounded-[9999px] border border-line bg-surface px-3.5 text-[13px] text-ink focus-within:border-accent focus-within:ring-[3px] focus-within:ring-accent-soft"
+        className="flex h-[34px] items-center gap-2 rounded-md border border-line bg-surface px-3.5 text-[13px] text-ink focus-within:border-accent focus-within:ring-[3px] focus-within:ring-accent-soft"
       >
         <Search size={16} className="shrink-0 text-ink-faint" />
         <input
@@ -69,7 +69,7 @@ export function SearchBox({
         <div className="flex items-center gap-2">
           <span
             aria-hidden="true"
-            className="flex h-8 w-8 items-center justify-center rounded-full text-ink-faint"
+            className="flex h-8 w-8 items-center justify-center rounded-md text-ink-faint"
           >
             <svg
               width={18}
@@ -89,7 +89,7 @@ export function SearchBox({
           <button
             type="submit"
             aria-label="Buscar"
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-ink text-surface transition-colors hover:bg-ink/90"
+            className="flex h-9 w-9 items-center justify-center rounded-md bg-ink text-surface transition-colors hover:bg-ink/90"
           >
             <svg
               width={16}

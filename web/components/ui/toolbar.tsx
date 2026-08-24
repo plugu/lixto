@@ -31,7 +31,7 @@ export function ToolbarButton({
     <button
       type="button"
       className={cn(
-        "inline-flex h-9 items-center gap-1.5 rounded-[9999px] bg-surface-raised px-3 text-[13px] font-medium text-ink transition-colors hover:bg-line/60",
+        "inline-flex h-9 items-center gap-1.5 rounded-md bg-surface-raised px-3 text-[13px] font-medium text-ink transition-colors hover:bg-line/60",
         className,
       )}
       {...props}

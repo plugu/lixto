@@ -32,8 +32,9 @@ do not remove): `--color-background→canvas`, `--color-card→surface`,
 `--color-primary-foreground→surface`, `--color-met→ok`,
 `--color-partial→warn`, `--color-unclear→off`.
 
-Radius: pill `9999px` (buttons, chips, search box, badges), `10px`
-(popovers, hero box, tiles), `6px` (inputs, checkboxes). `--radius-lg/md/sm`
+Radius: `6px` (buttons, inputs, checkboxes, search box, toolbar buttons),
+`10px` (popovers, hero box, tiles), pill `9999px` (chips, badges, count
+pills — tags/indicators only, not interactive controls). `--radius-lg/md/sm`
 alias to these for legacy usage.
 
 Shadow: none for structure. Only `--shadow-popover` (popovers) and
@@ -78,16 +79,18 @@ Shadow: none for structure. Only `--shadow-popover` (popovers) and
 ## Kit usage (`web/components/ui/`)
 
 - `Button`/`LinkButton`: `variant: primary|secondary|ghost|pill`,
-  `size: sm|md`. `primary` = solid `ink` bg, pill radius, for the single
+  `size: sm|md`. `primary` = solid `ink` bg, `6px` radius, for the single
   main action per screen. `ghost` for low-emphasis actions (Sair, cancel).
+  (`pill` variant name is legacy — it now renders `6px` radius like the rest.)
 - `Input`/`Select`/`Label`/`Field`: 36px controls, 6px radius, focus ring
   `0 0 0 3px var(--color-accent-soft)` + 1px `accent` border. Wrap
   label+control+hint/error in `Field` for forms.
-- `SearchBox`: GET form. `size="inline"` = 34px pill with leading search
-  icon (toolbar/list search). `size="hero"` = the composer: white box,
-  18px radius, hairline ring, auto-growing `<textarea rows={1}>` at 17px
-  (Enter submits, Shift+Enter newline), bottom row left slot = `children`
-  (mode/scope pills), right = decorative mic icon + 36px ink circle submit.
+- `SearchBox`: GET form. `size="inline"` = 34px, `6px` radius, leading
+  search icon (toolbar/list search). `size="hero"` = the composer: white
+  box, 18px radius, hairline ring, auto-growing `<textarea rows={1}>` at
+  17px (Enter submits, Shift+Enter newline), bottom row left slot =
+  `children` (mode/scope pills), right = decorative mic icon + 36px ink
+  `6px`-radius submit square.
   This is still degrading to plain `/licitacoes?q=` search — the NL agent
   ships in a later cycle.
 - `Popover`: `<details>/<summary>` based (native no-JS fallback) +

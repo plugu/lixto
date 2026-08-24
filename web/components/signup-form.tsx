@@ -343,7 +343,7 @@ export function SignupForm() {
             {cnaes.map((c, i) => (
               <span
                 key={`${c.codigo}-${i}`}
-                className={`inline-flex items-center gap-2 rounded-[9999px] px-3 py-1.5 text-[13px] font-medium ${
+                className={`inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-[13px] font-medium ${
                   i === principalIndex
                     ? "bg-accent-soft text-accent"
                     : "bg-surface-raised text-ink-muted"

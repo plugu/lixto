@@ -245,7 +245,7 @@ export function Filters({ filters, facetCounts, total }: FiltersProps) {
         </div>
         {/* Same look as the kit's `SearchBox size="inline"`, inlined because
             that component renders its own <form> and forms cannot nest. */}
-        <div className="flex h-[34px] w-full max-w-full items-center gap-2 rounded-[9999px] border border-line bg-surface px-3.5 text-[13px] text-ink focus-within:border-accent focus-within:ring-[3px] focus-within:ring-accent-soft sm:max-w-xs">
+        <div className="flex h-[34px] w-full max-w-full items-center gap-2 rounded-md border border-line bg-surface px-3.5 text-[13px] text-ink focus-within:border-accent focus-within:ring-[3px] focus-within:ring-accent-soft sm:max-w-xs">
           <Search size={16} className="shrink-0 text-ink-faint" />
           <input
             name="q"
