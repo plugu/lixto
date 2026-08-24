@@ -4,8 +4,7 @@ import { FitBadge } from "@/components/fit-badge";
 import { ItensTable } from "@/components/itens-table";
 import { StatusBadge } from "@/components/status-badge";
 import { LinkButton } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Section } from "@/components/ui/section";
+import { Card, CollapsibleCard } from "@/components/ui/card";
 import { fetchAnalise } from "@/lib/analise-queries";
 import {
   fetchDocumentos,
@@ -144,17 +143,13 @@ export default async function LicitacaoDetailPage(
         }
       >
         <div className="flex min-w-0 flex-col gap-6">
-          <Card>
-            <Section title="Itens">
-              <ItensTable itens={itens} />
-            </Section>
-          </Card>
+          <CollapsibleCard title="Itens">
+            <ItensTable itens={itens} />
+          </CollapsibleCard>
 
-          <Card>
-            <Section title="Documentos">
-              <DocumentosList documentos={documentos} />
-            </Section>
-          </Card>
+          <CollapsibleCard title="Documentos">
+            <DocumentosList documentos={documentos} />
+          </CollapsibleCard>
         </div>
 
         {analise && (

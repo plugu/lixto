@@ -6,9 +6,8 @@
 // cards in the sidebar (ticket 49).
 
 import { FitBadge } from "@/components/fit-badge";
-import { Card } from "@/components/ui/card";
+import { CollapsibleCard } from "@/components/ui/card";
 import { Alert } from "@/components/ui/icons";
-import { Section } from "@/components/ui/section";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import type { AnaliseRow } from "@/lib/analise-queries";
 
@@ -32,8 +31,7 @@ export function AnalisePanel({ analise }: { analise: AnaliseRow | null }) {
   const hasRisks = (analise.risks?.length ?? 0) > 0;
 
   return (
-    <Card className="border-t-2 border-t-accent">
-      <Section eyebrow="Análise">
+    <CollapsibleCard eyebrow="Análise" className="border-t-2 border-t-accent">
         <div className="flex items-center gap-2">
           <FitBadge verdict={verdict} score={analise.fit_score} />
         </div>
@@ -113,7 +111,6 @@ export function AnalisePanel({ analise }: { analise: AnaliseRow | null }) {
             )}
           </div>
         )}
-      </Section>
-    </Card>
+    </CollapsibleCard>
   );
 }

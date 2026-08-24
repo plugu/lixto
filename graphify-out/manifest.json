@@ -128,8 +128,8 @@
     "hash": "641bffa1c8cfe9e2cf71423357c21cbe"
   },
   "/Users/aazevedo/dev/plataforma-licitante/web/app/licitacao/[numeroControle]/page.tsx": {
-    "mtime": 1787532928.5536127,
-    "hash": "1761ac7369dbc9c6f69047516c8a96ab"
+    "mtime": 1787592595.109931,
+    "hash": "1c7b093892037aa1ea600e9c82384404"
   },
   "/Users/aazevedo/dev/plataforma-licitante/web/app/painel/page.tsx": {
     "mtime": 1787532758.3471713,
@@ -144,8 +144,8 @@
     "hash": "dc82564d708727848ddbf47b6ae445ce"
   },
   "/Users/aazevedo/dev/plataforma-licitante/web/components/itens-table.tsx": {
-    "mtime": 1787532928.5538688,
-    "hash": "255b896eda0714d30d602410d0b2c74e"
+    "mtime": 1787591770.9088066,
+    "hash": "78bb9621ec84b1531d362ca751348c1f"
   },
   "/Users/aazevedo/dev/plataforma-licitante/web/components/empresa-form.tsx": {
     "mtime": 1787533038.7483094,
@@ -184,8 +184,8 @@
     "hash": "5cb482897c940cf624e0e564b4bf4fa5"
   },
   "/Users/aazevedo/dev/plataforma-licitante/web/components/analise-panel.tsx": {
-    "mtime": 1787532928.553745,
-    "hash": "6083d08f177ef73732578c0de02f4039"
+    "mtime": 1787592627.0113633,
+    "hash": "558ea0184bd33f27a98af7d9a3cc5991"
   },
   "/Users/aazevedo/dev/plataforma-licitante/web/components/multi-select.tsx": {
     "mtime": 1787527166.7755508,
@@ -202,6 +202,10 @@
   "/Users/aazevedo/dev/plataforma-licitante/web/components/documentos-empresa-table.tsx": {
     "mtime": 1787533038.7481616,
     "hash": "a6cc258e26ff5b0f9020e56ffef82c62"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/ui/card.tsx": {
+    "mtime": 1787592560.3559096,
+    "hash": "5e9aa9bdeb5b124d1618125314653690"
   },
   "/Users/aazevedo/dev/plataforma-licitante/web/components/ui/popover.tsx": {
     "mtime": 1787527166.7781684,
@@ -240,8 +244,8 @@
     "hash": "4214326a630036a96c53b88d52782506"
   },
   "/Users/aazevedo/dev/plataforma-licitante/web/components/ui/table.tsx": {
-    "mtime": 1787527166.7787232,
-    "hash": "d8f5ee48f849e7509547cc8f3a655cdb"
+    "mtime": 1787591743.8425405,
+    "hash": "2f6fba6e0d996f46bb80c02c93307c90"
   },
   "/Users/aazevedo/dev/plataforma-licitante/web/components/ui/button.tsx": {
     "mtime": 1787537771.8157907,
@@ -488,12 +492,12 @@
     "hash": "55b5673aab5565a244f1658781134880"
   },
   "/Users/aazevedo/dev/plataforma-licitante/PRODUCT.md": {
-    "mtime": 1787531050.433575,
-    "hash": "03ed27afc1d4fbaad1f2d7a4058f1528"
+    "mtime": 1787590771.7813654,
+    "hash": "0007a45631340e0822edf78e1a31782b"
   },
   "/Users/aazevedo/dev/plataforma-licitante/STATE.md": {
-    "mtime": 1787536109.3225267,
-    "hash": "bf3bc320dd800a567e81ea95237e5e80"
+    "mtime": 1787592326.6781368,
+    "hash": "0b4b2eca0ac8ce05ad25d3fd09e6a272"
   },
   "/Users/aazevedo/dev/plataforma-licitante/README.md": {
     "mtime": 1787419341.5661032,
@@ -587,6 +591,10 @@
     "mtime": 1787419341.576444,
     "hash": "d9ec3d65f521d65938595301bc718e32"
   },
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/49-analise-panel-destaque.md": {
+    "mtime": 1787591912.1618414,
+    "hash": "7d9b6c8ae209ff562b8f0ca10a5e8512"
+  },
   "/Users/aazevedo/dev/plataforma-licitante/tickets/45-responsive-empresa-admin.md": {
     "mtime": 1787533039.3194108,
     "hash": "ea63326a979983687142f73b32d46606"
@@ -639,6 +647,10 @@
     "mtime": 1787419341.5749602,
     "hash": "7a56ba4f24da3b13ad403b84de6ac116"
   },
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/47-card-primitive-detail-layout.md": {
+    "mtime": 1787591704.772287,
+    "hash": "dda78df6656f90dd1c93de5783dbb2ac"
+  },
   "/Users/aazevedo/dev/plataforma-licitante/tickets/20-shared-db-and-seed.md": {
     "mtime": 1787368020.7204726,
     "hash": "2586f0a7473df5dde1b507a7f5968146"
@@ -650,6 +662,10 @@
   "/Users/aazevedo/dev/plataforma-licitante/tickets/34-detail-page.md": {
     "mtime": 1787527166.7660208,
     "hash": "d772773fe4a3a6c1bf65bd33ef892622"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/48-itens-table-fluid.md": {
+    "mtime": 1787591811.5617106,
+    "hash": "68578f63709a81a1794a02903ba6f5c2"
   },
   "/Users/aazevedo/dev/plataforma-licitante/web/README.md": {
     "mtime": 1786072360.2632458,
