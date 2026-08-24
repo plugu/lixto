@@ -138,6 +138,14 @@ export function FilterChips({
     });
   });
 
+  if (filters.compat) {
+    chips.push({
+      key: "compat",
+      label: "Compatível com minha empresa",
+      href: buildHref(withoutValue(params, "compat")),
+    });
+  }
+
   if (filters.categoria) {
     chips.push({
       key: "categoria",

@@ -16,6 +16,11 @@ type FiltersProps = {
   filters: LicitacaoFilters;
   facetCounts: FacetCounts;
   total: number;
+  /** Renders the "Compatível com minha empresa" toggle (ticket 52) only when
+   * the visitor is logged in and their empresa has at least one CNAE — the
+   * page strips `filters.compat` in that case too, so the checkbox and the
+   * active filter it represents always agree. */
+  showCompat?: boolean;
 };
 
 // Fit has no facet counts this cycle (ticket 15) — static options, count 0
@@ -35,6 +40,7 @@ function countActiveFilters(filters: LicitacaoFilters): number {
     (filters.ufs?.length ?? 0) +
     (filters.portais?.length ?? 0) +
     (filters.fit?.length ?? 0) +
+    (filters.compat ? 1 : 0) +
     (filters.categoria ? 1 : 0) +
     (filters.valorMin !== undefined ? 1 : 0) +
     (filters.valorMax !== undefined ? 1 : 0)
@@ -229,7 +235,12 @@ function ColumnsMenu() {
  * (`q`, `portal[]`, `modalidade[]`, `status[]`, `categoria`, `setor[]`,
  * `uf[]`, `valorMin`, `valorMax`, `fit[]`) is unchanged.
  */
-export function Filters({ filters, facetCounts, total }: FiltersProps) {
+export function Filters({
+  filters,
+  facetCounts,
+  total,
+  showCompat,
+}: FiltersProps) {
   const activeCount = countActiveFilters(filters);
 
   return (
@@ -305,6 +316,24 @@ export function Filters({ filters, facetCounts, total }: FiltersProps) {
                 options={FIT_OPTIONS}
                 selected={filters.fit ?? []}
               />
+
+              {showCompat && (
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-xs font-medium text-ink-muted">
+                    Empresa
+                  </span>
+                  <label className="flex cursor-pointer items-center gap-2 text-[13px] text-ink">
+                    <input
+                      type="checkbox"
+                      name="compat"
+                      value="1"
+                      defaultChecked={filters.compat === true}
+                      className="h-3.5 w-3.5 rounded-[4px] accent-accent focus:outline-none focus-visible:ring-[3px] focus-visible:ring-accent-soft"
+                    />
+                    Compatível com minha empresa
+                  </label>
+                </div>
+              )}
 
               <div className="flex flex-col gap-1.5">
                 <span className="text-xs font-medium text-ink-muted">
