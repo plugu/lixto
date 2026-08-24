@@ -18,6 +18,12 @@ const PUBLIC_PREFIXES = [
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  if (pathname === "/") {
+    const url = request.nextUrl.clone();
+    url.pathname = "/painel";
+    return NextResponse.redirect(url);
+  }
+
   if (PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix))) {
     return NextResponse.next();
   }

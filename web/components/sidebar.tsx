@@ -10,7 +10,6 @@ import {
   Building,
   Chart,
   FileText,
-  Home,
   List,
   LogOut,
   Sidebar as SidebarIcon,
@@ -67,7 +66,6 @@ function setCollapsedStore(next: boolean) {
 }
 
 export const NAV_ITEMS = [
-  { href: "/", label: "Visão geral", icon: Home },
   { href: "/painel", label: "Painel", icon: Chart },
   { href: "/licitacoes", label: "Licitações", icon: List },
 ] as const;
@@ -148,7 +146,7 @@ export function Sidebar({ session }: { session: SidebarSession | null }) {
       }`}
     >
       <div className={`flex items-center ${collapsed ? "justify-center px-0" : "justify-between px-1"}`}>
-        <Link href="/" className={collapsed ? "hidden" : "flex items-center"}>
+        <Link href="/painel" className={collapsed ? "hidden" : "flex items-center"}>
           <span className="font-display text-lg italic text-ink">Licitante</span>
         </Link>
         <button

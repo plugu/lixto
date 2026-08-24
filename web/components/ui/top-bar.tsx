@@ -20,7 +20,7 @@ export function TopBar({ session }: { session: SidebarSession | null }) {
 
   return (
     <header className="flex h-12 items-center justify-between border-b border-line bg-canvas px-4 md:hidden">
-      <Link href="/" className="font-display text-base italic text-ink">
+      <Link href="/painel" className="font-display text-base italic text-ink">
         Licitante
       </Link>
       <button
