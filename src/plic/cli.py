@@ -11,6 +11,7 @@ from plic.backfill import DEFAULT_SINCE
 from plic.backfill import backfill as run_backfill
 from plic.classify import classify as run_classify
 from plic.cnae_match import classify as run_cnae_classify
+from plic.cnae_match import eval_pending as run_cnae_eval
 from plic.cnae_seed import seed as run_cnae_seed
 from plic.schedule import install as schedule_install
 from plic.schedule import uninstall as schedule_uninstall
@@ -252,6 +253,34 @@ def cnae_classify_cmd(limit: int = _LIMIT_OPTION) -> None:
             err=True,
         )
         raise typer.Exit(code=1)
+
+
+@cnae_app.command("eval")
+def cnae_eval_cmd(limit: int = _LIMIT_OPTION) -> None:
+    """Dry-run evaluation of CNAE tagging via Ollama. Runs the two-stage
+    classification on pending licitações but persists nothing — prints
+    per licitação: numero_controle_pncp, objeto (truncated 80 chars),
+    and each chosen codigo — descricao (confidence). Use to compare model
+    quality before fixing the default: run twice with different
+    PLIC_CNAE_MODEL values to eyeball results.
+    """
+    conn = db.get_connection()
+    try:
+        results = run_cnae_eval(conn, limit=limit)
+    finally:
+        conn.close()
+
+    for result in results:
+        typer.echo(f"\n{result['numero']}")
+        typer.echo(f"  Objeto: {result['objeto'][:80]}")
+        if result["tags"]:
+            for tag in result["tags"]:
+                confidence = f"{tag['confidence']:.2f}" if tag["confidence"] is not None else "N/A"
+                typer.echo(f"    {tag['codigo']} — {tag['descricao']} ({confidence})")
+        else:
+            typer.echo("    (nenhuma tag encontrada)")
+
+    typer.echo(f"\nEvaluadas (sem persistência): {len(results)}")
 
 
 @app.command("status")

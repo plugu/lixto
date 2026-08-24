@@ -320,3 +320,80 @@ def classify(
     if aborted:
         result["aborted"] = 1
     return result
+
+
+def eval_pending(
+    conn: psycopg.Connection,
+    *,
+    limit: int | None = None,
+    client: httpx.Client | None = None,
+) -> list[dict[str, Any]]:
+    """Dry-run evaluation: tags pending abertas/futuras without persisting.
+    Returns list of {numero, objeto, tags: [{codigo, descricao, confidence}]}.
+    Use to compare model quality before fixing the default."""
+    owns_client = client is None
+    client = client or httpx.Client()
+    results = []
+    try:
+        with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
+            cur.execute(_DIVISIONS_SQL)
+            divisions = cur.fetchall()
+
+        processed = 0
+        aborted = False
+        while not aborted and (limit is None or processed < limit):
+            batch_limit = BATCH_SIZE if limit is None else min(BATCH_SIZE, limit - processed)
+            with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
+                cur.execute(_SELECT_BATCH_SQL, {"limit": batch_limit})
+                rows = cur.fetchall()
+            if not rows:
+                break
+
+            try:
+                stage1 = classify_stage1(client, divisions, rows)
+            except httpx.HTTPError:
+                logger.exception(
+                    "stage 1 request failed; stopping eval, %d row(s) in this batch not evaluated",
+                    len(rows),
+                )
+                aborted = True
+                break
+
+            for i, row in enumerate(rows, start=1):
+                divisoes = stage1.get(i, [])
+                tags: list[dict[str, Any]] = []
+                if divisoes:
+                    with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
+                        cur.execute(_SUBCLASSES_SQL, {"divisoes": divisoes})
+                        subclasses = cur.fetchall()
+                    if subclasses:
+                        try:
+                            tags = classify_stage2(client, row, subclasses)
+                        except httpx.HTTPError:
+                            logger.exception("stage 2 request failed for %s; stopping eval", row["numero_controle_pncp"])
+                            aborted = True
+                            break
+
+                        # Enhance tags with descriptions from subclasses
+                        subclass_map = {s["codigo"]: s["descricao"] for s in subclasses}
+                        for tag in tags:
+                            tag["descricao"] = subclass_map.get(tag["codigo"], "")
+
+                results.append(
+                    {
+                        "numero": row["numero_controle_pncp"],
+                        "objeto": row["objeto"],
+                        "tags": tags,
+                    }
+                )
+                processed += 1
+
+            if aborted:
+                break
+
+        logger.info("cnae eval: %d row(s) evaluated (not persisted)", processed)
+    finally:
+        if owns_client:
+            client.close()
+
+    return results

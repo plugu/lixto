@@ -99,6 +99,33 @@ The dashboard now supports multi-tenant company profiles. See [`docs/TENANT.md`]
 - `plic backfill [--since YYYY-MM-DD] [--until YYYY-MM-DD] [--modalidade ...]` — Full backfill from scratch (resumable).
 - `plic status` — Print database statistics.
 
+### CNAE matching
+
+Commands for classifying licitações by CNAE (industry classification) using a local LLM (Ollama):
+
+- `plic cnae seed` — Fetch the IBGE CNAE reference table and upsert (idempotent).
+- `plic cnae classify [--limit N]` — Two-stage classification of pending licitações via Ollama (resumable).
+- `plic cnae eval [--limit N]` — Dry-run evaluation: classify without persisting (for model comparison).
+
+**Environment variables:**
+- `PLIC_OLLAMA_URL` — Ollama API endpoint (default: `http://localhost:11434`).
+- `PLIC_CNAE_MODEL` — Model name (default: `gpt-oss:20b`). Test different models by setting before running `classify` or `eval`.
+
+**Remote Ollama (Tailscale setup):**
+
+Host (plugu-local-m4) runs:
+```bash
+OLLAMA_HOST=0.0.0.0:11434 ollama serve
+```
+
+Consumer (your laptop) over Tailscale:
+```bash
+export PLIC_OLLAMA_URL=http://plugu-local-m4:11434
+plic cnae classify
+```
+
+If the consumer goes offline, untagged licitações remain pending and retry on the next run — offline is not a fatal error.
+
 ### Scheduler (macOS only)
 - `plic schedule install [--dry-run]` — Install the launchd job.
 - `plic schedule uninstall` — Uninstall the launchd job.
