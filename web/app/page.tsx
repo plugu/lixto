@@ -57,7 +57,7 @@ export default async function Home() {
         ))}
       </div>
 
-      <div className="grid w-full max-w-2xl grid-cols-3 gap-4">
+      <div className="grid w-full max-w-2xl grid-cols-1 gap-4 sm:grid-cols-3">
         <StatTile label="Abertas" value={counts.abertas} />
         <StatTile label="Vão abrir" value={counts.vaiAbrir} />
         <StatTile label="Fechadas" value={counts.fechadas} />
