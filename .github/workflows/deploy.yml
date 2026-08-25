@@ -10,14 +10,14 @@
 # a minimal payload from `git diff` and send it with `x-github-event: push`.
 #
 # Two apps, two webhooks; each is only called when its watched paths changed:
-#   web — web/**
-#   cli — src/**, migrations/**, pyproject.toml, uv.lock, Dockerfile.cli
-#     (the cli container runs `plic db init` on start, so a cli deploy is
+#   lixto-web — web/**
+#   lixto-cli — src/**, migrations/**, pyproject.toml, uv.lock, Dockerfile.cli
+#     (the lixto-cli container runs `lixto db init` on start, so a lixto-cli deploy is
 #     also how migrations reach the shared Postgres)
 #
 # Requires repo secrets:
-#   DOKPLOY_DEPLOY_WEBHOOK     — https://dokploy.site.plugu.solutions/api/deploy/<web refreshToken>
-#   DOKPLOY_DEPLOY_WEBHOOK_CLI — https://dokploy.site.plugu.solutions/api/deploy/<cli refreshToken>
+#   DOKPLOY_DEPLOY_WEBHOOK_WEB — https://dokploy.site.plugu.solutions/api/deploy/<lixto-web refreshToken>
+#   DOKPLOY_DEPLOY_WEBHOOK_CLI — https://dokploy.site.plugu.solutions/api/deploy/<lixto-cli refreshToken>
 #     See docs/NEW_PROJECT.md (vps-infra repo) for where to get the tokens.
 
 name: Deploy
@@ -47,7 +47,7 @@ jobs:
 
       - name: Trigger Dokploy deploy webhooks
         env:
-          DOKPLOY_DEPLOY_WEBHOOK: ${{ secrets.DOKPLOY_DEPLOY_WEBHOOK }}
+          DOKPLOY_DEPLOY_WEBHOOK_WEB: ${{ secrets.DOKPLOY_DEPLOY_WEBHOOK_WEB }}
           DOKPLOY_DEPLOY_WEBHOOK_CLI: ${{ secrets.DOKPLOY_DEPLOY_WEBHOOK_CLI }}
           BEFORE: ${{ github.event.before }}
           AFTER: ${{ github.sha }}
@@ -82,13 +82,13 @@ jobs:
 
           rc=0
           if printf '%s\n' "$changed" | grep -q '^web/'; then
-            hook web "$DOKPLOY_DEPLOY_WEBHOOK" || rc=1
+            hook lixto-web "$DOKPLOY_DEPLOY_WEBHOOK_WEB" || rc=1
           else
-            echo "web: no matching changes, skipped"
+            echo "lixto-web: no matching changes, skipped"
           fi
           if printf '%s\n' "$changed" | grep -Eq '^(src/|migrations/|pyproject\.toml$|uv\.lock$|Dockerfile\.cli$)'; then
-            hook cli "$DOKPLOY_DEPLOY_WEBHOOK_CLI" || rc=1
+            hook lixto-cli "$DOKPLOY_DEPLOY_WEBHOOK_CLI" || rc=1
           else
-            echo "cli: no matching changes, skipped"
+            echo "lixto-cli: no matching changes, skipped"
           fi
           exit $rc

@@ -8,8 +8,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Plataforma Licitante",
-  description: "Dashboard de licitações públicas (PNCP)",
+  title: "Lixto",
+  description: "Agente autônomo de licitações públicas (PNCP)",
   icons: { icon: "/favicon.svg" },
 };
 
