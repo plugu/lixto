@@ -7,6 +7,7 @@
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
 import { UF_LIST } from "@/lib/tenant-types";
+import { buildPerfilEmbeddingText, embedText } from "@/lib/agent/embed";
 import {
   parseTermList,
   parseValor,
@@ -17,6 +18,8 @@ import {
 export type PerfilActionState = {
   ok?: boolean;
   erro?: string;
+  /** Saved, but a non-blocking part failed (currently: the embedding). */
+  aviso?: string;
 };
 
 function field(formData: FormData, name: string): string {
@@ -60,8 +63,24 @@ export async function updatePerfilAction(
     observacoes,
   };
 
-  await upsertPerfil(session.usuario.empresaId, input);
+  // Best-effort: the embedding is the company side of the semantic match
+  // (ticket 72). If the provider is down or unconfigured the profile still
+  // saves and the previous vector (if any) is kept.
+  const texto = buildPerfilEmbeddingText({ produtos, palavrasChave, observacoes });
+  const embedding = texto ? await embedText(texto) : null;
+
+  await upsertPerfil(
+    session.usuario.empresaId,
+    input,
+    embedding ? { ...embedding, texto } : null,
+  );
 
   revalidatePath("/empresa/perfil");
+  if (texto && embedding === null) {
+    return {
+      ok: true,
+      aviso: "Perfil salvo; similaridade semântica indisponível no momento.",
+    };
+  }
   return { ok: true };
 }

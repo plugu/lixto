@@ -20,6 +20,7 @@ function fatos(over: Partial<CandidatoFatos> = {}): CandidatoFatos {
     me_epp_exclusivo: null,
     exige_certificacao: null,
     exige_atestado_tecnico: null,
+    similaridade: null,
     ...over,
   };
 }
@@ -67,6 +68,86 @@ describe("scoreCandidate — sem_perfil", () => {
     // 35 (cnae) + 10 (uf, perfil sem ufs) + 10 (valor, sem limites)
     expect(out.score).toBe(55);
     expect(codigos(out.motivos)).toEqual(["cnae_principal", "uf_ok", "valor_ok"]);
+  });
+
+  it("still scores with no terms and no CNAE when there is a similaridade", () => {
+    const out = scoreCandidate(
+      fatos({ similaridade: 0.61 }),
+      perfil({ termos: [] }),
+    );
+    expect(codigos(out.motivos)).not.toContain("sem_perfil");
+    // 10 (uf livre) + 10 (valor livre) + 20 (semantico_alto)
+    expect(out.score).toBe(40);
+  });
+
+  it("still returns sem_perfil when similaridade is null", () => {
+    const out = scoreCandidate(
+      fatos({ similaridade: null }),
+      perfil({ termos: [] }),
+    );
+    expect(codigos(out.motivos)).toEqual(["sem_perfil"]);
+  });
+});
+
+describe("scoreCandidate — semântico", () => {
+  it("gives +20 semantico_alto from 0.55 up, with sim= as detalhe", () => {
+    const out = scoreCandidate(
+      fatos({ termo_hits: ["lapis"], similaridade: 0.61 }),
+      perfil(),
+    );
+    expect(peso(out.motivos, "semantico_alto")).toBe(20);
+    expect(out.motivos.find((m) => m.codigo === "semantico_alto")?.detalhe).toBe(
+      "sim=0.61",
+    );
+    expect(codigos(out.motivos)).not.toContain("semantico");
+
+    const borda = scoreCandidate(
+      fatos({ termo_hits: ["lapis"], similaridade: 0.55 }),
+      perfil(),
+    );
+    expect(peso(borda.motivos, "semantico_alto")).toBe(20);
+  });
+
+  it("gives +10 semantico between 0.40 and 0.55", () => {
+    const out = scoreCandidate(
+      fatos({ termo_hits: ["lapis"], similaridade: 0.4 }),
+      perfil(),
+    );
+    expect(peso(out.motivos, "semantico")).toBe(10);
+    expect(out.motivos.find((m) => m.codigo === "semantico")?.detalhe).toBe(
+      "sim=0.40",
+    );
+    expect(codigos(out.motivos)).not.toContain("semantico_alto");
+  });
+
+  it("emits no semantic motivo below 0.40", () => {
+    const out = scoreCandidate(
+      fatos({ termo_hits: ["lapis"], similaridade: 0.39 }),
+      perfil(),
+    );
+    expect(codigos(out.motivos)).toEqual(["termo_enriquecimento", "uf_ok", "valor_ok"]);
+  });
+
+  it("adds to — and never replaces — the other signals", () => {
+    const base = fatos({ cnae_hits_principal: ["4761003"], termo_hits: ["lapis"] });
+    const sem = scoreCandidate(base, perfil());
+    const com = scoreCandidate({ ...base, similaridade: 0.7 }, perfil());
+    expect(com.score - sem.score).toBe(20);
+    expect(codigos(com.motivos).slice(0, 4)).toEqual(codigos(sem.motivos));
+  });
+
+  it("still clamps at 100 when everything fires", () => {
+    const out = scoreCandidate(
+      fatos({
+        cnae_hits_principal: ["4761003"],
+        termo_hits: ["lapis", "caneta"],
+        valor_total_estimado: "1000.00",
+        similaridade: 0.9,
+      }),
+      perfil({ ufs: ["RJ"], valor_min: "100.00", valor_max: "10000.00" }),
+    );
+    // 35 + 35 + 10 + 10 + 20 = 110 raw
+    expect(out.score).toBe(100);
   });
 });
 

@@ -20,6 +20,8 @@ export type MotivoCodigo =
   | "exige_certificacao"
   | "exige_atestado"
   | "exclusao"
+  | "semantico_alto"
+  | "semantico"
   | "sem_perfil";
 
 export type Motivo = { codigo: MotivoCodigo; peso: number; detalhe: string };
@@ -39,6 +41,9 @@ export type CandidatoFatos = {
   me_epp_exclusivo: boolean | null;
   exige_certificacao: boolean | null;
   exige_atestado_tecnico: boolean | null;
+  /** Cosine similarity (0..1) between the perfil vector and the enrichment
+   * vector; null when either side has no embedding (ticket 72). */
+  similaridade: number | null;
 };
 
 export type PerfilResumo = {
@@ -59,8 +64,9 @@ function clamp(score: number): number {
 /**
  * Scores one candidate against one profile. Every applied rule line becomes a
  * `Motivo` carrying its own `peso`, so the UI can explain the number without
- * re-deriving it. The sum is clamped to 0..100 but the motivos keep their raw
- * weights on purpose (a −40 ME/EPP penalty stays visible even at score 0).
+ * re-deriving it. The sum is clamped to 0..100 (max raw is 110 since the
+ * semantic band was added) but the motivos keep their raw weights on purpose
+ * (a −40 ME/EPP penalty stays visible even at score 0).
  */
 export function scoreCandidate(
   f: CandidatoFatos,
@@ -69,9 +75,10 @@ export function scoreCandidate(
   const temCnae =
     f.cnae_hits_principal.length > 0 || f.cnae_hits_secundario.length > 0;
 
-  // Nothing to match on: an empresa with no terms and no CNAE overlap gets a
-  // single honest reason instead of a score built out of UF/valor noise.
-  if (p.termos.length === 0 && !temCnae) {
+  // Nothing to match on: an empresa with no terms, no CNAE overlap and no
+  // semantic signal gets a single honest reason instead of a score built out
+  // of UF/valor noise. A similaridade alone is enough to keep scoring.
+  if (p.termos.length === 0 && !temCnae && f.similaridade === null) {
     return {
       score: 0,
       motivos: [
@@ -148,6 +155,18 @@ export function scoreCandidate(
 
   if (f.exclusao_hit) {
     add("exclusao", -50, "Termo de exclusão do perfil encontrado");
+  }
+
+  // Semantic proximity between the perfil vector and the enrichment vector
+  // (ticket 72). Fixed bands, deliberately worth less than a CNAE or keyword
+  // hit: it is a recall booster, not a substitute for a hard signal.
+  if (f.similaridade !== null) {
+    const detalhe = `sim=${f.similaridade.toFixed(2)}`;
+    if (f.similaridade >= 0.55) {
+      add("semantico_alto", 20, detalhe);
+    } else if (f.similaridade >= 0.4) {
+      add("semantico", 10, detalhe);
+    }
   }
 
   return { score: clamp(score), motivos };

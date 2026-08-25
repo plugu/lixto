@@ -31,6 +31,8 @@ const MOTIVO_LABELS: Record<MotivoCodigo, string> = {
   exige_certificacao: "exige certificação",
   exige_atestado: "exige atestado",
   exclusao: "exclusão",
+  semantico_alto: "similar ao perfil",
+  semantico: "afinidade semântica",
   sem_perfil: "sem perfil",
 };
 

@@ -53,6 +53,7 @@ function candidato(over: Record<string, unknown> = {}) {
     me_epp_exclusivo: null,
     exige_certificacao: null,
     exige_atestado_tecnico: null,
+    similaridade: null,
     ...over,
   };
 }
@@ -189,18 +190,70 @@ describe("buildCandidateQuery", () => {
     }
     expect(Math.max(...usados)).toBe(q.values.length);
   });
+
+  it("selects NULL::real as similaridade when there is no perfil embedding", () => {
+    const q = buildCandidateQuery(1, {}, perfil(), 200);
+    expect(q.text).toContain("NULL::real AS similaridade");
+    expect(q.text).not.toContain("<=>");
+    expect(q.text).not.toContain("LEFT JOIN semantico");
+    expect(q.values.every((v) => typeof v !== "string" || !v.startsWith("["))).toBe(
+      true,
+    );
+  });
+
+  it("adds the pgvector CTE and binds the vector as text when given", () => {
+    const vetor = "[0.1,0.2,0.3]";
+    const q = buildCandidateQuery(1, {}, perfil(), 200, vetor);
+
+    expect(q.text).toContain("semantico AS (");
+    expect(q.text).toContain("1 - (embedding <=> $");
+    expect(q.text).toContain("::vector");
+    expect(q.text).toContain("LEFT JOIN semantico s");
+    expect(q.text).toContain("s.similaridade");
+    // Bound exactly once and never interpolated.
+    expect(q.values.filter((v) => v === vetor)).toHaveLength(1);
+    expect(q.text).not.toContain("0.1,0.2,0.3");
+  });
+
+  it("accepts the similaridade as a standalone signal", () => {
+    const q = buildCandidateQuery(1, {}, perfil(), 200, "[0.1,0.2]");
+    expect(q.text).toContain("OR s.similaridade >= 0.40");
+
+    const sem = buildCandidateQuery(1, {}, perfil(), 200);
+    expect(sem.text).not.toContain("s.similaridade >=");
+  });
+
+  it("still numbers every placeholder with no gaps with the vector bound", () => {
+    const q = buildCandidateQuery(
+      1,
+      { q: "lapis", ufs: ["RJ"] },
+      perfil(),
+      200,
+      "[0.1,0.2]",
+    );
+    const usados = new Set(
+      [...q.text.matchAll(/\$(\d+)/g)].map((m) => Number(m[1])),
+    );
+    for (let i = 1; i <= q.values.length; i++) {
+      expect(usados.has(i)).toBe(true);
+    }
+    expect(Math.max(...usados)).toBe(q.values.length);
+  });
 });
 
 describe("fetchMatches", () => {
-  /** getPerfil, then the porte lookup, then the candidate query. */
+  /** Four statements, in order: getPerfil, the porte lookup,
+   * getPerfilEmbeddingText, then the candidate query (mock.calls[3]). */
   function mockEmpresa(
     perfilRow: Record<string, unknown> | null,
     porte: string | null,
     candidatos: Record<string, unknown>[],
+    embedding: string | null = null,
   ) {
     query
       .mockResolvedValueOnce({ rows: perfilRow ? [perfilRow] : [] })
       .mockResolvedValueOnce({ rows: porte === null ? [] : [{ porte }] })
+      .mockResolvedValueOnce({ rows: [{ embedding }] })
       .mockResolvedValueOnce({ rows: candidatos });
   }
 
@@ -215,6 +268,7 @@ describe("fetchMatches", () => {
     valor_min: null,
     valor_max: null,
     observacoes: null,
+    embedding_texto: null,
   };
 
   it("scores rows, sorts by score desc and returns motivos", async () => {
@@ -306,7 +360,7 @@ describe("fetchMatches", () => {
 
     const rows = await fetchMatches(1, {});
 
-    const [, values] = query.mock.calls[2];
+    const [, values] = query.mock.calls[3];
     expect(values[0]).toBe(1);
     expect(values[1]).toEqual([]);
     expect(values[2]).toBe(null);
@@ -319,8 +373,40 @@ describe("fetchMatches", () => {
 
     await fetchMatches(1, { q: "lapis'; DROP TABLE licitacao; --", ufs: ["RJ"] });
 
-    const [text, values] = query.mock.calls[2];
+    const [text, values] = query.mock.calls[3];
     expect(text).not.toContain("DROP TABLE");
     expect(values).toContain("lapis'; DROP TABLE licitacao; --");
+  });
+
+  it("passes the perfil embedding to the candidate query and scores it", async () => {
+    mockEmpresa(
+      perfilRow,
+      "ME",
+      [candidato({ termo_hits: ["lapis"], similaridade: "0.62" })],
+      "[0.1,0.2,0.3]",
+    );
+
+    const rows = await fetchMatches(1, {});
+
+    const [text, values] = query.mock.calls[3];
+    expect(text).toContain("<=>");
+    expect(values).toContain("[0.1,0.2,0.3]");
+    expect(rows[0].motivos.map((m) => m.codigo)).toContain("semantico_alto");
+    expect(
+      rows[0].motivos.find((m) => m.codigo === "semantico_alto")?.detalhe,
+    ).toBe("sim=0.62");
+    // 25 (1 termo) + 10 (uf) + 10 (valor) + 20 (semântico)
+    expect(rows[0].score).toBe(65);
+  });
+
+  it("omits the vector CTE when the empresa has no embedding", async () => {
+    mockEmpresa(perfilRow, "ME", [candidato({ termo_hits: ["lapis"] })]);
+
+    const rows = await fetchMatches(1, {});
+
+    const [text] = query.mock.calls[3];
+    expect(text).not.toContain("<=>");
+    expect(rows[0].motivos.map((m) => m.codigo)).not.toContain("semantico");
+    expect(rows[0].score).toBe(45);
   });
 });
