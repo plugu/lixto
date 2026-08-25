@@ -1,10 +1,10 @@
 # STATE — rewrite after every ticket completes; never append. ≤30 lines total.
 
 ## Now
-- Cycle 16 (enrich + match + chat), mvp. Done: 63–68 (all 1 attempt). 69 (chat UI, sonnet) running in place.
+- Cycle 16 (enrich + match + chat), mvp. Done: 63–69 (all 1 attempt). 70 (docs, haiku) running in place.
 
 ## Next
-- 70 (docs, haiku) sequential in place, then mvp final diff review (approval 2 of 2).
+- mvp final diff review (approval 2 of 2) after 70.
 - Post-cycle operator steps: set PLIC_LLM_* env on Dokploy `cli` + `web`, create `enrich-run` schedule.
 
 ## Decisions
