@@ -5,12 +5,12 @@
 
 import { NextResponse, type NextRequest } from "next/server";
 
-const SESSION_COOKIE = "plic_session";
+const SESSION_COOKIE = "lixto_session";
 
 const PUBLIC_PREFIXES = [
   "/login",
   "/signup",
-  "/convite",
+  "/invite",
   "/_next",
   "/favicon.ico",
 ];

@@ -1,7 +1,8 @@
-// Session auth for the tenant model (ticket 24). Server-only: never import
-// this from a client component — it touches the DB pool and next/headers.
+// Session auth on the lixto schema (tables `users`, `sessions`, `companies`).
+// Server-only: never import this from a client component — it touches the DB
+// pool and next/headers.
 // No auth library: Node crypto (scrypt + sha256) is enough for email+password
-// sessions, and keeping the dependency list short is a cycle-7 constraint.
+// sessions, and keeping the dependency list short is a standing constraint.
 
 import crypto from "node:crypto";
 import { cookies } from "next/headers";
@@ -9,17 +10,35 @@ import { redirect } from "next/navigation";
 // Relative (not "@/lib/...") on purpose: vitest runs without a config file, so
 // the tsconfig "@/" alias is not resolvable in auth.test.ts.
 import { pool } from "./db";
-import type { Role } from "./tenant-types";
+import type { Role } from "./types";
 
-export type Session = {
-  usuario: {
+export type SessionUser = {
+  id: number;
+  name: string;
+  email: string;
+  role: Role;
+  companyId: number;
+};
+
+export type SessionCompany = {
+  id: number;
+  legalName: string;
+  tradeName: string | null;
+  taxId: string;
+};
+
+/** COMPAT SHIM (ticket 80): legacy modules this ticket does not own
+ * (lib/agent/*, /licitacoes, /lixto, /api/chat, /empresa/perfil) still read
+ * `session.usuario` / `session.empresa`. Ticket 82 removes both. */
+type SessionCompat = {
+  readonly usuario: {
     id: number;
     nome: string;
     email: string;
     role: Role;
     empresaId: number;
   };
-  empresa: {
+  readonly empresa: {
     id: number;
     razaoSocial: string;
     nomeFantasia: string | null;
@@ -27,7 +46,25 @@ export type Session = {
   };
 };
 
-export const SESSION_COOKIE = "plic_session";
+/** The session. `user`/`company` are the real fields — they are optional
+ * *only* while the compat shim lives, because a legacy module this ticket
+ * does not own (lib/agent/run.test.ts) still builds a Portuguese-shaped
+ * `Session` literal. Everything auth.ts hands out is an `ActiveSession`,
+ * where both are present, so callers that go through
+ * getSession()/requireSession()/requireAdmin()/login() never see the
+ * optionality. Ticket 82 drops SessionCompat and merges ActiveSession back
+ * into Session. */
+export type Session = SessionCompat & {
+  user?: SessionUser;
+  company?: SessionCompany;
+};
+
+export type ActiveSession = Session & {
+  user: SessionUser;
+  company: SessionCompany;
+};
+
+export const SESSION_COOKIE = "lixto_session";
 
 const SESSION_DAYS = 30;
 const SESSION_MAX_AGE = SESSION_DAYS * 24 * 60 * 60; // seconds
@@ -70,12 +107,12 @@ function sha256hex(value: string): string {
 }
 
 /** Inserts a session row and returns the raw (un-hashed) cookie token. */
-export async function createSession(usuarioId: number): Promise<string> {
+export async function createSession(userId: number): Promise<string> {
   const token = crypto.randomBytes(32).toString("base64url");
   await pool.query(
-    `INSERT INTO sessao (token_hash, usuario_id, expira_em)
+    `INSERT INTO sessions (token_hash, user_id, expires_at)
      VALUES ($1, $2, now() + ($3 || ' days')::interval)`,
-    [sha256hex(token), usuarioId, String(SESSION_DAYS)],
+    [sha256hex(token), userId, String(SESSION_DAYS)],
   );
   return token;
 }
@@ -104,65 +141,85 @@ export async function clearSessionCookie(): Promise<void> {
 }
 
 type SessionRow = {
-  usuario_id: string;
-  nome: string;
+  user_id: string;
+  name: string;
   email: string;
   role: Role;
-  empresa_id: string;
-  razao_social: string;
-  nome_fantasia: string | null;
-  cnpj: string;
+  company_id: string;
+  legal_name: string;
+  trade_name: string | null;
+  tax_id: string;
 };
 
-const SESSION_SELECT = `SELECT u.id   AS usuario_id,
-            u.nome, u.email, u.role,
-            e.id   AS empresa_id,
-            e.razao_social, e.nome_fantasia, e.cnpj
-       FROM usuario u
-       JOIN empresa e ON e.id = u.empresa_id`;
+const SESSION_SELECT = `SELECT u.id   AS user_id,
+            u.name, u.email, u.role,
+            c.id   AS company_id,
+            c.legal_name, c.trade_name, c.tax_id
+       FROM users u
+       JOIN companies c ON c.id = u.company_id`;
 
-function toSession(row: SessionRow): Session {
+function toSession(row: SessionRow): ActiveSession {
+  const user = {
+    id: Number(row.user_id),
+    name: row.name,
+    email: row.email,
+    role: row.role,
+    companyId: Number(row.company_id),
+  };
+  const company = {
+    id: Number(row.company_id),
+    legalName: row.legal_name,
+    tradeName: row.trade_name,
+    taxId: row.tax_id,
+  };
   return {
-    usuario: {
-      id: Number(row.usuario_id),
-      nome: row.nome,
-      email: row.email,
-      role: row.role,
-      empresaId: Number(row.empresa_id),
+    user,
+    company,
+    // Compat getters — see SessionCompat above.
+    get usuario() {
+      return {
+        id: user.id,
+        nome: user.name,
+        email: user.email,
+        role: user.role,
+        empresaId: user.companyId,
+      };
     },
-    empresa: {
-      id: Number(row.empresa_id),
-      razaoSocial: row.razao_social,
-      nomeFantasia: row.nome_fantasia,
-      cnpj: row.cnpj,
+    get empresa() {
+      return {
+        id: company.id,
+        razaoSocial: company.legalName,
+        nomeFantasia: company.tradeName,
+        cnpj: company.taxId,
+      };
     },
   };
 }
 
 /** Resolves the cookie to a live session, or null when missing/expired. */
-export async function getSession(): Promise<Session | null> {
+export async function getSession(): Promise<ActiveSession | null> {
   const store = await cookies();
   const token = store.get(SESSION_COOKIE)?.value;
   if (!token) return null;
 
   const { rows } = await pool.query<SessionRow>(
     `${SESSION_SELECT}
-       JOIN sessao s ON s.usuario_id = u.id
-      WHERE s.token_hash = $1 AND s.expira_em > now()`,
+       JOIN sessions s ON s.user_id = u.id
+      WHERE s.token_hash = $1 AND s.expires_at > now()`,
     [sha256hex(token)],
   );
   return rows[0] ? toSession(rows[0]) : null;
 }
 
-export async function requireSession(): Promise<Session> {
+export async function requireSession(): Promise<ActiveSession> {
   const session = await getSession();
   if (!session) redirect("/login");
   return session;
 }
 
-export async function requireAdmin(): Promise<Session> {
+export async function requireAdmin(): Promise<ActiveSession> {
   const session = await requireSession();
-  if (session.usuario.role !== "admin") redirect("/empresa");
+  if (session.user.role !== "admin") redirect("/company");
   return session;
 }
 
@@ -170,7 +227,7 @@ export async function destroySession(): Promise<void> {
   const store = await cookies();
   const token = store.get(SESSION_COOKIE)?.value;
   if (token) {
-    await pool.query(`DELETE FROM sessao WHERE token_hash = $1`, [
+    await pool.query(`DELETE FROM sessions WHERE token_hash = $1`, [
       sha256hex(token),
     ]);
   }
@@ -181,20 +238,20 @@ export async function destroySession(): Promise<void> {
 export async function login(
   email: string,
   password: string,
-): Promise<Session | null> {
+): Promise<ActiveSession | null> {
   const normalized = email.trim().toLowerCase();
   if (!normalized || !password) return null;
 
   const { rows } = await pool.query<{
     id: string;
-    senha_hash: string | null;
-  }>(`SELECT id, senha_hash FROM usuario WHERE email = $1`, [normalized]);
+    password_hash: string | null;
+  }>(`SELECT id, password_hash FROM users WHERE email = $1`, [normalized]);
   const row = rows[0];
-  if (!row || !row.senha_hash) return null;
-  if (!(await verifyPassword(password, row.senha_hash))) return null;
+  if (!row || !row.password_hash) return null;
+  if (!(await verifyPassword(password, row.password_hash))) return null;
 
-  const usuarioId = Number(row.id);
-  const token = await createSession(usuarioId);
+  const userId = Number(row.id);
+  const token = await createSession(userId);
   await setSessionCookie(token);
 
   // Build the session from the user id rather than re-reading the cookie we
@@ -202,7 +259,7 @@ export async function login(
   // read-after-write semantics inside a server action.
   const { rows: sessionRows } = await pool.query<SessionRow>(
     `${SESSION_SELECT} WHERE u.id = $1`,
-    [usuarioId],
+    [userId],
   );
   return sessionRows[0] ? toSession(sessionRows[0]) : null;
 }

@@ -1,17 +1,20 @@
 "use client";
 
 import { useActionState } from "react";
-import { uploadDocumentoAction, type UploadState } from "@/app/(app)/empresa/documentos/actions";
+import {
+  uploadDocumentAction,
+  type UploadState,
+} from "@/app/(app)/company/documents/actions";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select } from "@/components/ui/input";
 import { Section } from "@/components/ui/section";
-import { DOCUMENTO_TIPOS } from "@/lib/tenant-types";
+import { DOCUMENT_KINDS } from "@/lib/types";
 
 const INITIAL_STATE: UploadState = {};
 
-export function DocumentoUploadForm() {
+export function DocumentUploadForm() {
   const [state, formAction, pending] = useActionState(
-    uploadDocumentoAction,
+    uploadDocumentAction,
     INITIAL_STATE,
   );
 
@@ -22,21 +25,21 @@ export function DocumentoUploadForm() {
         className="flex flex-col gap-4 md:flex-row md:flex-wrap md:items-end"
       >
         <Field label="Tipo">
-          <Select name="tipo" required>
-            {DOCUMENTO_TIPOS.map((tipo) => (
-              <option key={tipo.value} value={tipo.value}>
-                {tipo.label}
+          <Select name="kind" required>
+            {DOCUMENT_KINDS.map((kind) => (
+              <option key={kind.value} value={kind.value}>
+                {kind.label}
               </option>
             ))}
           </Select>
         </Field>
 
         <Field label="Validade (opcional)">
-          <Input type="date" name="validade" />
+          <Input type="date" name="validUntil" />
         </Field>
 
         <Field label="Arquivo">
-          <Input type="file" name="arquivo" accept=".pdf,.jpg,.jpeg,.png" required />
+          <Input type="file" name="file" accept=".pdf,.jpg,.jpeg,.png" required />
         </Field>
 
         <Button type="submit" disabled={pending} className="w-full md:w-auto">

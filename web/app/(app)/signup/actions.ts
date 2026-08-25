@@ -9,19 +9,73 @@ import {
   isValidEmail,
   onlyDigits,
 } from "@/lib/br-validators";
-import { lookupCNPJ, type CnpjLookup } from "@/lib/cnpj-lookup";
-import { createEmpresaComAdmin } from "@/lib/signup-queries";
-import { PORTES, UF_LIST, type Porte } from "@/lib/tenant-types";
+import { lookupCNPJ } from "@/lib/cnpj-lookup";
+import { createCompanyWithAdmin } from "@/lib/signup-queries";
+import { COMPANY_SIZES, UF_LIST, type CompanySize } from "@/lib/types";
+// COMPAT (ticket 80): lib/cnpj-lookup.ts is not owned by this ticket and
+// still speaks the legacy `Porte` union — mapped to CompanySize right here,
+// at the boundary. Ticket 82 ports cnpj-lookup itself.
+import type { Porte } from "@/lib/tenant-types";
 
 export type SignupState = {
   erro: string | null;
 };
 
+export type CompanyLookup = {
+  legalName: string;
+  tradeName: string | null;
+  legalNature: string | null;
+  size: CompanySize | null;
+  simplesOptant: boolean;
+  postalCode: string | null;
+  street: string | null;
+  streetNumber: string | null;
+  addressLine2: string | null;
+  district: string | null;
+  cityName: string | null;
+  state: string | null;
+  phone: string | null;
+  email: string | null;
+  cnaes: { code: string; description: string; isPrimary: boolean }[];
+};
+
+const SIZE_BY_PORTE: Record<Porte, CompanySize> = {
+  MEI: "MEI",
+  ME: "ME",
+  EPP: "EPP",
+  MEDIO: "MEDIUM",
+  GRANDE: "LARGE",
+};
+
 /** Server-action wrapper around `lookupCNPJ` — the client form calls this
  * directly (no API route: `proxy.ts` blocks `/api/*` without a cookie). */
-export async function lookupAction(cnpj: string): Promise<CnpjLookup | null> {
-  if (!isValidCNPJ(cnpj)) return null;
-  return lookupCNPJ(onlyDigits(cnpj));
+export async function lookupAction(
+  taxId: string,
+): Promise<CompanyLookup | null> {
+  if (!isValidCNPJ(taxId)) return null;
+  const found = await lookupCNPJ(onlyDigits(taxId));
+  if (!found) return null;
+  return {
+    legalName: found.razaoSocial,
+    tradeName: found.nomeFantasia,
+    legalNature: found.naturezaJuridica,
+    size: found.porte ? SIZE_BY_PORTE[found.porte] : null,
+    simplesOptant: found.optanteSimples,
+    postalCode: found.cep,
+    street: found.logradouro,
+    streetNumber: found.numero,
+    addressLine2: found.complemento,
+    district: found.bairro,
+    cityName: found.municipio,
+    state: found.uf,
+    phone: found.telefone,
+    email: found.email,
+    cnaes: found.cnaes.map((c) => ({
+      code: c.codigo,
+      description: c.descricao,
+      isPrimary: c.principal,
+    })),
+  };
 }
 
 function str(formData: FormData, key: string): string {
@@ -29,116 +83,116 @@ function str(formData: FormData, key: string): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
-function isPorte(value: string): value is Porte {
-  return (PORTES as string[]).includes(value);
+function isCompanySize(value: string): value is CompanySize {
+  return (COMPANY_SIZES as string[]).includes(value);
 }
 
 type CnaeForm = {
-  codigo: string;
-  descricao: string;
-  principal: boolean;
+  code: string;
+  description: string;
+  isPrimary: boolean;
 };
 
 function parseCnaes(formData: FormData): CnaeForm[] {
-  const codigos = formData.getAll("cnae_codigo").map(String);
-  const descricoes = formData.getAll("cnae_descricao").map(String);
-  const principalIndex = formData.get("cnae_principal");
-  const principalIdx =
-    typeof principalIndex === "string" ? Number(principalIndex) : -1;
+  const codes = formData.getAll("cnae_code").map(String);
+  const descriptions = formData.getAll("cnae_description").map(String);
+  const primaryIndex = formData.get("cnae_primary");
+  const primaryIdx =
+    typeof primaryIndex === "string" ? Number(primaryIndex) : -1;
 
-  return codigos
-    .map((codigo, i) => ({
-      codigo: codigo.trim(),
-      descricao: (descricoes[i] ?? "").trim(),
-      principal: i === principalIdx,
+  return codes
+    .map((code, i) => ({
+      code: code.trim(),
+      description: (descriptions[i] ?? "").trim(),
+      isPrimary: i === primaryIdx,
     }))
-    .filter((c) => c.codigo && c.descricao);
+    .filter((c) => c.code && c.description);
 }
 
 export async function signupAction(
   _prev: SignupState,
   formData: FormData,
 ): Promise<SignupState> {
-  const cnpj = str(formData, "cnpj");
-  const razaoSocial = str(formData, "razaoSocial");
-  const nomeFantasia = str(formData, "nomeFantasia");
-  const naturezaJuridica = str(formData, "naturezaJuridica");
-  const porteRaw = str(formData, "porte");
-  const optanteSimples = formData.get("optanteSimples") === "on";
-  const inscricaoEstadual = str(formData, "inscricaoEstadual");
-  const inscricaoMunicipal = str(formData, "inscricaoMunicipal");
-  const cep = str(formData, "cep");
-  const logradouro = str(formData, "logradouro");
-  const numero = str(formData, "numero");
-  const complemento = str(formData, "complemento");
-  const bairro = str(formData, "bairro");
-  const municipio = str(formData, "municipio");
-  const uf = str(formData, "uf");
-  const empresaTelefone = str(formData, "empresaTelefone");
-  const empresaEmail = str(formData, "empresaEmail");
+  const taxId = str(formData, "taxId");
+  const legalName = str(formData, "legalName");
+  const tradeName = str(formData, "tradeName");
+  const legalNature = str(formData, "legalNature");
+  const sizeRaw = str(formData, "size");
+  const simplesOptant = formData.get("simplesOptant") === "on";
+  const stateRegistration = str(formData, "stateRegistration");
+  const municipalRegistration = str(formData, "municipalRegistration");
+  const postalCode = str(formData, "postalCode");
+  const street = str(formData, "street");
+  const streetNumber = str(formData, "streetNumber");
+  const addressLine2 = str(formData, "addressLine2");
+  const district = str(formData, "district");
+  const cityName = str(formData, "cityName");
+  const state = str(formData, "state");
+  const companyPhone = str(formData, "companyPhone");
+  const companyEmail = str(formData, "companyEmail");
 
-  const nome = str(formData, "nome");
+  const name = str(formData, "name");
   const email = str(formData, "email");
-  const senha = str(formData, "senha");
-  const confirmarSenha = str(formData, "confirmarSenha");
+  const password = str(formData, "password");
+  const confirmPassword = str(formData, "confirmPassword");
   const cpf = str(formData, "cpf");
-  const telefone = str(formData, "telefone");
-  const cargo = str(formData, "cargo");
+  const phone = str(formData, "phone");
+  const jobTitle = str(formData, "jobTitle");
 
   const cnaes = parseCnaes(formData);
 
-  if (!isValidCNPJ(cnpj)) return { erro: "CNPJ inválido." };
-  if (!razaoSocial) return { erro: "Informe a razão social." };
+  if (!isValidCNPJ(taxId)) return { erro: "CNPJ inválido." };
+  if (!legalName) return { erro: "Informe a razão social." };
   if (!isValidEmail(email)) return { erro: "E-mail inválido." };
-  if (senha.length < 8) {
+  if (password.length < 8) {
     return { erro: "A senha deve ter ao menos 8 caracteres." };
   }
-  if (senha !== confirmarSenha) return { erro: "As senhas não coincidem." };
+  if (password !== confirmPassword) return { erro: "As senhas não coincidem." };
   if (cpf && !isValidCPF(cpf)) return { erro: "CPF inválido." };
-  if (cep && !isValidCEP(cep)) return { erro: "CEP inválido." };
+  if (postalCode && !isValidCEP(postalCode)) return { erro: "CEP inválido." };
   if (cnaes.length === 0) {
     return { erro: "Adicione ao menos um CNAE." };
   }
-  const principais = cnaes.filter((c) => c.principal);
-  if (principais.length !== 1) {
+  const primaries = cnaes.filter((c) => c.isPrimary);
+  if (primaries.length !== 1) {
     return { erro: "Selecione exatamente um CNAE principal." };
   }
 
-  const porte = isPorte(porteRaw) ? porteRaw : null;
-  const ufValue = UF_LIST.includes(uf) ? uf : null;
+  const size = isCompanySize(sizeRaw) ? sizeRaw : null;
+  const stateValue = UF_LIST.includes(state) ? state : null;
 
-  const senhaHash = await hashPassword(senha);
+  const passwordHash = await hashPassword(password);
 
   let result;
   try {
-    result = await createEmpresaComAdmin({
-      empresa: {
-        cnpj,
-        razaoSocial,
-        nomeFantasia: nomeFantasia || null,
-        naturezaJuridica: naturezaJuridica || null,
-        porte,
-        optanteSimples,
-        inscricaoEstadual: inscricaoEstadual || null,
-        inscricaoMunicipal: inscricaoMunicipal || null,
-        cep: cep || null,
-        logradouro: logradouro || null,
-        numero: numero || null,
-        complemento: complemento || null,
-        bairro: bairro || null,
-        municipio: municipio || null,
-        uf: ufValue,
-        telefone: empresaTelefone || null,
-        email: empresaEmail || null,
+    result = await createCompanyWithAdmin({
+      company: {
+        taxId,
+        legalName,
+        tradeName: tradeName || null,
+        legalNature: legalNature || null,
+        size,
+        simplesOptant,
+        stateRegistration: stateRegistration || null,
+        municipalRegistration: municipalRegistration || null,
+        postalCode: postalCode || null,
+        street: street || null,
+        streetNumber: streetNumber || null,
+        addressLine2: addressLine2 || null,
+        district: district || null,
+        cityName: cityName || null,
+        state: stateValue,
+        phone: companyPhone || null,
+        email: companyEmail || null,
       },
       cnaes,
-      usuario: {
-        nome,
+      user: {
+        name,
         email,
-        senhaHash,
+        passwordHash,
         cpf: cpf || null,
-        telefone: telefone || null,
-        cargo: cargo || null,
+        phone: phone || null,
+        jobTitle: jobTitle || null,
       },
     });
   } catch (err) {
@@ -149,7 +203,7 @@ export async function signupAction(
     throw err;
   }
 
-  const token = await createSession(result.usuarioId);
+  const token = await createSession(result.userId);
   await setSessionCookie(token);
-  redirect("/empresa");
+  redirect("/company");
 }

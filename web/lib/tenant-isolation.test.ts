@@ -2,123 +2,123 @@ import { describe, it, expect } from "vitest";
 
 // Relative imports (not "@/lib/...") on purpose: vitest runs without a config file
 import {
-  buildUpdateEmpresa,
+  buildUpdateCompany,
   buildInsertCnaes,
-  type EmpresaInput,
+  type CompanyInput,
   type CnaeInput,
-} from "./empresa-queries";
+} from "./company-queries";
 import {
-  buildListUsuarios,
+  buildListUsers,
   buildUpdateRole,
-  buildRemoveUsuario,
-} from "./usuario-queries";
+  buildRemoveUser,
+} from "./user-queries";
 import {
-  buildListDocumentos,
-  buildGetDocumento,
-  buildDeleteDocumento,
-  buildInsertDocumento,
-  type NovoDocumento,
-} from "./documento-queries";
+  buildListDocuments,
+  buildGetDocument,
+  buildDeleteDocument,
+  buildInsertDocument,
+  type NewDocument,
+} from "./document-queries";
 
-const EMPRESA_ID = 42;
-const USUARIO_ID = 1;
+const COMPANY_ID = 42;
+const USER_ID = 1;
 const DOC_ID = 7;
 
-describe("Tenant isolation - all builders bind empresa_id", () => {
-  it("buildUpdateEmpresa binds empresa_id as $1", () => {
-    const input: EmpresaInput = {
-      razaoSocial: "Test Company",
-      nomeFantasia: "Test",
-      naturezaJuridica: "Test",
-      porte: "ME",
-      optanteSimples: false,
-      inscricaoEstadual: "123456789",
-      inscricaoMunicipal: "987654321",
-      cep: "01310100",
-      logradouro: "Rua Test",
-      numero: "123",
-      complemento: "",
-      bairro: "Centro",
-      municipio: "São Paulo",
-      uf: "SP",
-      telefone: "1133334444",
+describe("Tenant isolation - all builders bind company_id", () => {
+  it("buildUpdateCompany binds company_id as $1", () => {
+    const input: CompanyInput = {
+      legalName: "Test Company",
+      tradeName: "Test",
+      legalNature: "Test",
+      size: "ME",
+      simplesOptant: false,
+      stateRegistration: "123456789",
+      municipalRegistration: "987654321",
+      postalCode: "01310100",
+      street: "Rua Test",
+      streetNumber: "123",
+      addressLine2: "",
+      district: "Centro",
+      cityName: "São Paulo",
+      state: "SP",
+      phone: "1133334444",
       email: "test@example.com",
     };
-    const { text, values } = buildUpdateEmpresa(EMPRESA_ID, input);
+    const { text, values } = buildUpdateCompany(COMPANY_ID, input);
 
-    // buildUpdateEmpresa uses WHERE id = $1 (empresaId is the id of the empresa table)
+    // buildUpdateCompany uses WHERE id = $1 (companyId is companies.id)
     expect(text).toContain("WHERE id = $1");
-    expect(values[0]).toBe(EMPRESA_ID);
+    expect(values[0]).toBe(COMPANY_ID);
   });
 
-  it("buildInsertCnaes binds empresa_id as $1 in column list", () => {
+  it("buildInsertCnaes binds company_id as $1 in column list", () => {
     const cnaes: CnaeInput[] = [
-      { codigo: "6201501", descricao: "Consultoria", principal: true },
+      { code: "6201501", description: "Consultoria", isPrimary: true },
     ];
-    const { text, values } = buildInsertCnaes(EMPRESA_ID, cnaes);
+    const { text, values } = buildInsertCnaes(COMPANY_ID, cnaes);
 
-    // INSERT uses column list: (empresa_id, ...)
-    expect(text).toContain("empresa_id");
-    expect(values[0]).toBe(EMPRESA_ID);
+    // INSERT uses column list: (company_id, ...)
+    expect(text).toContain("company_id");
+    expect(values[0]).toBe(COMPANY_ID);
   });
 
-  it("buildListUsuarios binds empresa_id", () => {
-    const { text, values } = buildListUsuarios(EMPRESA_ID);
+  it("buildListUsers binds company_id", () => {
+    const { text, values } = buildListUsers(COMPANY_ID);
 
-    expect(/empresa_id\s*=\s*\$\d/.test(text)).toBe(true);
-    expect(values).toContain(EMPRESA_ID);
+    expect(/company_id\s*=\s*\$\d/.test(text)).toBe(true);
+    expect(values).toContain(COMPANY_ID);
   });
 
-  it("buildUpdateRole binds empresa_id", () => {
-    const { text, values } = buildUpdateRole(EMPRESA_ID, USUARIO_ID, "member");
+  it("buildUpdateRole binds company_id", () => {
+    const { text, values } = buildUpdateRole(COMPANY_ID, USER_ID, "member");
 
-    expect(/empresa_id\s*=\s*\$\d/.test(text)).toBe(true);
-    expect(values).toContain(EMPRESA_ID);
+    expect(/company_id\s*=\s*\$\d/.test(text)).toBe(true);
+    expect(values).toContain(COMPANY_ID);
   });
 
-  it("buildRemoveUsuario binds empresa_id", () => {
-    const { text, values } = buildRemoveUsuario(EMPRESA_ID, USUARIO_ID);
+  it("buildRemoveUser binds company_id", () => {
+    const { text, values } = buildRemoveUser(COMPANY_ID, USER_ID);
 
-    expect(/empresa_id\s*=\s*\$\d/.test(text)).toBe(true);
-    expect(values).toContain(EMPRESA_ID);
+    expect(/company_id\s*=\s*\$\d/.test(text)).toBe(true);
+    expect(values).toContain(COMPANY_ID);
   });
 
-  it("buildListDocumentos binds empresa_id", () => {
-    const { text, values } = buildListDocumentos(EMPRESA_ID);
+  it("buildListDocuments binds company_id", () => {
+    const { text, values } = buildListDocuments(COMPANY_ID);
 
-    expect(/empresa_id\s*=\s*\$\d/.test(text)).toBe(true);
-    expect(values).toContain(EMPRESA_ID);
+    expect(/company_id\s*=\s*\$\d/.test(text)).toBe(true);
+    expect(values).toContain(COMPANY_ID);
   });
 
-  it("buildGetDocumento binds both id and empresa_id", () => {
-    const { text, values } = buildGetDocumento(EMPRESA_ID, DOC_ID);
+  it("buildGetDocument binds both id and company_id", () => {
+    const { text, values } = buildGetDocument(COMPANY_ID, DOC_ID);
 
     expect(/id\s*=\s*\$/.test(text)).toBe(true);
-    expect(/empresa_id\s*=\s*\$\d/.test(text)).toBe(true);
-    expect(values).toContain(EMPRESA_ID);
+    expect(/company_id\s*=\s*\$\d/.test(text)).toBe(true);
+    expect(values).toContain(COMPANY_ID);
     expect(values).toContain(DOC_ID);
   });
 
-  it("buildDeleteDocumento binds empresa_id", () => {
-    const { text, values } = buildDeleteDocumento(EMPRESA_ID, DOC_ID);
+  it("buildDeleteDocument binds company_id", () => {
+    const { text, values } = buildDeleteDocument(COMPANY_ID, DOC_ID);
 
-    expect(/empresa_id\s*=\s*\$\d/.test(text)).toBe(true);
-    expect(values).toContain(EMPRESA_ID);
+    expect(/company_id\s*=\s*\$\d/.test(text)).toBe(true);
+    expect(values).toContain(COMPANY_ID);
   });
 
-  it("buildInsertDocumento binds empresa_id as $1 in column list", () => {
-    const doc: NovoDocumento = {
-      tipo: "contrato_social",
-      nomeArquivo: "contrato.pdf",
-      caminho: "42/uuid.pdf",
-      mime: "application/pdf",
-      tamanho: 1024,
-      validade: "2026-12-31",
+  it("buildInsertDocument binds company_id as $1 in column list", () => {
+    const doc: NewDocument = {
+      kind: "articles_of_association",
+      fileName: "contrato.pdf",
+      storagePath: "42/uuid.pdf",
+      mimeType: "application/pdf",
+      sizeBytes: 1024,
+      validUntil: "2026-12-31",
     };
-    const { text, values } = buildInsertDocumento(EMPRESA_ID, USUARIO_ID, doc);
+    const { text, values } = buildInsertDocument(COMPANY_ID, USER_ID, doc);
 
-    // INSERT uses column list: (empresa_id, ...)
-    expect(text).toContain("empresa_id");
-    expect(values[0]).toBe(EMPRESA_ID);
+    // INSERT uses column list: (company_id, ...)
+    expect(text).toContain("company_id");
+    expect(values[0]).toBe(COMPANY_ID);
   });
 });

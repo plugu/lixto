@@ -1,7 +1,6 @@
-// Local-disk storage for empresa habilitação documents (ticket 28). No S3 in
-// this cycle — files live on a plain volume; in production (Dokploy) that
-// volume is mounted at UPLOADS_DIR so files survive redeploys (ticket 29
-// wires the actual volume + env var into docker-compose.yml).
+// Local-disk storage for the company's habilitação documents. No S3 in this
+// cycle — files live on a plain volume; in production (Dokploy) that volume
+// is mounted at UPLOADS_DIR so files survive redeploys.
 
 import crypto from "node:crypto";
 import fs from "node:fs";
@@ -26,16 +25,16 @@ const EXT_BY_MIME: Record<string, string> = {
 
 export type SavedUpload = {
   /** Relative to UPLOADS_DIR, e.g. "12/3fa..-uuid.pdf" — this is what gets
-   * stored in documento_empresa.caminho, never an absolute path. */
-  caminho: string;
-  mime: string;
-  tamanho: number;
+   * stored in company_documents.storage_path, never an absolute path. */
+  storagePath: string;
+  mimeType: string;
+  sizeBytes: number;
 };
 
-/** Validates and writes an uploaded File under UPLOADS_DIR/<empresaId>/.
+/** Validates and writes an uploaded File under UPLOADS_DIR/<companyId>/.
  * Throws a pt-BR message on invalid mime/size. */
 export async function saveUpload(
-  empresaId: number,
+  companyId: number,
   file: File,
 ): Promise<SavedUpload> {
   if (!ALLOWED_MIME.includes(file.type as (typeof ALLOWED_MIME)[number])) {
@@ -48,36 +47,36 @@ export async function saveUpload(
   }
 
   const ext = EXT_BY_MIME[file.type] ?? "";
-  const dir = path.join(UPLOADS_DIR, String(empresaId));
+  const dir = path.join(UPLOADS_DIR, String(companyId));
   await fs.promises.mkdir(dir, { recursive: true });
 
   const filename = `${crypto.randomUUID()}${ext}`;
-  const destino = path.join(dir, filename);
+  const destination = path.join(dir, filename);
   const buffer = Buffer.from(await file.arrayBuffer());
-  await fs.promises.writeFile(destino, buffer);
+  await fs.promises.writeFile(destination, buffer);
 
   return {
-    caminho: `${empresaId}/${filename}`,
-    mime: file.type,
-    tamanho: file.size,
+    storagePath: `${companyId}/${filename}`,
+    mimeType: file.type,
+    sizeBytes: file.size,
   };
 }
 
 /** Removes a previously saved upload. Silently ignores "already gone"
  * (ENOENT) so cleanup after a failed DB write never throws a second error. */
-export async function deleteUpload(caminho: string): Promise<void> {
+export async function deleteUpload(storagePath: string): Promise<void> {
   try {
-    await fs.promises.unlink(resolveUpload(caminho));
+    await fs.promises.unlink(resolveUpload(storagePath));
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
   }
 }
 
-/** Resolves a stored relative `caminho` to an absolute path, refusing to
- * leave UPLOADS_DIR (defense against a `caminho` containing `../`). */
-export function resolveUpload(caminho: string): string {
+/** Resolves a stored relative `storagePath` to an absolute path, refusing to
+ * leave UPLOADS_DIR (defense against a path containing `../`). */
+export function resolveUpload(storagePath: string): string {
   const root = path.resolve(UPLOADS_DIR);
-  const absolute = path.resolve(root, caminho);
+  const absolute = path.resolve(root, storagePath);
   if (absolute !== root && !absolute.startsWith(root + path.sep)) {
     throw new Error("Caminho de arquivo inválido.");
   }

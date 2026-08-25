@@ -17,12 +17,12 @@ import {
 } from "@/components/ui/icons";
 
 export type SidebarSession = {
-  nome: string;
-  empresa: string;
+  name: string;
+  company: string;
   role: string;
 };
 
-const STORAGE_KEY = "plic.sidebar";
+const STORAGE_KEY = "lixto.sidebar";
 
 // Collapsed state lives in a module-level store read through
 // useSyncExternalStore (server snapshot = expanded) so we avoid a
@@ -68,29 +68,30 @@ function setCollapsedStore(next: boolean) {
 export const NAV_ITEMS = [
   { href: "/lixto", label: "Lixto", icon: Chart },
   { href: "/dashboard", label: "Painel", icon: Chart },
-  { href: "/licitacoes", label: "Licitações", icon: List },
+  { href: "/procurements", label: "Licitações", icon: List },
 ] as const;
 
-export const EMPRESA_ITEMS = [
-  { href: "/empresa", label: "Minha empresa", icon: Building },
+// The "Match" entry (/company/profile) is added by ticket 82.
+export const COMPANY_ITEMS = [
+  { href: "/company", label: "Minha empresa", icon: Building },
 ] as const;
 
-export const EMPRESA_ADMIN_ITEMS = [
-  { href: "/empresa/usuarios", label: "Usuários", icon: Users },
-  { href: "/empresa/documentos", label: "Documentos", icon: FileText },
+export const COMPANY_ADMIN_ITEMS = [
+  { href: "/company/users", label: "Usuários", icon: Users },
+  { href: "/company/documents", label: "Documentos", icon: FileText },
 ] as const;
 
 export function isActive(pathname: string, href: string): boolean {
   if (href === "/") return pathname === "/";
-  if (href === "/empresa") return pathname === "/empresa";
-  if (href === "/licitacoes") {
-    return pathname === href || pathname.startsWith("/licitacao");
+  if (href === "/company") return pathname === "/company";
+  if (href === "/procurements") {
+    return pathname === href || pathname.startsWith("/procurement/");
   }
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-function initials(nome: string): string {
-  const parts = nome.trim().split(/\s+/).filter(Boolean);
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "?";
   const first = parts[0]?.[0] ?? "";
   const last = parts.length > 1 ? (parts[parts.length - 1]?.[0] ?? "") : "";
@@ -148,7 +149,7 @@ export function Sidebar({ session }: { session: SidebarSession | null }) {
     >
       <div className={`flex items-center ${collapsed ? "justify-center px-0" : "justify-between px-1"}`}>
         <Link href="/dashboard" className={collapsed ? "hidden" : "flex items-center"}>
-          <span className="font-display text-lg italic text-ink">Licitante</span>
+          <span className="font-display text-lg italic text-ink">Lixto</span>
         </Link>
         <button
           type="button"
@@ -180,7 +181,7 @@ export function Sidebar({ session }: { session: SidebarSession | null }) {
             Empresa
           </p>
         )}
-        {EMPRESA_ITEMS.map((item) => (
+        {COMPANY_ITEMS.map((item) => (
           <NavLink
             key={item.href}
             href={item.href}
@@ -190,7 +191,7 @@ export function Sidebar({ session }: { session: SidebarSession | null }) {
           />
         ))}
         {session.role === "admin"
-          ? EMPRESA_ADMIN_ITEMS.map((item) => (
+          ? COMPANY_ADMIN_ITEMS.map((item) => (
               <NavLink
                 key={item.href}
                 href={item.href}
@@ -206,15 +207,15 @@ export function Sidebar({ session }: { session: SidebarSession | null }) {
 
       <div className={`flex items-center gap-2 px-1 ${collapsed ? "flex-col" : ""}`}>
         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-raised text-[12px] font-semibold text-ink">
-          {initials(session.nome)}
+          {initials(session.name)}
         </span>
         {collapsed ? null : (
           <div className="flex min-w-0 flex-1 flex-col">
             <span className="truncate text-[13px] font-medium text-ink">
-              {session.nome}
+              {session.name}
             </span>
             <span className="truncate text-[12px] text-ink-muted">
-              {session.empresa}
+              {session.company}
             </span>
           </div>
         )}

@@ -3,37 +3,37 @@
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
 import { isValidEmail } from "@/lib/br-validators";
-import type { Role } from "@/lib/tenant-types";
-import { createConvite, removeUsuario, updateRole } from "@/lib/usuario-queries";
+import type { Role } from "@/lib/types";
+import { createInvite, removeUser, updateRole } from "@/lib/user-queries";
 
-export type CriarConviteState = {
+export type CreateInviteState = {
   token?: string;
   erro?: string;
 };
 
-export async function criarConviteAction(
-  _prev: CriarConviteState,
+export async function createInviteAction(
+  _prev: CreateInviteState,
   formData: FormData,
-): Promise<CriarConviteState> {
+): Promise<CreateInviteState> {
   const session = await requireAdmin();
 
-  const nome = String(formData.get("nome") ?? "").trim();
+  const name = String(formData.get("name") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim();
   const role = String(formData.get("role") ?? "");
 
-  if (!nome) return { erro: "Informe o nome." };
+  if (!name) return { erro: "Informe o nome." };
   if (!isValidEmail(email)) return { erro: "E-mail inválido." };
   if (role !== "admin" && role !== "member") {
     return { erro: "Papel inválido." };
   }
 
   try {
-    const { token } = await createConvite(session.empresa.id, {
-      nome,
+    const { token } = await createInvite(session.company.id, {
+      name,
       email,
       role: role as Role,
     });
-    revalidatePath("/empresa/usuarios");
+    revalidatePath("/company/users");
     return { token };
   } catch (err) {
     return { erro: err instanceof Error ? err.message : "Erro ao gerar convite." };
@@ -43,26 +43,26 @@ export async function criarConviteAction(
 export async function updateRoleAction(formData: FormData): Promise<void> {
   const session = await requireAdmin();
 
-  const usuarioId = Number(formData.get("usuarioId"));
+  const userId = Number(formData.get("userId"));
   const role = String(formData.get("role") ?? "");
 
-  if (!Number.isInteger(usuarioId)) return;
+  if (!Number.isInteger(userId)) return;
   if (role !== "admin" && role !== "member") return;
   // Caller cannot change their own row (guarded here; UI also disables it).
-  if (usuarioId === session.usuario.id) return;
+  if (userId === session.user.id) return;
 
-  await updateRole(session.empresa.id, usuarioId, role as Role);
-  revalidatePath("/empresa/usuarios");
+  await updateRole(session.company.id, userId, role as Role);
+  revalidatePath("/company/users");
 }
 
-export async function removerUsuarioAction(formData: FormData): Promise<void> {
+export async function removeUserAction(formData: FormData): Promise<void> {
   const session = await requireAdmin();
 
-  const usuarioId = Number(formData.get("usuarioId"));
-  if (!Number.isInteger(usuarioId)) return;
+  const userId = Number(formData.get("userId"));
+  if (!Number.isInteger(userId)) return;
   // Caller cannot remove their own row (guarded here; UI also disables it).
-  if (usuarioId === session.usuario.id) return;
+  if (userId === session.user.id) return;
 
-  await removeUsuario(session.empresa.id, usuarioId);
-  revalidatePath("/empresa/usuarios");
+  await removeUser(session.company.id, userId);
+  revalidatePath("/company/users");
 }

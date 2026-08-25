@@ -2,22 +2,22 @@ import { LinkButton } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FileText } from "@/components/ui/icons";
 import { Section } from "@/components/ui/section";
-import { DocumentoUploadForm } from "@/components/documento-upload-form";
-import { DocumentosEmpresaTable } from "@/components/documentos-empresa-table";
+import { DocumentUploadForm } from "@/components/document-upload-form";
+import { CompanyDocumentsTable } from "@/components/company-documents-table";
 import { requireSession } from "@/lib/auth";
-import { listDocumentos } from "@/lib/documento-queries";
+import { listDocuments } from "@/lib/document-queries";
 
-const EMPRESA_NAV = [
-  { href: "/empresa", label: "Perfil" },
-  { href: "/empresa/perfil", label: "Match" },
-  { href: "/empresa/usuarios", label: "Usuários" },
-  { href: "/empresa/documentos", label: "Documentos" },
+// The "Match" tab (/company/profile) is added by ticket 82.
+const COMPANY_NAV = [
+  { href: "/company", label: "Perfil" },
+  { href: "/company/users", label: "Usuários" },
+  { href: "/company/documents", label: "Documentos" },
 ];
 
-export default async function DocumentosPage() {
+export default async function DocumentsPage() {
   const session = await requireSession();
-  const isAdmin = session.usuario.role === "admin";
-  const documentos = await listDocumentos(session.empresa.id);
+  const isAdmin = session.user.role === "admin";
+  const documents = await listDocuments(session.company.id);
 
   return (
     <div className="flex flex-col gap-8">
@@ -27,14 +27,14 @@ export default async function DocumentosPage() {
             Documentos de habilitação da empresa.
           </p>
           <nav className="flex items-center gap-2">
-            {EMPRESA_NAV.map((item) => (
+            {COMPANY_NAV.map((item) => (
               <LinkButton
                 key={item.href}
                 href={item.href}
                 variant="pill"
                 size="sm"
                 className={
-                  item.href === "/empresa/documentos" ? "bg-accent-soft text-accent" : undefined
+                  item.href === "/company/documents" ? "bg-accent-soft text-accent" : undefined
                 }
               >
                 {item.label}
@@ -44,12 +44,12 @@ export default async function DocumentosPage() {
         </div>
       </Section>
 
-      {isAdmin ? <DocumentoUploadForm /> : null}
+      {isAdmin ? <DocumentUploadForm /> : null}
 
-      {documentos.length === 0 ? (
+      {documents.length === 0 ? (
         <EmptyState icon={<FileText size={20} />} title="Nenhum documento enviado ainda." />
       ) : (
-        <DocumentosEmpresaTable documentos={documentos} isAdmin={isAdmin} />
+        <CompanyDocumentsTable documents={documents} isAdmin={isAdmin} />
       )}
     </div>
   );

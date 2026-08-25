@@ -1,51 +1,51 @@
 import Link from "next/link";
-import { removerDocumentoAction } from "@/app/(app)/empresa/documentos/actions";
+import { removeDocumentAction } from "@/app/(app)/company/documents/actions";
 import { Button } from "@/components/ui/button";
 import { X } from "@/components/ui/icons";
 import { StatusDot, type StatusDotTone } from "@/components/ui/status-dot";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
-import type { DocumentoRow } from "@/lib/documento-queries";
+import type { DocumentRow } from "@/lib/document-queries";
 import { formatDateBR } from "@/lib/format";
-import { DOCUMENTO_TIPOS } from "@/lib/tenant-types";
+import { DOCUMENT_KINDS } from "@/lib/types";
 
-const TIPO_LABELS: Record<string, string> = Object.fromEntries(
-  DOCUMENTO_TIPOS.map((tipo) => [tipo.value, tipo.label]),
+const KIND_LABELS: Record<string, string> = Object.fromEntries(
+  DOCUMENT_KINDS.map((kind) => [kind.value, kind.label]),
 );
 
-const DIAS_ALERTA_VENCIMENTO = 30;
+const EXPIRY_ALERT_DAYS = 30;
 
-type StatusDocumento = "vencido" | "vence_em_breve" | "valido";
+type DocumentStatus = "expired" | "expiring_soon" | "valid";
 
-const STATUS_LABELS: Record<StatusDocumento, string> = {
-  vencido: "Vencido",
-  vence_em_breve: "Vence em breve",
-  valido: "Válido",
+const STATUS_LABELS: Record<DocumentStatus, string> = {
+  expired: "Vencido",
+  expiring_soon: "Vence em breve",
+  valid: "Válido",
 };
 
-const STATUS_TONES: Record<StatusDocumento, StatusDotTone> = {
-  vencido: "off",
-  vence_em_breve: "warn",
-  valido: "ok",
+const STATUS_TONES: Record<DocumentStatus, StatusDotTone> = {
+  expired: "off",
+  expiring_soon: "warn",
+  valid: "ok",
 };
 
-function statusOf(doc: DocumentoRow): StatusDocumento | null {
-  if (!doc.validade) return null;
-  if (doc.vencido) return "vencido";
+function statusOf(doc: DocumentRow): DocumentStatus | null {
+  if (!doc.valid_until) return null;
+  if (doc.expired) return "expired";
 
-  const limite = new Date();
-  limite.setDate(limite.getDate() + DIAS_ALERTA_VENCIMENTO);
-  return new Date(doc.validade) <= limite ? "vence_em_breve" : "valido";
+  const limit = new Date();
+  limit.setDate(limit.getDate() + EXPIRY_ALERT_DAYS);
+  return new Date(doc.valid_until) <= limit ? "expiring_soon" : "valid";
 }
 
-function RemoverDocumentoButton({ doc }: { doc: DocumentoRow }) {
+function RemoveDocumentButton({ doc }: { doc: DocumentRow }) {
   return (
-    <form action={removerDocumentoAction}>
+    <form action={removeDocumentAction}>
       <input type="hidden" name="id" value={doc.id} />
       <Button
         type="submit"
         variant="ghost"
         size="sm"
-        aria-label={`Remover ${doc.nome_arquivo}`}
+        aria-label={`Remover ${doc.file_name}`}
       >
         <X size={16} />
       </Button>
@@ -53,11 +53,11 @@ function RemoverDocumentoButton({ doc }: { doc: DocumentoRow }) {
   );
 }
 
-export function DocumentosEmpresaTable({
-  documentos,
+export function CompanyDocumentsTable({
+  documents,
   isAdmin,
 }: {
-  documentos: DocumentoRow[];
+  documents: DocumentRow[];
   isAdmin: boolean;
 }) {
   return (
@@ -66,7 +66,7 @@ export function DocumentosEmpresaTable({
           table, tipo/arquivo prominent, validade/status/enviado secondary,
           ações in footer. */}
       <div className="flex flex-col gap-2.5 md:hidden">
-        {documentos.map((doc) => {
+        {documents.map((doc) => {
           const status = statusOf(doc);
           return (
             <div
@@ -76,13 +76,13 @@ export function DocumentosEmpresaTable({
               <div className="flex items-start justify-between gap-2">
                 <div className="flex flex-col gap-0.5">
                   <p className="text-sm font-medium text-ink">
-                    {TIPO_LABELS[doc.tipo] ?? doc.tipo}
+                    {KIND_LABELS[doc.kind] ?? doc.kind}
                   </p>
                   <Link
-                    href={`/empresa/documentos/${doc.id}/download`}
+                    href={`/company/documents/${doc.id}/download`}
                     className="truncate text-xs text-accent hover:underline"
                   >
-                    {doc.nome_arquivo}
+                    {doc.file_name}
                   </Link>
                 </div>
                 {status ? (
@@ -90,12 +90,12 @@ export function DocumentosEmpresaTable({
                 ) : null}
               </div>
               <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-muted">
-                <span>Validade: {formatDateBR(doc.validade)}</span>
+                <span>Validade: {formatDateBR(doc.valid_until)}</span>
                 <span>Enviado em: {formatDateBR(doc.created_at)}</span>
               </div>
               {isAdmin ? (
                 <div className="border-t border-line pt-2.5">
-                  <RemoverDocumentoButton doc={doc} />
+                  <RemoveDocumentButton doc={doc} />
                 </div>
               ) : null}
             </div>
@@ -114,20 +114,20 @@ export function DocumentosEmpresaTable({
             {isAdmin ? <TH>Ações</TH> : null}
           </THead>
           <TBody>
-            {documentos.map((doc) => {
+            {documents.map((doc) => {
               const status = statusOf(doc);
               return (
                 <TR key={doc.id}>
-                  <TD>{TIPO_LABELS[doc.tipo] ?? doc.tipo}</TD>
+                  <TD>{KIND_LABELS[doc.kind] ?? doc.kind}</TD>
                   <TD>
                     <Link
-                      href={`/empresa/documentos/${doc.id}/download`}
+                      href={`/company/documents/${doc.id}/download`}
                       className="text-accent hover:underline"
                     >
-                      {doc.nome_arquivo}
+                      {doc.file_name}
                     </Link>
                   </TD>
-                  <TD>{formatDateBR(doc.validade)}</TD>
+                  <TD>{formatDateBR(doc.valid_until)}</TD>
                   <TD>
                     {status ? (
                       <StatusDot tone={STATUS_TONES[status]} label={STATUS_LABELS[status]} />
@@ -138,7 +138,7 @@ export function DocumentosEmpresaTable({
                   <TD>{formatDateBR(doc.created_at)}</TD>
                   {isAdmin ? (
                     <TD>
-                      <RemoverDocumentoButton doc={doc} />
+                      <RemoveDocumentButton doc={doc} />
                     </TD>
                   ) : null}
                 </TR>

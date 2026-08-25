@@ -4,8 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
-  EMPRESA_ADMIN_ITEMS,
-  EMPRESA_ITEMS,
+  COMPANY_ADMIN_ITEMS,
+  COMPANY_ITEMS,
   isActive,
   NAV_ITEMS,
   type SidebarSession,
@@ -21,7 +21,7 @@ export function TopBar({ session }: { session: SidebarSession | null }) {
   return (
     <header className="flex h-12 items-center justify-between border-b border-line bg-canvas px-4 md:hidden">
       <Link href="/dashboard" className="font-display text-base italic text-ink">
-        Licitante
+        Lixto
       </Link>
       <button
         type="button"
@@ -43,7 +43,7 @@ export function TopBar({ session }: { session: SidebarSession | null }) {
             className="relative ml-auto flex h-full w-72 max-w-[80vw] flex-col gap-1 bg-canvas p-4 shadow-[0_8px_24px_rgba(28,27,24,.10)]"
           >
             <div className="mb-4 flex items-center justify-between">
-              <span className="font-display text-base italic text-ink">Licitante</span>
+              <span className="font-display text-base italic text-ink">Lixto</span>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
@@ -73,7 +73,7 @@ export function TopBar({ session }: { session: SidebarSession | null }) {
             <p className="mt-4 px-3 pb-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-faint">
               Empresa
             </p>
-            {EMPRESA_ITEMS.map((item) => (
+            {COMPANY_ITEMS.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
@@ -89,7 +89,7 @@ export function TopBar({ session }: { session: SidebarSession | null }) {
               </Link>
             ))}
             {session.role === "admin"
-              ? EMPRESA_ADMIN_ITEMS.map((item) => (
+              ? COMPANY_ADMIN_ITEMS.map((item) => (
                   <Link
                     key={item.href}
                     href={item.href}

@@ -1,12 +1,12 @@
-// Signup transaction: creates an empresa, its CNAEs and the first admin
-// usuario atomically (ticket 25). Query builders are exported separately so
-// the SQL shape is unit-testable without a DB (pattern from ./queries.ts).
+// Signup transaction: creates a company, its CNAEs and the first admin user
+// atomically. Query builders are exported separately so the SQL shape is
+// unit-testable without a DB.
 //
 // Relative imports on purpose: vitest runs without a config file, so the
 // tsconfig "@/" alias is not resolvable in signup-queries.test.ts.
 import { onlyDigits } from "./br-validators";
 import { pool } from "./db";
-import type { Porte } from "./tenant-types";
+import type { CompanySize } from "./types";
 
 export type SqlQuery = {
   text: string;
@@ -14,162 +14,162 @@ export type SqlQuery = {
 };
 
 export type SignupCnae = {
-  codigo: string;
-  descricao: string;
-  principal: boolean;
+  code: string;
+  description: string;
+  isPrimary: boolean;
 };
 
-export type SignupEmpresaInput = {
-  cnpj: string;
-  razaoSocial: string;
-  nomeFantasia: string | null;
-  naturezaJuridica: string | null;
-  porte: Porte | null;
-  optanteSimples: boolean;
-  inscricaoEstadual: string | null;
-  inscricaoMunicipal: string | null;
-  cep: string | null;
-  logradouro: string | null;
-  numero: string | null;
-  complemento: string | null;
-  bairro: string | null;
-  municipio: string | null;
-  uf: string | null;
-  telefone: string | null;
+export type SignupCompanyInput = {
+  taxId: string;
+  legalName: string;
+  tradeName: string | null;
+  legalNature: string | null;
+  size: CompanySize | null;
+  simplesOptant: boolean;
+  stateRegistration: string | null;
+  municipalRegistration: string | null;
+  postalCode: string | null;
+  street: string | null;
+  streetNumber: string | null;
+  addressLine2: string | null;
+  district: string | null;
+  cityName: string | null;
+  state: string | null;
+  phone: string | null;
   email: string | null;
 };
 
-export type SignupUsuarioInput = {
-  nome: string;
+export type SignupUserInput = {
+  name: string;
   email: string;
-  senhaHash: string;
+  passwordHash: string;
   cpf: string | null;
-  telefone: string | null;
-  cargo: string | null;
+  phone: string | null;
+  jobTitle: string | null;
 };
 
 export type SignupInput = {
-  empresa: SignupEmpresaInput;
+  company: SignupCompanyInput;
   cnaes: SignupCnae[];
-  usuario: SignupUsuarioInput;
+  user: SignupUserInput;
 };
 
 export type SignupResult = {
-  empresaId: number;
-  usuarioId: number;
+  companyId: number;
+  userId: number;
 };
 
-/** Builds the empresa INSERT. All string identifiers (cnpj, cep) are
- * normalized to digits-only before binding. */
-export function buildInsertEmpresa(input: SignupEmpresaInput): SqlQuery {
+/** Builds the company INSERT. All string identifiers (tax_id, postal_code)
+ * are normalized to digits-only before binding. */
+export function buildInsertCompany(input: SignupCompanyInput): SqlQuery {
   return {
-    text: `INSERT INTO empresa (
-        cnpj, razao_social, nome_fantasia, natureza_juridica, porte,
-        optante_simples, inscricao_estadual, inscricao_municipal,
-        cep, logradouro, numero, complemento, bairro, municipio, uf,
-        telefone, email
+    text: `INSERT INTO companies (
+        tax_id, legal_name, trade_name, legal_nature, size,
+        simples_optant, state_registration, municipal_registration,
+        postal_code, street, street_number, address_line2, district,
+        city_name, state, phone, email
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
       RETURNING id`,
     values: [
-      onlyDigits(input.cnpj),
-      input.razaoSocial,
-      input.nomeFantasia,
-      input.naturezaJuridica,
-      input.porte,
-      input.optanteSimples,
-      input.inscricaoEstadual,
-      input.inscricaoMunicipal,
-      input.cep ? onlyDigits(input.cep) : null,
-      input.logradouro,
-      input.numero,
-      input.complemento,
-      input.bairro,
-      input.municipio,
-      input.uf,
-      input.telefone,
+      onlyDigits(input.taxId),
+      input.legalName,
+      input.tradeName,
+      input.legalNature,
+      input.size,
+      input.simplesOptant,
+      input.stateRegistration,
+      input.municipalRegistration,
+      input.postalCode ? onlyDigits(input.postalCode) : null,
+      input.street,
+      input.streetNumber,
+      input.addressLine2,
+      input.district,
+      input.cityName,
+      input.state,
+      input.phone,
       input.email ? input.email.trim().toLowerCase() : null,
     ],
   };
 }
 
-/** Builds a single multi-row CNAE INSERT for the given empresa. Values are
- * flattened in row order (codigo, descricao, principal) x N. */
+/** Builds a single multi-row CNAE INSERT for the given company. Values are
+ * flattened in row order (cnae_code, description, is_primary) x N. */
 export function buildInsertCnaes(
-  empresaId: number,
+  companyId: number,
   cnaes: SignupCnae[],
 ): SqlQuery {
-  const values: unknown[] = [empresaId];
+  const values: unknown[] = [companyId];
   const rows = cnaes.map((cnae, i) => {
     const base = 1 + i * 3;
     values.push(
-      onlyDigits(cnae.codigo).padStart(7, "0"),
-      cnae.descricao,
-      cnae.principal,
+      onlyDigits(cnae.code).padStart(7, "0"),
+      cnae.description,
+      cnae.isPrimary,
     );
     return `($1, $${base + 1}, $${base + 2}, $${base + 3})`;
   });
 
   return {
-    text: `INSERT INTO empresa_cnae (empresa_id, codigo, descricao, principal)
+    text: `INSERT INTO company_cnaes (company_id, cnae_code, description, is_primary)
       VALUES ${rows.join(", ")}`,
     values,
   };
 }
 
-/** Builds the admin usuario INSERT for the empresa created above. Email is
+/** Builds the admin user INSERT for the company created above. Email is
  * lowercased to match the unique index / login lookup convention. */
-export function buildInsertUsuario(
-  empresaId: number,
-  input: SignupUsuarioInput,
+export function buildInsertUser(
+  companyId: number,
+  input: SignupUserInput,
 ): SqlQuery {
   return {
-    text: `INSERT INTO usuario (
-        empresa_id, email, senha_hash, nome, cpf, telefone, cargo, role
+    text: `INSERT INTO users (
+        company_id, email, password_hash, name, cpf, phone, job_title, role
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'admin')
       RETURNING id`,
     values: [
-      empresaId,
+      companyId,
       input.email.trim().toLowerCase(),
-      input.senhaHash,
-      input.nome,
+      input.passwordHash,
+      input.name,
       input.cpf ? onlyDigits(input.cpf) : null,
-      input.telefone,
-      input.cargo,
+      input.phone,
+      input.jobTitle,
     ],
   };
 }
 
-/** Creates the empresa + CNAEs + first admin usuario in a single
- * transaction. Rolls back on any error (e.g. unique violation on cnpj or
- * usuario.email — surfaced to the caller as a pg error with code 23505). */
-export async function createEmpresaComAdmin(
+/** Creates the company + CNAEs + first admin user in a single transaction.
+ * Rolls back on any error (e.g. unique violation on companies.tax_id or
+ * users.email — surfaced to the caller as a pg error with code 23505). */
+export async function createCompanyWithAdmin(
   input: SignupInput,
 ): Promise<SignupResult> {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
 
-    const empresaQuery = buildInsertEmpresa(input.empresa);
-    const empresaResult = await client.query<{ id: string }>(
-      empresaQuery.text,
-      empresaQuery.values,
+    const companyQuery = buildInsertCompany(input.company);
+    const companyResult = await client.query<{ id: string }>(
+      companyQuery.text,
+      companyQuery.values,
     );
-    const empresaId = Number(empresaResult.rows[0].id);
+    const companyId = Number(companyResult.rows[0].id);
 
     if (input.cnaes.length > 0) {
-      const cnaesQuery = buildInsertCnaes(empresaId, input.cnaes);
+      const cnaesQuery = buildInsertCnaes(companyId, input.cnaes);
       await client.query(cnaesQuery.text, cnaesQuery.values);
     }
 
-    const usuarioQuery = buildInsertUsuario(empresaId, input.usuario);
-    const usuarioResult = await client.query<{ id: string }>(
-      usuarioQuery.text,
-      usuarioQuery.values,
+    const userQuery = buildInsertUser(companyId, input.user);
+    const userResult = await client.query<{ id: string }>(
+      userQuery.text,
+      userQuery.values,
     );
-    const usuarioId = Number(usuarioResult.rows[0].id);
+    const userId = Number(userResult.rows[0].id);
 
     await client.query("COMMIT");
-    return { empresaId, usuarioId };
+    return { companyId, userId };
   } catch (err) {
     await client.query("ROLLBACK");
     throw err;
