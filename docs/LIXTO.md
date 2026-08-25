@@ -1,5 +1,7 @@
 # Lixto — Intelligence Layer (Cycle 16)
 
+> Long-term direction and implementation-status table: `docs/VISION.md`.
+
 The Lixto agent combines global enrichment, per-empresa profile matching, and conversational search to answer: "What open bids can my company join?"
 
 ## Pipeline
