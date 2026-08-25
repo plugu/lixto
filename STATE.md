@@ -1,10 +1,10 @@
 # STATE — rewrite after every ticket completes; never append. ≤30 lines total.
 
 ## Now
-- Cycle 18 running. 74 done (1 attempt). Wave 2 in worktrees: 75 (sync procurements) ∥ 79 (enrichment port) ∥ 80 (web foundation).
+- Cycle 18 running. Done: 74,75,76,79,80,81,82,83 (all 1–2 attempts). Running in worktrees: 77 (plans), 78 (contracts, slow PNCP probe).
 
 ## Next
-- /forge:run cycle 18: 74 → {75 ∥ 79 ∥ 80} → {76 ∥ 77 ∥ 78 ∥ 81} → 82 → 83 → {84 (orchestrator+user) ∥ 85} → 86 → reviewer pass → approval 3/3.
+- After 77+78 merge: 85 purge → 86 docs → reviewer pass (production) → 84 infra cutover (orchestrator + user approvals; no prod ingestion) → approval 3/3.
 
 ## Decisions
 - No prod backfill/sync/enrich in cycle 18 (user decision 2026-08-25): schedules created disabled; ingestion starts only after the user re-reviews docs/VISION.md.
