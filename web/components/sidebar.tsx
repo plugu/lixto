@@ -66,6 +66,7 @@ function setCollapsedStore(next: boolean) {
 }
 
 export const NAV_ITEMS = [
+  { href: "/lixto", label: "Lixto", icon: Chart },
   { href: "/dashboard", label: "Painel", icon: Chart },
   { href: "/licitacoes", label: "Licitações", icon: List },
 ] as const;
