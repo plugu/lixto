@@ -50,7 +50,7 @@ export function CommandSearch() {
             onClick={(event) => event.stopPropagation()}
             className="w-full max-w-lg rounded-[10px] border border-line bg-surface p-2 shadow-[0_8px_24px_rgba(28,27,24,.10)]"
           >
-            <form action="/licitacoes" method="get" className="flex items-center gap-2 px-2 py-1.5">
+            <form action="/procurements" method="get" className="flex items-center gap-2 px-2 py-1.5">
               <Search size={16} className="shrink-0 text-ink-faint" />
               <input
                 ref={inputRef}

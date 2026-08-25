@@ -1,45 +1,40 @@
 import { after } from "next/server";
-import { AnalisePanel } from "@/components/analise-panel";
-import { DocumentosList } from "@/components/documentos-list";
-import { FitBadge } from "@/components/fit-badge";
-import { ItensTable } from "@/components/itens-table";
+import { DocumentsList } from "@/components/documents-list";
+import { EnrichmentPanel } from "@/components/enrichment-panel";
+import { ItemsTable } from "@/components/items-table";
 import { StatusBadge } from "@/components/status-badge";
 import { LinkButton } from "@/components/ui/button";
 import { Card, CollapsibleCard } from "@/components/ui/card";
-import { fetchAnalise } from "@/lib/analise-queries";
-import {
-  fetchDocumentos,
-  fetchItens,
-  fetchLicitacaoDetail,
-  type LicitacaoDetail,
-} from "@/lib/detail-queries";
+import { fetchEnrichment } from "@/lib/enrichment-queries";
 import { formatCurrencyBRL, formatDateBR } from "@/lib/format";
-import { enqueueResultadosFaltantes, fetchPrecoBenchmark } from "@/lib/preco-queries";
-import { computeStatus } from "@/lib/status";
+import { enqueueMissingResults, fetchPriceBenchmark } from "@/lib/price-queries";
+import {
+  fetchDocuments,
+  fetchItems,
+  fetchProcurementDetail,
+  type ProcurementDetail,
+} from "@/lib/procurement-detail-queries";
+import { computeProcurementStatus } from "@/lib/status";
 
-// The route segment carries numero_controle_pncp, which contains a literal
-// "/" (e.g. "11285282000137-1-000033/2026"). List links encode it with
-// encodeURIComponent, so the segment arrives as "...%2F2026". Depending on
-// how Next normalizes the path, `numeroControle` may still contain the
-// literal "%2F" or may have already been decoded to "/" — handle both.
-function decodeNumeroControle(raw: string): string {
+// The route segment carries source_id (numeroControlePNCP), which contains a
+// literal "/" (e.g. "11285282000137-1-000033/2026"). List links encode it with
+// encodeURIComponent, so the segment arrives as "...%2F2026". Depending on how
+// Next normalizes the path, `sourceId` may still contain the literal "%2F" or
+// may have already been decoded to "/" — handle both.
+function decodeSourceId(raw: string): string {
   return /%2F/i.test(raw) ? decodeURIComponent(raw) : raw;
 }
 
-function buildPncpUrl(detail: LicitacaoDetail): string | null {
-  if (!detail.orgao_cnpj || !detail.ano_compra || !detail.sequencial_compra) {
-    return null;
-  }
-  return `https://pncp.gov.br/app/editais/${detail.orgao_cnpj}/${detail.ano_compra}/${detail.sequencial_compra}`;
+function buildPncpUrl(detail: ProcurementDetail): string | null {
+  if (!detail.agency_tax_id || !detail.year || !detail.sequence) return null;
+  return `https://pncp.gov.br/app/editais/${detail.agency_tax_id}/${detail.year}/${detail.sequence}`;
 }
 
-export default async function LicitacaoDetailPage(
-  props: PageProps<"/licitacao/[numeroControle]">,
+export default async function ProcurementDetailPage(
+  props: PageProps<"/procurement/[sourceId]">,
 ) {
-  const { numeroControle } = await props.params;
-  const numeroControlePncp = decodeNumeroControle(numeroControle);
-
-  const detail = await fetchLicitacaoDetail(numeroControlePncp);
+  const { sourceId } = await props.params;
+  const detail = await fetchProcurementDetail(decodeSourceId(sourceId));
 
   if (!detail) {
     return (
@@ -54,31 +49,27 @@ export default async function LicitacaoDetailPage(
     );
   }
 
-  const [itens, documentos, analise, precos] = await Promise.all([
-    fetchItens(numeroControlePncp),
-    fetchDocumentos(numeroControlePncp),
-    fetchAnalise(numeroControlePncp),
-    fetchPrecoBenchmark(numeroControlePncp),
+  const [items, documents, enrichment, prices] = await Promise.all([
+    fetchItems(detail.id),
+    fetchDocuments(detail.id),
+    fetchEnrichment(detail.id),
+    fetchPriceBenchmark(detail.id),
   ]);
 
   // Lazy-fill queueing is a write, not read-path data: it must never delay
-  // first byte. Runs after the response is sent; a queue failure here must
-  // not break the page.
-  after(() =>
-    enqueueResultadosFaltantes(numeroControlePncp).catch(() => {}),
-  );
+  // first byte. Runs after the response is sent; a queue failure here must not
+  // break the page.
+  after(() => enqueueMissingResults(detail.id).catch(() => {}));
 
-  const status = computeStatus(
-    detail.data_abertura_proposta,
-    detail.data_encerramento_proposta,
+  const status = computeProcurementStatus(
+    detail.proposal_opens_at,
+    detail.proposal_closes_at,
   );
-  const localizacao = [detail.municipio_nome, detail.uf]
-    .filter(Boolean)
-    .join("/");
-  const orgaoUnidade = [detail.orgao_razao_social, detail.unidade_nome]
+  const location = [detail.city_name, detail.state].filter(Boolean).join("/");
+  const agencyUnit = [detail.agency_name, detail.unit_name]
     .filter(Boolean)
     .join(" · ");
-  const metaLine = [orgaoUnidade, localizacao, detail.modalidade_nome]
+  const metaLine = [agencyUnit, location, detail.modality_name]
     .filter(Boolean)
     .join(" · ");
   const pncpUrl = buildPncpUrl(detail);
@@ -90,39 +81,35 @@ export default async function LicitacaoDetailPage(
       <Card>
         <header className="flex flex-col gap-3">
           <h1 className="font-display text-2xl leading-snug text-ink">
-            {detail.objeto_compra || "—"}
+            {detail.description || "—"}
           </h1>
           <p className="text-sm text-ink-muted">{metaLine || "—"}</p>
 
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge status={status} />
-            <FitBadge
-              verdict={analise?.deep_verdict ?? analise?.verdict}
-              score={analise?.fit_score}
-            />
           </div>
 
           <dl className="mt-2 grid grid-cols-2 gap-x-8 gap-y-3 sm:grid-cols-4">
             <Fact
               label="Valor estimado"
-              value={formatCurrencyBRL(detail.valor_total_estimado)}
+              value={formatCurrencyBRL(detail.estimated_value)}
             />
             <Fact
               label="Abertura"
-              value={formatDateBR(detail.data_abertura_proposta, true)}
+              value={formatDateBR(detail.proposal_opens_at, true)}
             />
             <Fact
               label="Encerramento"
-              value={formatDateBR(detail.data_encerramento_proposta, true)}
+              value={formatDateBR(detail.proposal_closes_at, true)}
             />
-            <Fact label="Nº controle" value={detail.numero_controle_pncp} />
+            <Fact label="Nº controle" value={detail.source_id} />
           </dl>
 
-          {(detail.link_sistema_origem || pncpUrl) && (
+          {(detail.origin_url || pncpUrl) && (
             <div className="flex flex-wrap gap-4 pt-1">
-              {detail.link_sistema_origem && (
+              {detail.origin_url && (
                 <a
-                  href={detail.link_sistema_origem}
+                  href={detail.origin_url}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-sm text-accent hover:underline"
@@ -147,24 +134,24 @@ export default async function LicitacaoDetailPage(
 
       <div
         className={
-          analise
+          enrichment
             ? "grid min-w-0 gap-6 lg:grid-cols-[1fr_22rem]"
             : "grid min-w-0 gap-6"
         }
       >
         <div className="flex min-w-0 flex-col gap-6">
           <CollapsibleCard title="Itens">
-            <ItensTable itens={itens} precos={precos} />
+            <ItemsTable items={items} prices={prices} />
           </CollapsibleCard>
 
           <CollapsibleCard title="Documentos">
-            <DocumentosList documentos={documentos} />
+            <DocumentsList documents={documents} />
           </CollapsibleCard>
         </div>
 
-        {analise && (
+        {enrichment && (
           <div className="min-w-0 lg:sticky lg:top-8 lg:self-start">
-            <AnalisePanel analise={analise} />
+            <EnrichmentPanel enrichment={enrichment} />
           </div>
         )}
       </div>
@@ -175,7 +162,7 @@ export default async function LicitacaoDetailPage(
 function BackLink() {
   return (
     <LinkButton
-      href="/licitacoes"
+      href="/procurements"
       variant="ghost"
       size="sm"
       className="self-start"

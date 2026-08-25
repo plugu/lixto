@@ -1,4 +1,10 @@
-// SQL for the licitação detail page's agent-analysis panel (ticket 15).
+// COMPAT SHIM (ticket 81) — the `analise` pipeline is dropped in cycle 18
+// (ADR 001, D3); the detail page now shows `enrichment-panel.tsx` instead.
+// This module only exists because `lib/agent/tools.ts` (+ its tests), which
+// ticket 81 does not own, still imports `fetchAnalise`. Ticket 82 ports the
+// agent layer and deletes this file.
+//
+// SQL for the legacy licitação detail page's agent-analysis panel (ticket 15).
 // Mirrors detail-queries.ts's pattern: server-only, uses the shared db.ts pool.
 //
 // Schema: migrations/006_analise.sql. requirements/prazos/risks are JSONB

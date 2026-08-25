@@ -1,4 +1,10 @@
-// Read side of the global enrichment (migrations/010_enriquecimento.sql,
+// COMPAT SHIM (ticket 81) — enrichment reads now go through
+// `enrichment-queries.ts` on the lixto tables. This module still queries the
+// legacy `enriquecimento` table and only exists because `lib/agent/tools.ts`
+// (+ its tests), which ticket 81 does not own, imports `fetchEnriquecimento`.
+// Ticket 82 ports the agent layer and deletes this file.
+//
+// Read side of the legacy global enrichment (migrations/010_enriquecimento.sql,
 // cycle 16). One canonical row per licitação, shared by every empresa — this
 // module never takes an empresa_id because enrichment is not per-tenant.
 //

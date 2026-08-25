@@ -1,60 +1,57 @@
-// Itens table for the licitação detail page (ticket 34, cycle 8 restyle;
-// responsive card reflow added ticket 44) — built on the kit's
-// compact-density Table (no card wrapper, hairline rows) for md and up.
-// Below md, the same data renders as a stacked card list so no column is
-// silently lost at narrow widths.
+// Items table for the procurement detail page — the kit's compact-density
+// Table (no card wrapper, hairline rows) for md and up. Below md, the same
+// data renders as a stacked card list so no column is silently lost at narrow
+// widths. The "Homologado" column is the price benchmark (price-queries.ts).
 
 import { Badge } from "@/components/ui/badge";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
-import type { ItemRow } from "@/lib/detail-queries";
-import type { PrecoItem } from "@/lib/preco-queries";
 import { formatCurrencyBRL, formatDateBR } from "@/lib/format";
+import type { PriceItem } from "@/lib/price-queries";
+import type { ItemRow } from "@/lib/procurement-detail-queries";
 
-const quantidadeFormatter = new Intl.NumberFormat("pt-BR");
+const quantityFormatter = new Intl.NumberFormat("pt-BR");
 
-function formatQuantidade(value: string | null): string {
+function formatQuantity(value: string | null): string {
   if (value === null) return "—";
   const num = Number(value);
   if (Number.isNaN(num)) return "—";
-  return quantidadeFormatter.format(num);
+  return quantityFormatter.format(num);
 }
 
 /** Desktop cell: median + n as a `<details>` disclosure when there is history,
  * an honest muted note otherwise. `undefined` covers a missing map entry —
- * `fetchPrecoBenchmark` always returns one per item, but the prop is optional
+ * `fetchPriceBenchmark` always returns one per item, but the prop is optional
  * so the component still works uncalled. */
-function HomologadoCell({ preco }: { preco: PrecoItem | undefined }) {
-  if (!preco || preco.estado === "coletando") {
+function AwardedCell({ price }: { price: PriceItem | undefined }) {
+  if (!price || price.state === "collecting") {
     return <span className="text-ink-muted">Coletando…</span>;
   }
-  if (preco.estado === "insuficiente") {
+  if (price.state === "insufficient") {
     return <span className="text-ink-muted">Amostra insuficiente</span>;
   }
   return (
     <details>
       <summary className="cursor-pointer tabular-nums text-ink">
-        {formatCurrencyBRL(preco.mediana)}{" "}
-        <span className="text-ink-muted">· n={preco.n}</span>
+        {formatCurrencyBRL(price.median)}{" "}
+        <span className="text-ink-muted">· n={price.n}</span>
       </summary>
       <div className="mt-2 flex flex-col gap-1.5 text-xs">
         <p className="tabular-nums text-ink-muted">
-          {formatCurrencyBRL(preco.p25)} – {formatCurrencyBRL(preco.p75)}
+          {formatCurrencyBRL(price.p25)} – {formatCurrencyBRL(price.p75)}
         </p>
-        {preco.vencedores.map((vencedor, index) => (
+        {price.winners.map((winner, index) => (
           <p
-            key={vencedor.ni_fornecedor ?? index}
+            key={winner.supplier_tax_id ?? index}
             className="flex flex-wrap items-center gap-1.5 text-ink-muted"
           >
-            <span className="text-ink">
-              {vencedor.nome_razao_social_fornecedor || "—"}
-            </span>
-            {vencedor.porte_fornecedor_nome && (
-              <Badge tone="neutral">{vencedor.porte_fornecedor_nome}</Badge>
+            <span className="text-ink">{winner.supplier_name || "—"}</span>
+            {winner.supplier_size_name && (
+              <Badge tone="neutral">{winner.supplier_size_name}</Badge>
             )}
             <span className="tabular-nums">
-              {formatCurrencyBRL(vencedor.valor_unitario_homologado)}
+              {formatCurrencyBRL(winner.awarded_unit_price)}
             </span>
-            <span>{formatDateBR(vencedor.data_resultado)}</span>
+            <span>{formatDateBR(winner.result_date)}</span>
           </p>
         ))}
       </div>
@@ -63,28 +60,28 @@ function HomologadoCell({ preco }: { preco: PrecoItem | undefined }) {
 }
 
 /** Mobile line: same three states, no disclosure. */
-function HomologadoLine({ preco }: { preco: PrecoItem | undefined }) {
-  if (!preco || preco.estado === "coletando") {
+function AwardedLine({ price }: { price: PriceItem | undefined }) {
+  if (!price || price.state === "collecting") {
     return <span className="text-ink-muted">Coletando…</span>;
   }
-  if (preco.estado === "insuficiente") {
+  if (price.state === "insufficient") {
     return <span className="text-ink-muted">Amostra insuficiente</span>;
   }
   return (
     <span className="tabular-nums text-ink-muted">
-      Homologado {formatCurrencyBRL(preco.mediana)} · n={preco.n}
+      Homologado {formatCurrencyBRL(price.median)} · n={price.n}
     </span>
   );
 }
 
-export function ItensTable({
-  itens,
-  precos,
+export function ItemsTable({
+  items,
+  prices,
 }: {
-  itens: ItemRow[];
-  precos?: Map<number, PrecoItem>;
+  items: ItemRow[];
+  prices?: Map<number, PriceItem>;
 }) {
-  if (itens.length === 0) {
+  if (items.length === 0) {
     return <p className="text-sm text-ink-muted">Nenhum item encontrado.</p>;
   }
 
@@ -104,30 +101,28 @@ export function ItensTable({
             <TH>Benefício</TH>
           </THead>
           <TBody>
-            {itens.map((item) => (
-              <TR key={item.numero_item}>
-                <TD>{item.numero_item}</TD>
+            {items.map((item) => (
+              <TR key={item.item_number}>
+                <TD>{item.item_number}</TD>
                 <TD className="max-w-[28rem] whitespace-normal break-words align-top">
-                  {item.descricao || "—"}
+                  {item.description || "—"}
                 </TD>
                 <TD align="right" numeric>
-                  {formatQuantidade(item.quantidade)}
+                  {formatQuantity(item.quantity)}
                 </TD>
-                <TD>{item.unidade_medida || "—"}</TD>
+                <TD>{item.unit || "—"}</TD>
                 <TD align="right" numeric>
-                  {formatCurrencyBRL(item.valor_unitario_estimado)}
+                  {formatCurrencyBRL(item.estimated_unit_price)}
                 </TD>
                 <TD className="align-top">
-                  <HomologadoCell preco={precos?.get(item.numero_item)} />
+                  <AwardedCell price={prices?.get(item.item_number)} />
                 </TD>
                 <TD align="right" numeric>
-                  {formatCurrencyBRL(item.valor_total)}
+                  {formatCurrencyBRL(item.estimated_total)}
                 </TD>
+                <TD className="text-ink-muted">{item.status_name || "—"}</TD>
                 <TD className="text-ink-muted">
-                  {item.situacao_compra_item_nome || "—"}
-                </TD>
-                <TD className="text-ink-muted">
-                  {item.tipo_beneficio_nome || "—"}
+                  {item.benefit_type_name || "—"}
                 </TD>
               </TR>
             ))}
@@ -136,41 +131,40 @@ export function ItensTable({
       </div>
 
       <ul className="flex flex-col gap-2.5 md:hidden">
-        {itens.map((item) => (
+        {items.map((item) => (
           <li
-            key={item.numero_item}
+            key={item.item_number}
             className="flex flex-col gap-2 rounded-lg border border-line px-3 py-3"
           >
             <div className="flex items-start justify-between gap-3">
               <span className="text-xs font-medium text-ink-muted">
-                Item {item.numero_item}
+                Item {item.item_number}
               </span>
             </div>
             <p className="line-clamp-2 text-sm text-ink">
-              {item.descricao || "—"}
+              {item.description || "—"}
             </p>
             <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-sm">
               <span className="text-ink-muted">
-                {formatQuantidade(item.quantidade)}{" "}
-                {item.unidade_medida || "—"}
+                {formatQuantity(item.quantity)} {item.unit || "—"}
               </span>
               <span className="tabular-nums text-ink-muted">
-                {formatCurrencyBRL(item.valor_unitario_estimado)} / un
+                {formatCurrencyBRL(item.estimated_unit_price)} / un
               </span>
             </div>
             <p className="text-xs">
-              <HomologadoLine preco={precos?.get(item.numero_item)} />
+              <AwardedLine price={prices?.get(item.item_number)} />
             </p>
             <p className="text-sm font-medium tabular-nums text-ink">
-              {formatCurrencyBRL(item.valor_total)}
+              {formatCurrencyBRL(item.estimated_total)}
             </p>
-            {(item.situacao_compra_item_nome || item.tipo_beneficio_nome) && (
+            {(item.status_name || item.benefit_type_name) && (
               <div className="flex flex-wrap gap-1.5 pt-0.5">
-                {item.situacao_compra_item_nome ? (
-                  <Badge tone="neutral">{item.situacao_compra_item_nome}</Badge>
+                {item.status_name ? (
+                  <Badge tone="neutral">{item.status_name}</Badge>
                 ) : null}
-                {item.tipo_beneficio_nome ? (
-                  <Badge tone="neutral">{item.tipo_beneficio_nome}</Badge>
+                {item.benefit_type_name ? (
+                  <Badge tone="neutral">{item.benefit_type_name}</Badge>
                 ) : null}
               </div>
             )}

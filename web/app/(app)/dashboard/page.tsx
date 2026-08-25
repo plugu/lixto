@@ -5,9 +5,9 @@ import { StatTile } from "@/components/charts/stat-tile";
 import { StatusStack } from "@/components/charts/status-stack";
 import { Section } from "@/components/ui/section";
 import {
-  fetchPorDia,
-  fetchPorModalidade,
-  fetchPorPortal,
+  fetchByDay,
+  fetchByModality,
+  fetchByPortal,
   fetchStatusCounts,
   parseChartScope,
   type ChartScope,
@@ -16,26 +16,28 @@ import {
 export const dynamic = "force-dynamic";
 
 const SCOPES: { value: ChartScope; label: string }[] = [
-  { value: "abertas", label: "Abertas agora" },
-  { value: "vai_abrir", label: "Vão abrir" },
-  { value: "tudo", label: "Tudo" },
+  { value: "open", label: "Abertas agora" },
+  { value: "upcoming", label: "Vão abrir" },
+  { value: "all", label: "Tudo" },
 ];
 
 const SCOPE_SUBTITLES: Record<ChartScope, string> = {
-  abertas: "Somente licitações abertas agora",
-  vai_abrir: "Somente licitações que vão abrir",
-  tudo: "Todas as licitações desde jan/2026",
+  open: "Somente licitações abertas agora",
+  upcoming: "Somente licitações que vão abrir",
+  all: "Todas as licitações sincronizadas",
 };
 
-export default async function Painel({ searchParams }: PageProps<"/dashboard">) {
+export default async function DashboardPage({
+  searchParams,
+}: PageProps<"/dashboard">) {
   const resolved = await searchParams;
-  const scope = parseChartScope(resolved.escopo);
+  const scope = parseChartScope(resolved.scope);
 
-  const [counts, porModalidade, porPortal, porDia] = await Promise.all([
+  const [counts, byModality, byPortal, byDay] = await Promise.all([
     fetchStatusCounts(),
-    fetchPorModalidade(scope),
-    fetchPorPortal(scope),
-    fetchPorDia(),
+    fetchByModality(scope),
+    fetchByPortal(scope),
+    fetchByDay(),
   ]);
 
   return (
@@ -46,9 +48,9 @@ export default async function Painel({ searchParams }: PageProps<"/dashboard">) 
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatTile label="Licitações no total" value={counts.total} />
-        <StatTile label="Abertas agora" value={counts.abertas} />
-        <StatTile label="Vão abrir" value={counts.vaiAbrir} />
-        <StatTile label="Publicadas nas últimas 24h" value={counts.novas24h} />
+        <StatTile label="Abertas agora" value={counts.open} />
+        <StatTile label="Vão abrir" value={counts.upcoming} />
+        <StatTile label="Publicadas nas últimas 24h" value={counts.new24h} />
       </div>
 
       <Section title="Licitações por status">
@@ -56,20 +58,18 @@ export default async function Painel({ searchParams }: PageProps<"/dashboard">) 
       </Section>
 
       <Section title="Licitações publicadas por dia" eyebrow="Últimos 30 dias">
-        <DailyLine data={porDia} />
+        <DailyLine data={byDay} />
       </Section>
 
       <nav
         aria-label="Escopo dos gráficos de modalidade e portal"
         className="flex items-center gap-1"
       >
-        <span className="mr-2 text-xs font-medium text-ink-muted">
-          Escopo
-        </span>
+        <span className="mr-2 text-xs font-medium text-ink-muted">Escopo</span>
         {SCOPES.map((s) => (
           <Link
             key={s.value}
-            href={s.value === "abertas" ? "/dashboard" : `/dashboard?escopo=${s.value}`}
+            href={s.value === "open" ? "/dashboard" : `/dashboard?scope=${s.value}`}
             className={`rounded-[9999px] px-3 py-1 text-[13px] font-medium transition-colors ${
               s.value === scope
                 ? "bg-ink text-surface"
@@ -84,11 +84,11 @@ export default async function Painel({ searchParams }: PageProps<"/dashboard">) 
       <div className="grid grid-cols-1 gap-10 lg:grid-cols-2">
         <Section title="Licitações por modalidade">
           <p className="text-[13px] text-ink-muted">{SCOPE_SUBTITLES[scope]}</p>
-          <BarList data={porModalidade} />
+          <BarList data={byModality} />
         </Section>
         <Section title="Licitações por portal">
           <p className="text-[13px] text-ink-muted">{SCOPE_SUBTITLES[scope]}</p>
-          <BarList data={porPortal} />
+          <BarList data={byPortal} />
         </Section>
       </div>
     </div>

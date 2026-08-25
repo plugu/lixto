@@ -3,17 +3,17 @@ const numberFormat = new Intl.NumberFormat("pt-BR");
 // Status palette matches StatusDot semantics: Aberta=ok, Vai abrir=warn,
 // Fechada=off (docs/design/cycle8-direction.md).
 const SEGMENTS = [
-  { key: "abertas", label: "Abertas", color: "var(--color-ok)" },
-  { key: "vaiAbrir", label: "Vai abrir", color: "var(--color-warn)" },
-  { key: "fechadas", label: "Fechadas", color: "var(--color-off)" },
+  { key: "open", label: "Abertas", color: "var(--color-ok)" },
+  { key: "upcoming", label: "Vai abrir", color: "var(--color-warn)" },
+  { key: "closed", label: "Fechadas", color: "var(--color-off)" },
 ] as const;
 
-type Counts = { abertas: number; vaiAbrir: number; fechadas: number };
+type Counts = { open: number; upcoming: number; closed: number };
 
 /** Part-to-whole: one horizontal stacked bar, 2px surface gaps between
  * segments, legend row with swatch + value below (identity never color-alone). */
 export function StatusStack({ counts }: { counts: Counts }) {
-  const total = Math.max(1, counts.abertas + counts.vaiAbrir + counts.fechadas);
+  const total = Math.max(1, counts.open + counts.upcoming + counts.closed);
 
   return (
     <div className="flex flex-col gap-3">

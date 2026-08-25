@@ -10,40 +10,30 @@ import { Input, Select } from "@/components/ui/input";
 import { Popover } from "@/components/ui/popover";
 import { TD, TH } from "@/components/ui/table";
 import { Toolbar, ToolbarButton } from "@/components/ui/toolbar";
-import type { FacetCounts, LicitacaoFilters } from "@/lib/queries";
+import type { FacetCounts, ProcurementFilters } from "@/lib/procurement-queries";
 
 type FiltersProps = {
-  filters: LicitacaoFilters;
+  filters: ProcurementFilters;
   facetCounts: FacetCounts;
   total: number;
-  /** Renders the "Compatível com minha empresa" toggle (ticket 52) only when
-   * the visitor is logged in and their empresa has at least one CNAE — the
-   * page strips `filters.compat` in that case too, so the checkbox and the
-   * active filter it represents always agree. */
+  /** Renders the "Compatível com minha empresa" toggle only when the visitor
+   * is logged in and their empresa has at least one CNAE — the page strips
+   * `filters.compat` in that case too, so the checkbox and the active filter
+   * it represents always agree. */
   showCompat?: boolean;
 };
 
-// Fit has no facet counts this cycle (ticket 15) — static options, count 0
-// (MultiSelect hides zero counts).
-const FIT_OPTIONS = [
-  { value: "fit", label: "Fit", count: 0 },
-  { value: "borderline", label: "Borderline", count: 0 },
-  { value: "no_fit", label: "No fit", count: 0 },
-  { value: "sem_analise", label: "Sem análise", count: 0 },
-];
-
-function countActiveFilters(filters: LicitacaoFilters): number {
+function countActiveFilters(filters: ProcurementFilters): number {
   return (
     (filters.statuses?.length ?? 0) +
-    (filters.modalidadeIds?.length ?? 0) +
-    (filters.setores?.length ?? 0) +
-    (filters.ufs?.length ?? 0) +
-    (filters.portais?.length ?? 0) +
-    (filters.fit?.length ?? 0) +
+    (filters.modalityIds?.length ?? 0) +
+    (filters.categories?.length ?? 0) +
+    (filters.states?.length ?? 0) +
+    (filters.portals?.length ?? 0) +
     (filters.compat ? 1 : 0) +
-    (filters.categoria ? 1 : 0) +
-    (filters.valorMin !== undefined ? 1 : 0) +
-    (filters.valorMax !== undefined ? 1 : 0)
+    (filters.kind ? 1 : 0) +
+    (filters.valueMin !== undefined ? 1 : 0) +
+    (filters.valueMax !== undefined ? 1 : 0)
   );
 }
 
@@ -64,11 +54,10 @@ function togglePopover(event: MouseEvent<HTMLButtonElement>) {
 // ---------------------------------------------------------------------------
 
 export const TOGGLEABLE_COLUMNS = [
-  { key: "modalidade", label: "Modalidade" },
+  { key: "modality", label: "Modalidade" },
   { key: "status", label: "Status" },
-  { key: "fit", label: "Fit" },
-  { key: "valor", label: "Valor estimado" },
-  { key: "encerramento", label: "Encerramento" },
+  { key: "value", label: "Valor estimado" },
+  { key: "closing", label: "Encerramento" },
 ] as const;
 
 export type ColumnKey = (typeof TOGGLEABLE_COLUMNS)[number]["key"];
@@ -76,14 +65,13 @@ export type ColumnKey = (typeof TOGGLEABLE_COLUMNS)[number]["key"];
 type ColumnVisibility = Record<ColumnKey, boolean>;
 
 const ALL_VISIBLE: ColumnVisibility = {
-  modalidade: true,
+  modality: true,
   status: true,
-  fit: true,
-  valor: true,
-  encerramento: true,
+  value: true,
+  closing: true,
 };
 
-const STORAGE_KEY = "plic.licitacoes.cols";
+const STORAGE_KEY = "lixto.procurements.cols";
 
 let store: ColumnVisibility | null = null;
 const listeners = new Set<() => void>();
@@ -230,10 +218,10 @@ function ColumnsMenu() {
 /**
  * Page header (title + result count + inline search) and the Attio-style
  * toolbar. Everything lives in ONE GET form: the search input, the hidden
- * inputs the MultiSelects keep mounted, categoria and the valor range — so
- * any "Aplicar"/Enter submits the complete filter set and the URL contract
- * (`q`, `portal[]`, `modalidade[]`, `status[]`, `categoria`, `setor[]`,
- * `uf[]`, `valorMin`, `valorMax`, `fit[]`) is unchanged.
+ * inputs the MultiSelects keep mounted, kind and the value range — so any
+ * "Aplicar"/Enter submits the complete filter set and the URL contract
+ * (`q`, `portal[]`, `modality[]`, `status[]`, `kind`, `category[]`,
+ * `state[]`, `valueMin`, `valueMax`, `compat`) stays in one place.
  */
 export function Filters({
   filters,
@@ -244,7 +232,7 @@ export function Filters({
   const activeCount = countActiveFilters(filters);
 
   return (
-    <form method="GET" action="/licitacoes" className="flex flex-col gap-4">
+    <form method="GET" action="/procurements" className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-baseline gap-3">
           <h1 className="font-display text-[30px] leading-[34px] text-ink">
@@ -287,34 +275,28 @@ export function Filters({
                 selected={filters.statuses ?? []}
               />
               <MultiSelect
-                name="modalidade"
+                name="modality"
                 label="Modalidade"
-                options={facetCounts.modalidade}
-                selected={filters.modalidadeIds?.map(String) ?? []}
+                options={facetCounts.modality}
+                selected={filters.modalityIds?.map(String) ?? []}
               />
               <MultiSelect
-                name="setor"
-                label="Setor"
-                options={facetCounts.setor}
-                selected={filters.setores ?? []}
+                name="category"
+                label="Categoria"
+                options={facetCounts.category}
+                selected={filters.categories ?? []}
               />
               <MultiSelect
-                name="uf"
+                name="state"
                 label="UF"
-                options={facetCounts.uf}
-                selected={filters.ufs ?? []}
+                options={facetCounts.state}
+                selected={filters.states ?? []}
               />
               <MultiSelect
                 name="portal"
                 label="Portal"
                 options={facetCounts.portal}
-                selected={filters.portais ?? []}
-              />
-              <MultiSelect
-                name="fit"
-                label="Fit"
-                options={FIT_OPTIONS}
-                selected={filters.fit ?? []}
+                selected={filters.portals ?? []}
               />
 
               {showCompat && (
@@ -337,17 +319,17 @@ export function Filters({
 
               <div className="flex flex-col gap-1.5">
                 <span className="text-xs font-medium text-ink-muted">
-                  Categoria
+                  Tipo
                 </span>
                 <Select
-                  name="categoria"
-                  defaultValue={filters.categoria ?? ""}
+                  name="kind"
+                  defaultValue={filters.kind ?? ""}
                   className="max-w-none"
                 >
-                  <option value="">Todas</option>
-                  <option value="produto">Produto</option>
-                  <option value="servico">Serviço</option>
-                  <option value="mista">Mista</option>
+                  <option value="">Todos</option>
+                  <option value="product">Produto</option>
+                  <option value="service">Serviço</option>
+                  <option value="mixed">Misto</option>
                 </Select>
               </div>
 
@@ -358,8 +340,8 @@ export function Filters({
                 <div className="flex items-center gap-2">
                   <Input
                     type="number"
-                    name="valorMin"
-                    defaultValue={filters.valorMin ?? ""}
+                    name="valueMin"
+                    defaultValue={filters.valueMin ?? ""}
                     placeholder="mín"
                   />
                   <span aria-hidden="true" className="text-ink-faint">
@@ -367,8 +349,8 @@ export function Filters({
                   </span>
                   <Input
                     type="number"
-                    name="valorMax"
-                    defaultValue={filters.valorMax ?? ""}
+                    name="valueMax"
+                    defaultValue={filters.valueMax ?? ""}
                     placeholder="máx"
                   />
                 </div>
@@ -377,7 +359,7 @@ export function Filters({
 
             <div className="mt-4 flex items-center justify-between border-t border-line pt-3">
               <Link
-                href="/licitacoes"
+                href="/procurements"
                 className="text-[13px] font-medium text-ink-muted hover:text-ink"
               >
                 Limpar filtros

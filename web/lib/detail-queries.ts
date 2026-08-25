@@ -1,4 +1,11 @@
-// SQL for the detail page (ticket 09): one licitação plus its itens and
+// COMPAT SHIM (ticket 81) — the detail page now runs on
+// `procurement-detail-queries.ts` against the lixto schema. This module still
+// queries the legacy Portuguese tables and only exists because
+// `lib/agent/tools.ts` (+ its tests), which ticket 81 does not own, imports
+// `fetchLicitacaoDetail`/`fetchItens`/`fetchDocumentos` from here. Ticket 82
+// ports the agent layer and deletes this file.
+//
+// SQL for the legacy detail page (ticket 09): one licitação plus its itens and
 // documentos, all keyed by numero_controle_pncp.
 //
 // Every value from the outside world (the route param) is bound as a

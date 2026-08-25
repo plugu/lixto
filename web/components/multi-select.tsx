@@ -1,10 +1,10 @@
 "use client";
 
 import { useId, useMemo, useState } from "react";
-import type { FacetOption } from "@/lib/queries";
+import type { FacetOption } from "@/lib/procurement-queries";
 
 type MultiSelectProps = {
-  /** Param name — submitted once per checked value (e.g. `?modalidade=6&modalidade=8`),
+  /** Param name — submitted once per checked value (e.g. `?modality=6&modality=8`),
    * read server-side by parseFilters. */
   name: string;
   label: string;
@@ -15,10 +15,10 @@ type MultiSelectProps = {
 const SEARCH_THRESHOLD = 10;
 
 /**
- * Checkbox list for one filter dimension. Since cycle 8 it renders *inline*
- * (no dropdown of its own, no "Aplicar" of its own): it lives inside the
- * Filtrar popover of `components/filters.tsx`, which supplies the single
- * "Aplicar" submit button for the whole GET form.
+ * Checkbox list for one filter dimension. It renders *inline* (no dropdown of
+ * its own, no "Aplicar" of its own): it lives inside the Filtrar popover of
+ * `components/filters.tsx`, which supplies the single "Aplicar" submit button
+ * for the whole GET form.
  *
  * Checked state is controlled and submitted via always-mounted hidden inputs —
  * visible checkboxes carry no `name`. That keeps every filter's selection in

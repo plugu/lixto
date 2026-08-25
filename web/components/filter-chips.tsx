@@ -2,31 +2,23 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { X } from "@/components/ui/icons";
 import type {
-  CategoriaLicitacao,
-  FitFilterValue,
-  LicitacaoFilters,
-  ModalidadeOption,
-} from "@/lib/queries";
+  ModalityOption,
+  ProcurementFilters,
+  ProcurementKind,
+} from "@/lib/procurement-queries";
 import { STATUS_LABELS } from "@/lib/status";
 
 type RawSearchParams = Record<string, string | string[] | undefined>;
 
 type Chip = { key: string; label: string; href: string };
 
-const CATEGORIA_LABELS: Record<CategoriaLicitacao, string> = {
-  produto: "Produto",
-  servico: "Serviço",
-  mista: "Mista",
+const KIND_LABELS: Record<ProcurementKind, string> = {
+  product: "Produto",
+  service: "Serviço",
+  mixed: "Misto",
 };
 
-const FIT_LABELS: Record<FitFilterValue, string> = {
-  fit: "Fit",
-  borderline: "Borderline",
-  no_fit: "No fit",
-  sem_analise: "Sem análise",
-};
-
-function formatValor(value: number): string {
+function formatValue(value: number): string {
   return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 }).format(value);
 }
 
@@ -45,7 +37,7 @@ function toURLSearchParams(raw: RawSearchParams): URLSearchParams {
 
 /** Rebuilds the current search params minus one value from one field (the
  * whole field, when `value` is omitted) — used to build each chip's "remove
- * this selection" link. Also drops `pagina` so removing a filter resets to
+ * this selection" link. Also drops `page` so removing a filter resets to
  * page 1. */
 function withoutValue(
   searchParams: URLSearchParams,
@@ -53,7 +45,7 @@ function withoutValue(
   value?: string,
 ): URLSearchParams {
   const next = new URLSearchParams(searchParams);
-  next.delete("pagina");
+  next.delete("page");
   if (value === undefined) {
     next.delete(field);
     return next;
@@ -66,17 +58,17 @@ function withoutValue(
 
 function buildHref(params: URLSearchParams): string {
   const qs = params.toString();
-  return qs ? `/licitacoes?${qs}` : "/licitacoes";
+  return qs ? `/procurements?${qs}` : "/procurements";
 }
 
 export function FilterChips({
   filters,
   searchParams,
-  modalidadeOptions,
+  modalityOptions,
 }: {
-  filters: LicitacaoFilters;
+  filters: ProcurementFilters;
   searchParams: RawSearchParams;
-  modalidadeOptions: ModalidadeOption[];
+  modalityOptions: ModalityOption[];
 }) {
   const params = toURLSearchParams(searchParams);
   const chips: Chip[] = [];
@@ -89,24 +81,24 @@ export function FilterChips({
     });
   }
 
-  filters.modalidadeIds?.forEach((id) => {
-    const nome = modalidadeOptions.find((m) => m.id === id)?.nome ?? String(id);
+  filters.modalityIds?.forEach((id) => {
+    const name = modalityOptions.find((m) => m.id === id)?.name ?? String(id);
     chips.push({
-      key: `modalidade-${id}`,
-      label: nome,
-      href: buildHref(withoutValue(params, "modalidade", String(id))),
+      key: `modality-${id}`,
+      label: name,
+      href: buildHref(withoutValue(params, "modality", String(id))),
     });
   });
 
-  filters.setores?.forEach((setor) => {
+  filters.categories?.forEach((category) => {
     chips.push({
-      key: `setor-${setor}`,
-      label: setor,
-      href: buildHref(withoutValue(params, "setor", setor)),
+      key: `category-${category}`,
+      label: category,
+      href: buildHref(withoutValue(params, "category", category)),
     });
   });
 
-  filters.portais?.forEach((portal) => {
+  filters.portals?.forEach((portal) => {
     chips.push({
       key: `portal-${portal}`,
       label: portal,
@@ -122,19 +114,11 @@ export function FilterChips({
     });
   });
 
-  filters.ufs?.forEach((uf) => {
+  filters.states?.forEach((state) => {
     chips.push({
-      key: `uf-${uf}`,
-      label: uf,
-      href: buildHref(withoutValue(params, "uf", uf)),
-    });
-  });
-
-  filters.fit?.forEach((value) => {
-    chips.push({
-      key: `fit-${value}`,
-      label: FIT_LABELS[value],
-      href: buildHref(withoutValue(params, "fit", value)),
+      key: `state-${state}`,
+      label: state,
+      href: buildHref(withoutValue(params, "state", state)),
     });
   });
 
@@ -146,17 +130,17 @@ export function FilterChips({
     });
   }
 
-  if (filters.categoria) {
+  if (filters.kind) {
     chips.push({
-      key: "categoria",
-      label: CATEGORIA_LABELS[filters.categoria],
-      href: buildHref(withoutValue(params, "categoria")),
+      key: "kind",
+      label: KIND_LABELS[filters.kind],
+      href: buildHref(withoutValue(params, "kind")),
     });
   }
 
-  if (filters.valorMin !== undefined || filters.valorMax !== undefined) {
-    const min = filters.valorMin !== undefined ? formatValor(filters.valorMin) : undefined;
-    const max = filters.valorMax !== undefined ? formatValor(filters.valorMax) : undefined;
+  if (filters.valueMin !== undefined || filters.valueMax !== undefined) {
+    const min = filters.valueMin !== undefined ? formatValue(filters.valueMin) : undefined;
+    const max = filters.valueMax !== undefined ? formatValue(filters.valueMax) : undefined;
     const label =
       min !== undefined && max !== undefined
         ? `R$ ${min}–${max}`
@@ -164,9 +148,9 @@ export function FilterChips({
           ? `R$ ≥ ${min}`
           : `R$ ≤ ${max}`;
     chips.push({
-      key: "valor",
+      key: "value",
       label,
-      href: buildHref(withoutValue(withoutValue(params, "valorMin"), "valorMax")),
+      href: buildHref(withoutValue(withoutValue(params, "valueMin"), "valueMax")),
     });
   }
 
@@ -188,7 +172,7 @@ export function FilterChips({
         </Link>
       ))}
       <Link
-        href="/licitacoes"
+        href="/procurements"
         className="text-[13px] font-medium text-ink-muted hover:text-ink focus:outline-none focus-visible:ring-[3px] focus-visible:ring-accent-soft"
       >
         Limpar tudo

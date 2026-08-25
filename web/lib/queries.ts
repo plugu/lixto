@@ -1,4 +1,10 @@
-// SQL builder for the list page's search + filters (ticket 08).
+// COMPAT SHIM (ticket 81) — the list page now runs on `procurement-queries.ts`
+// against the lixto schema. This module still queries the legacy Portuguese
+// tables and only exists because `lib/agent/tools.ts` (+ its tests), which
+// ticket 81 does not own, imports `fetchLicitacoes`/`LicitacaoFilters` from
+// here. Ticket 82 ports the agent layer and deletes this file.
+//
+// SQL builder for the legacy list page's search + filters (ticket 08).
 //
 // Every value from the outside world (q, portal, modalidadeId) is bound as a
 // parameterized placeholder — never string-interpolated into SQL text.
@@ -9,7 +15,10 @@
 
 import { pool } from "./db";
 import { PORTAIS_ATIVOS } from "./portais";
-import { STATUS_LABELS, type StatusLicitacao } from "./status";
+import {
+  LEGACY_STATUS_LABELS as STATUS_LABELS,
+  type StatusLicitacao,
+} from "./status";
 
 export type CategoriaLicitacao = "produto" | "servico" | "mista";
 
