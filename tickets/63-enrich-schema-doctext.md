@@ -1,6 +1,6 @@
 ---
 id: 63
-status: doing
+status: done
 model: opus
 depends_on: []
 max_attempts: 3
@@ -106,7 +106,7 @@ Export:
 
 ## Checks (run in order — cheapest first)
 1. `uv run ruff check src tests`
-2. `uv run ruff format --check src tests`
+2. `uv run ruff format --check src/plic/enrich tests/test_enrich_documents.py` (repo-wide format check fails on 17 pre-existing files — out of scope)
 3. `uv run pytest -q`
 4. `grep -q "pypdf" uv.lock`
 

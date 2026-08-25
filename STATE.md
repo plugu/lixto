@@ -1,10 +1,9 @@
 # STATE — rewrite after every ticket completes; never append. ≤30 lines total.
 
 ## Now
-- Cycle 16 (intelligence layer: enrich + match + chat), mvp. 65 done (1 attempt, merged). 63 (enrich schema + doc text, opus) running in worktree.
+- Cycle 16 (intelligence layer: enrich + match + chat), mvp. 63 + 65 done (1 attempt each, merged). Wave 2 running: 64 (enrich worker) ∥ 66 (match engine web) in worktrees.
 
 ## Next
-- Wave 2: 64 (enrich worker) ∥ 66 (match engine web) once 63 merges.
 - Then 67 → 68 → 69 → 70 sequential in place.
 
 ## Decisions
@@ -16,4 +15,4 @@
 - Carried: no cron on dev machine; resultados demand-driven.
 
 ## Blockers
-- none.
+- none. Note: repo-wide `ruff format --check` fails on 17 pre-existing files; checks scoped to new files (tickets 63/64).

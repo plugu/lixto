@@ -1,6 +1,6 @@
 ---
 id: 64
-status: todo
+status: doing
 model: opus
 depends_on: [63]
 max_attempts: 3
@@ -76,7 +76,7 @@ Add `enrich_app = typer.Typer(help="Global enrichment commands")` mounted as `en
 
 ## Checks (run in order — cheapest first)
 1. `uv run ruff check src tests`
-2. `uv run ruff format --check src tests`
+2. `uv run ruff format --check src/plic/enrich src/plic/llm.py tests/test_enrich_worker.py tests/test_llm.py` (repo-wide format check fails on pre-existing files — out of scope)
 3. `uv run pytest -q`
 4. `uv run plic enrich run --help | grep -q -- --retry-errors`
 5. If `PLIC_LLM_API_KEY` or `OPENAI_API_KEY` is set and the local DB is up: `uv run plic enrich run --limit 1 --days 30` exits 0 and `docker compose exec -T db psql -U plic -c "select numero_controle_pncp, fonte, status, array_length(palavras_chave,1) from enriquecimento limit 3"` shows a row. Otherwise skip and say so in the receipt.
