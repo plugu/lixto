@@ -13,6 +13,7 @@ from plic.classify import classify as run_classify
 from plic.cnae_match import classify as run_cnae_classify
 from plic.cnae_match import eval_pending as run_cnae_eval
 from plic.cnae_seed import seed as run_cnae_seed
+from plic.enrich.worker import enrich as run_enrich
 from plic.status import format_status, get_status
 from plic.sync_detalhes import sync_detalhes
 from plic.sync_incremental import sync_incremental as run_sync_incremental
@@ -58,6 +59,8 @@ agents_app = typer.Typer(help="Agent pipeline commands")
 app.add_typer(agents_app, name="agents")
 cnae_app = typer.Typer(help="CNAE reference table commands")
 app.add_typer(cnae_app, name="cnae")
+enrich_app = typer.Typer(help="Global enrichment commands")
+app.add_typer(enrich_app, name="enrich")
 
 _MAX_TRIAGE_OPTION = typer.Option(
     200, "--max-triage", help="Max licitações to fit-triage in this run."
@@ -303,6 +306,45 @@ def cnae_eval_cmd(
     typer.echo(f"\nEvaluadas (sem persistência): {len(results)}")
 
 
+_ENRICH_DAYS_OPTION = typer.Option(
+    None, "--days", help="Só licitações com data_publicacao_pncp nos últimos N dias."
+)
+_RETRY_ERRORS_OPTION = typer.Option(
+    False,
+    "--retry-errors",
+    help="Reprocessa também licitações cujo enriquecimento anterior falhou (status='error').",
+)
+
+
+@enrich_app.command("run")
+def enrich_run_cmd(
+    limit: int = _LIMIT_OPTION,
+    days: int = _ENRICH_DAYS_OPTION,
+    retry_errors: bool = _RETRY_ERRORS_OPTION,
+) -> None:
+    """Produz o enriquecimento canônico global (um por licitação aberta),
+    roteando cada linha para o tier de modelo mais barato que dá conta
+    (texto do edital → cheap, PDF escaneado → tier documental, sem
+    documento → só metadados). Retomável: licitações já enriquecidas são
+    ignoradas; rode com --retry-errors para reprocessar as que falharam.
+    """
+    conn = db.get_connection()
+    try:
+        result = run_enrich(conn, limit=limit, days=days, retry_errors=retry_errors)
+    finally:
+        conn.close()
+
+    typer.echo(
+        f"enriquecidas: {result['processed']} (done {result['done']}, error {result['error']})"
+    )
+    if result["error"] > 0 and result["done"] == 0:
+        typer.echo(
+            "nenhuma licitação enriquecida com sucesso — verifique a chave/URL do provedor LLM",
+            err=True,
+        )
+        raise typer.Exit(code=1)
+
+
 @app.command("status")
 def status_cmd() -> None:
     """Print counts/report of the current mirror state."""
@@ -313,8 +355,6 @@ def status_cmd() -> None:
         conn.close()
 
     typer.echo(format_status(report))
-
-
 
 
 @agents_app.command("run")
