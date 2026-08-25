@@ -1,21 +1,23 @@
 # STATE — rewrite after every ticket completes; never append. ≤30 lines total.
 
 ## Now
-- Cycle 13 (preço-alvo) complete: tickets 55-58 done, plus 59 (scheduling moved off the dev machine). All checks green: ruff, 133 pytest, 349 vitest, next build, page probe 200.
-- Happy path proven on real data: page view enqueued 1700 itens → drained 900 → 12 itens rendering real medians (R$ 45,00 n=5 … R$ 14,65 n=12), p25 ≤ mediana ≤ p75, winners with porte + date.
+- Cycle 13 (preço-alvo) shipped to production. Commit `c08bc97`; web + cli deployed 2026-08-25 11:12; migration 009 applied in prod (`Applied 1 migration(s): 009_resultado.sql`); `sync-resultados` ran clean on demand.
+- Tickets 55-59 done. Checks: ruff, 133 pytest, 368 vitest, next build, page probe 200.
 
 ## Next
-- gate mvp 2/2: user reviews the diff → commit → deploy → run the `db-init` Dokploy schedule so migration 009 reaches prod.
-- `sync-resultados` will error nightly until that deploy lands (prod has no `plic sync resultados` and no `resultado` table yet).
+- Cycle 14 candidates, in the order I'd pick them:
+  1. Throughput: one page view enqueues ~1700 itens vs 2000/night drained. Raise `--limit`, lower the 40-candidate cap per item, or drain more often.
+  2. `/concorrente/[cnpj]` — the `resultado` table already stores winner CNPJ, porte and unit price; the profile page is the second product the ingest was built for.
+  3. Match quality: FTS+trigram is unproven at scale. If medians look wrong, embeddings are the next lever (pgvector is NOT available on the prod Postgres — checked).
 
 ## Decisions
-- **no scheduling on a dev machine.** launchd module, `plic schedule` command and its tests deleted; README documents Dokploy schedules as the only mechanism. A `com.plic.sync` job was found loaded and actively crawling PNCP from the laptop on 2026-08-25 — uninstalled.
-- prod schedules (Dokploy, app `cli`, America/Sao_Paulo): `sync-incremental` `0 6,13,20 * * *`; `sync-resultados` `0 3 * * *` (new); `db-init` and `cnae-classify-30d` manual-only via the Feb-31 cron idiom.
-- crawl policy: demand-driven only. Queue on `item`; full crawl of 4.06M homologated itens = ~23 days at 2 req/s.
+- **no scheduling on a dev machine.** launchd module, `plic schedule` command and tests deleted. A `com.plic.sync` job was found loaded and crawling PNCP from the laptop on 2026-08-25 — uninstalled. All crons are Dokploy schedules on the `cli` app.
+- prod schedules (America/Sao_Paulo): `sync-incremental` `0 6,13,20 * * *`; `sync-resultados` `0 3 * * *`; `db-init` and `cnae-classify-30d` manual-only via the Feb-31 cron idiom.
+- crawl policy: demand-driven only. Full crawl of 4.06M homologated itens = ~23 days at 2 req/s.
 - `resultado` = promoted columns, no `raw`. ~660 B/row measured with indexes.
-- match by description: CATMAT on 0.25% of 7.85M itens — no catalog key exists. FTS retrieval + LATERAL LIMIT 200/item; 43% of matched historical itens have a published resultado.
-- n<5 → percentis null in SQL. SRP losing ranks excluded (`ordem_classificacao_srp IS NULL OR = 1`).
+- CATMAT exists on 0.25% of 7.85M itens — no catalog key. FTS retrieval + LATERAL LIMIT 200/item; 43% of matched historical itens have a published resultado.
+- n<5 → percentis null in SQL. SRP losing ranks excluded.
 - `/resultados` has NO pagination — `pagina` ignored, page N echoes page 1 forever. Handled by `_FirstPageOnly`.
 
 ## Blockers
-- none. Sizing gap for cycle 14: one page view enqueues ~1700 itens vs 2000/night drained. Raise the limit or add a second run before calling the feature broken.
+- none.
