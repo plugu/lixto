@@ -5,25 +5,25 @@ import { Button } from "@/components/ui/button";
 import { Field, Input, Select } from "@/components/ui/input";
 import { Section } from "@/components/ui/section";
 import {
-  criarConviteAction,
-  type CriarConviteState,
-} from "@/app/(app)/empresa/usuarios/actions";
+  createInviteAction,
+  type CreateInviteState,
+} from "@/app/(app)/company/users/actions";
 
-const INITIAL_STATE: CriarConviteState = {};
+const INITIAL_STATE: CreateInviteState = {};
 
-export function ConviteForm({ origin }: { origin: string }) {
+export function InviteForm({ origin }: { origin: string }) {
   const [state, formAction, pending] = useActionState(
-    criarConviteAction,
+    createInviteAction,
     INITIAL_STATE,
   );
   const [copied, setCopied] = useState(false);
 
-  const conviteUrl = state.token ? `${origin}/convite/${state.token}` : null;
+  const inviteUrl = state.token ? `${origin}/invite/${state.token}` : null;
 
   async function copyLink() {
-    if (!conviteUrl) return;
+    if (!inviteUrl) return;
     try {
-      await navigator.clipboard.writeText(conviteUrl);
+      await navigator.clipboard.writeText(inviteUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
@@ -36,7 +36,7 @@ export function ConviteForm({ origin }: { origin: string }) {
     <Section title="Convidar usuário">
       <form action={formAction} className="flex flex-col gap-4">
         <Field label="Nome">
-          <Input type="text" name="nome" required />
+          <Input type="text" name="name" required />
         </Field>
 
         <Field label="E-mail">
@@ -61,14 +61,14 @@ export function ConviteForm({ origin }: { origin: string }) {
         </Button>
       </form>
 
-      {conviteUrl ? (
+      {inviteUrl ? (
         <div className="mt-4">
           <Field label="Link do convite — envie para o convidado">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <Input
                 type="text"
                 readOnly
-                value={conviteUrl}
+                value={inviteUrl}
                 onFocus={(e) => e.currentTarget.select()}
                 className="min-w-0 font-mono text-xs"
               />

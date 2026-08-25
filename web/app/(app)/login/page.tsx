@@ -18,7 +18,7 @@ export default async function LoginPage({
 
   return (
     <div className="mx-auto flex min-h-[70vh] max-w-sm flex-col items-center justify-center gap-10">
-      <span className="font-display text-2xl italic text-ink">Licitante</span>
+      <span className="font-display text-2xl italic text-ink">Lixto</span>
 
       <div className="flex w-full flex-col gap-6">
         <div className="flex flex-col gap-1 text-center">
@@ -26,7 +26,7 @@ export default async function LoginPage({
             Entrar
           </h1>
           <p className="text-sm text-ink-muted">
-            Acesse sua conta da Plataforma Licitante.
+            Acesse sua conta do Lixto.
           </p>
         </div>
 
@@ -49,7 +49,7 @@ export default async function LoginPage({
           <Field label="Senha">
             <Input
               type="password"
-              name="senha"
+              name="password"
               autoComplete="current-password"
               required
             />

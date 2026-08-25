@@ -2,42 +2,42 @@ import { LinkButton } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Building } from "@/components/ui/icons";
 import { Section } from "@/components/ui/section";
-import { EmpresaForm } from "@/components/empresa-form";
+import { CompanyForm } from "@/components/company-form";
 import { requireSession } from "@/lib/auth";
-import { getCnaes, getEmpresa } from "@/lib/empresa-queries";
+import { getCompany, getCompanyCnaes } from "@/lib/company-queries";
 
-const EMPRESA_NAV = [
-  { href: "/empresa", label: "Perfil" },
-  { href: "/empresa/perfil", label: "Match" },
-  { href: "/empresa/usuarios", label: "Usuários" },
-  { href: "/empresa/documentos", label: "Documentos" },
+// The "Match" tab (/company/profile) is added by ticket 82.
+const COMPANY_NAV = [
+  { href: "/company", label: "Perfil" },
+  { href: "/company/users", label: "Usuários" },
+  { href: "/company/documents", label: "Documentos" },
 ];
 
-export default async function EmpresaPage() {
+export default async function CompanyPage() {
   const session = await requireSession();
-  const empresa = await getEmpresa(session.usuario.empresaId);
+  const company = await getCompany(session.user.companyId);
 
-  if (!empresa) {
+  if (!company) {
     return (
       <EmptyState icon={<Building size={20} />} title="Empresa não encontrada." />
     );
   }
 
-  const cnaes = await getCnaes(session.usuario.empresaId);
+  const cnaes = await getCompanyCnaes(session.user.companyId);
 
   return (
     <div className="flex flex-col gap-8">
       <Section eyebrow="Empresa" title="Minha empresa">
         <div className="flex flex-col gap-4">
-          <p className="text-sm text-ink-muted">{empresa.razao_social}</p>
+          <p className="text-sm text-ink-muted">{company.legal_name}</p>
           <nav className="flex items-center gap-2">
-            {EMPRESA_NAV.map((item) => (
+            {COMPANY_NAV.map((item) => (
               <LinkButton
                 key={item.href}
                 href={item.href}
                 variant="pill"
                 size="sm"
-                className={item.href === "/empresa" ? "bg-accent-soft text-accent" : undefined}
+                className={item.href === "/company" ? "bg-accent-soft text-accent" : undefined}
               >
                 {item.label}
               </LinkButton>
@@ -46,10 +46,10 @@ export default async function EmpresaPage() {
         </div>
       </Section>
 
-      <EmpresaForm
-        empresa={empresa}
+      <CompanyForm
+        company={company}
         cnaes={cnaes}
-        readOnly={session.usuario.role !== "admin"}
+        readOnly={session.user.role !== "admin"}
       />
     </div>
   );

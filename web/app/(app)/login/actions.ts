@@ -5,10 +5,10 @@ import { login } from "@/lib/auth";
 
 export async function loginAction(formData: FormData): Promise<void> {
   const email = String(formData.get("email") ?? "");
-  const senha = String(formData.get("senha") ?? "");
+  const password = String(formData.get("password") ?? "");
   const next = String(formData.get("next") ?? "");
 
-  const session = await login(email, senha);
+  const session = await login(email, password);
   if (!session) {
     const params = new URLSearchParams({ erro: "1" });
     if (next.startsWith("/")) params.set("next", next);

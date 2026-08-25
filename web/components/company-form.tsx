@@ -1,40 +1,48 @@
 "use client";
 
-// Empresa profile form (ticket 26): admins edit + save every field; members
-// see the same layout with everything disabled and no save button.
-// Restyled on the cycle 8 kit (ticket 36) — action name and field names
-// (`razaoSocial`, `cep`, `uf`, `cnaes`, …) stay identical.
+// Company profile form: admins edit + save every field; members see the same
+// layout with everything disabled and no save button. Ported from the legacy
+// empresa-form (same layout and copy); field names are now English and match
+// the lixto `companies` columns.
 
 import { useActionState, useState } from "react";
 import { formatCEP, formatCNPJ, onlyDigits } from "@/lib/br-validators";
-import { PORTES, UF_LIST, type Empresa, type EmpresaCnae } from "@/lib/tenant-types";
+import {
+  COMPANY_SIZES,
+  UF_LIST,
+  type Company,
+  type CompanyCnae,
+} from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select } from "@/components/ui/input";
 import { Section } from "@/components/ui/section";
 import { CnaeEditor, type CnaeRow } from "./cnae-editor";
-import { updateEmpresaAction, type EmpresaActionState } from "@/app/(app)/empresa/actions";
+import {
+  updateCompanyAction,
+  type CompanyActionState,
+} from "@/app/(app)/company/actions";
 
-const INITIAL_STATE: EmpresaActionState = {};
+const INITIAL_STATE: CompanyActionState = {};
 
-export function EmpresaForm({
-  empresa,
+export function CompanyForm({
+  company,
   cnaes,
   readOnly,
 }: {
-  empresa: Empresa;
-  cnaes: EmpresaCnae[];
+  company: Company;
+  cnaes: CompanyCnae[];
   readOnly: boolean;
 }) {
   const [state, formAction, pending] = useActionState(
-    updateEmpresaAction,
+    updateCompanyAction,
     INITIAL_STATE,
   );
-  const [cep, setCep] = useState(empresa.cep ?? "");
+  const [postalCode, setPostalCode] = useState(company.postal_code ?? "");
 
   const initialCnaes: CnaeRow[] = cnaes.map((c) => ({
-    codigo: c.codigo,
-    descricao: c.descricao,
-    principal: c.principal,
+    code: c.cnae_code,
+    description: c.description,
+    isPrimary: c.is_primary,
   }));
 
   return (
@@ -55,8 +63,8 @@ export function EmpresaForm({
           <Field label="Razão social">
             <Input
               type="text"
-              name="razaoSocial"
-              defaultValue={empresa.razao_social}
+              name="legalName"
+              defaultValue={company.legal_name}
               disabled={readOnly}
               required
             />
@@ -64,28 +72,28 @@ export function EmpresaForm({
           <Field label="Nome fantasia">
             <Input
               type="text"
-              name="nomeFantasia"
-              defaultValue={empresa.nome_fantasia ?? ""}
+              name="tradeName"
+              defaultValue={company.trade_name ?? ""}
               disabled={readOnly}
             />
           </Field>
           <Field label="CNPJ">
-            <Input type="text" value={formatCNPJ(empresa.cnpj)} disabled readOnly />
+            <Input type="text" value={formatCNPJ(company.tax_id)} disabled readOnly />
           </Field>
           <Field label="Natureza jurídica">
             <Input
               type="text"
-              name="naturezaJuridica"
-              defaultValue={empresa.natureza_juridica ?? ""}
+              name="legalNature"
+              defaultValue={company.legal_nature ?? ""}
               disabled={readOnly}
             />
           </Field>
           <Field label="Porte">
-            <Select name="porte" defaultValue={empresa.porte ?? ""} disabled={readOnly}>
+            <Select name="size" defaultValue={company.size ?? ""} disabled={readOnly}>
               <option value="">Selecione</option>
-              {PORTES.map((p) => (
-                <option key={p} value={p}>
-                  {p}
+              {COMPANY_SIZES.map((s) => (
+                <option key={s} value={s}>
+                  {s}
                 </option>
               ))}
             </Select>
@@ -93,9 +101,9 @@ export function EmpresaForm({
           <label className="flex items-center gap-2 self-end pb-2 text-sm text-ink">
             <input
               type="checkbox"
-              name="optanteSimples"
+              name="simplesOptant"
               value="on"
-              defaultChecked={empresa.optante_simples}
+              defaultChecked={company.simples_optant}
               disabled={readOnly}
               className="h-4 w-4 rounded-[6px] border border-line accent-accent disabled:opacity-50"
             />
@@ -104,16 +112,16 @@ export function EmpresaForm({
           <Field label="Inscrição estadual">
             <Input
               type="text"
-              name="inscricaoEstadual"
-              defaultValue={empresa.inscricao_estadual ?? ""}
+              name="stateRegistration"
+              defaultValue={company.state_registration ?? ""}
               disabled={readOnly}
             />
           </Field>
           <Field label="Inscrição municipal">
             <Input
               type="text"
-              name="inscricaoMunicipal"
-              defaultValue={empresa.inscricao_municipal ?? ""}
+              name="municipalRegistration"
+              defaultValue={company.municipal_registration ?? ""}
               disabled={readOnly}
             />
           </Field>
@@ -125,9 +133,9 @@ export function EmpresaForm({
           <Field label="CEP">
             <Input
               type="text"
-              name="cep"
-              value={formatCEP(cep)}
-              onChange={(e) => setCep(onlyDigits(e.target.value))}
+              name="postalCode"
+              value={formatCEP(postalCode)}
+              onChange={(e) => setPostalCode(onlyDigits(e.target.value))}
               disabled={readOnly}
               maxLength={9}
             />
@@ -135,45 +143,45 @@ export function EmpresaForm({
           <Field label="Logradouro">
             <Input
               type="text"
-              name="logradouro"
-              defaultValue={empresa.logradouro ?? ""}
+              name="street"
+              defaultValue={company.street ?? ""}
               disabled={readOnly}
             />
           </Field>
           <Field label="Número">
             <Input
               type="text"
-              name="numero"
-              defaultValue={empresa.numero ?? ""}
+              name="streetNumber"
+              defaultValue={company.street_number ?? ""}
               disabled={readOnly}
             />
           </Field>
           <Field label="Complemento">
             <Input
               type="text"
-              name="complemento"
-              defaultValue={empresa.complemento ?? ""}
+              name="addressLine2"
+              defaultValue={company.address_line2 ?? ""}
               disabled={readOnly}
             />
           </Field>
           <Field label="Bairro">
             <Input
               type="text"
-              name="bairro"
-              defaultValue={empresa.bairro ?? ""}
+              name="district"
+              defaultValue={company.district ?? ""}
               disabled={readOnly}
             />
           </Field>
           <Field label="Município">
             <Input
               type="text"
-              name="municipio"
-              defaultValue={empresa.municipio ?? ""}
+              name="cityName"
+              defaultValue={company.city_name ?? ""}
               disabled={readOnly}
             />
           </Field>
           <Field label="UF">
-            <Select name="uf" defaultValue={empresa.uf ?? ""} disabled={readOnly}>
+            <Select name="state" defaultValue={company.state ?? ""} disabled={readOnly}>
               <option value="">Selecione</option>
               {UF_LIST.map((uf) => (
                 <option key={uf} value={uf}>
@@ -190,8 +198,8 @@ export function EmpresaForm({
           <Field label="Telefone">
             <Input
               type="text"
-              name="telefone"
-              defaultValue={empresa.telefone ?? ""}
+              name="phone"
+              defaultValue={company.phone ?? ""}
               disabled={readOnly}
             />
           </Field>
@@ -199,7 +207,7 @@ export function EmpresaForm({
             <Input
               type="email"
               name="email"
-              defaultValue={empresa.email ?? ""}
+              defaultValue={company.email ?? ""}
               disabled={readOnly}
             />
           </Field>

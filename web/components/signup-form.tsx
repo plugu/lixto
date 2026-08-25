@@ -2,9 +2,12 @@
 
 import { useActionState, useState } from "react";
 import { formatCNPJ, onlyDigits } from "@/lib/br-validators";
-import type { CnpjCnae } from "@/lib/cnpj-lookup";
-import { lookupAction, signupAction, type SignupState } from "@/app/(app)/signup/actions";
-import { PORTES, UF_LIST } from "@/lib/tenant-types";
+import {
+  lookupAction,
+  signupAction,
+  type SignupState,
+} from "@/app/(app)/signup/actions";
+import { COMPANY_SIZES, UF_LIST } from "@/lib/types";
 import { Field, Input, Select } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Section } from "@/components/ui/section";
@@ -13,7 +16,11 @@ import { Check, X } from "@/components/ui/icons";
 
 const INITIAL_STATE: SignupState = { erro: null };
 
-type CnaeRow = CnpjCnae;
+type CnaeRow = {
+  code: string;
+  description: string;
+  isPrimary: boolean;
+};
 
 export function SignupForm() {
   const [state, formAction, pending] = useActionState(
@@ -21,96 +28,96 @@ export function SignupForm() {
     INITIAL_STATE,
   );
 
-  const [cnpj, setCnpj] = useState("");
-  const [buscando, setBuscando] = useState(false);
-  const [buscaFalhou, setBuscaFalhou] = useState(false);
+  const [taxId, setTaxId] = useState("");
+  const [searching, setSearching] = useState(false);
+  const [searchFailed, setSearchFailed] = useState(false);
 
-  const [razaoSocial, setRazaoSocial] = useState("");
-  const [nomeFantasia, setNomeFantasia] = useState("");
-  const [naturezaJuridica, setNaturezaJuridica] = useState("");
-  const [porte, setPorte] = useState("");
-  const [optanteSimples, setOptanteSimples] = useState(false);
-  const [inscricaoEstadual, setInscricaoEstadual] = useState("");
-  const [inscricaoMunicipal, setInscricaoMunicipal] = useState("");
-  const [cep, setCep] = useState("");
-  const [logradouro, setLogradouro] = useState("");
-  const [numero, setNumero] = useState("");
-  const [complemento, setComplemento] = useState("");
-  const [bairro, setBairro] = useState("");
-  const [municipio, setMunicipio] = useState("");
-  const [uf, setUf] = useState("");
-  const [empresaTelefone, setEmpresaTelefone] = useState("");
-  const [empresaEmail, setEmpresaEmail] = useState("");
+  const [legalName, setLegalName] = useState("");
+  const [tradeName, setTradeName] = useState("");
+  const [legalNature, setLegalNature] = useState("");
+  const [size, setSize] = useState("");
+  const [simplesOptant, setSimplesOptant] = useState(false);
+  const [stateRegistration, setStateRegistration] = useState("");
+  const [municipalRegistration, setMunicipalRegistration] = useState("");
+  const [postalCode, setPostalCode] = useState("");
+  const [street, setStreet] = useState("");
+  const [streetNumber, setStreetNumber] = useState("");
+  const [addressLine2, setAddressLine2] = useState("");
+  const [district, setDistrict] = useState("");
+  const [cityName, setCityName] = useState("");
+  const [companyState, setCompanyState] = useState("");
+  const [companyPhone, setCompanyPhone] = useState("");
+  const [companyEmail, setCompanyEmail] = useState("");
 
   const [cnaes, setCnaes] = useState<CnaeRow[]>([]);
-  const [novoCnaeCodigo, setNovoCnaeCodigo] = useState("");
-  const [novoCnaeDescricao, setNovoCnaeDescricao] = useState("");
+  const [newCnaeCode, setNewCnaeCode] = useState("");
+  const [newCnaeDescription, setNewCnaeDescription] = useState("");
 
-  const [nome, setNome] = useState("");
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [senha, setSenha] = useState("");
-  const [confirmarSenha, setConfirmarSenha] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [cpf, setCpf] = useState("");
-  const [telefone, setTelefone] = useState("");
-  const [cargo, setCargo] = useState("");
+  const [phone, setPhone] = useState("");
+  const [jobTitle, setJobTitle] = useState("");
 
-  const principalIndex = cnaes.findIndex((c) => c.principal);
+  const primaryIndex = cnaes.findIndex((c) => c.isPrimary);
 
-  async function handleBuscar() {
-    setBuscando(true);
-    setBuscaFalhou(false);
+  async function handleLookup() {
+    setSearching(true);
+    setSearchFailed(false);
     try {
-      const result = await lookupAction(cnpj);
+      const result = await lookupAction(taxId);
       if (!result) {
-        setBuscaFalhou(true);
+        setSearchFailed(true);
         return;
       }
-      setRazaoSocial(result.razaoSocial);
-      setNomeFantasia(result.nomeFantasia ?? "");
-      setNaturezaJuridica(result.naturezaJuridica ?? "");
-      setPorte(result.porte ?? "");
-      setOptanteSimples(result.optanteSimples);
-      setCep(result.cep ?? "");
-      setLogradouro(result.logradouro ?? "");
-      setNumero(result.numero ?? "");
-      setComplemento(result.complemento ?? "");
-      setBairro(result.bairro ?? "");
-      setMunicipio(result.municipio ?? "");
-      setUf(result.uf ?? "");
-      setEmpresaTelefone(result.telefone ?? "");
-      setEmpresaEmail(result.email ?? "");
+      setLegalName(result.legalName);
+      setTradeName(result.tradeName ?? "");
+      setLegalNature(result.legalNature ?? "");
+      setSize(result.size ?? "");
+      setSimplesOptant(result.simplesOptant);
+      setPostalCode(result.postalCode ?? "");
+      setStreet(result.street ?? "");
+      setStreetNumber(result.streetNumber ?? "");
+      setAddressLine2(result.addressLine2 ?? "");
+      setDistrict(result.district ?? "");
+      setCityName(result.cityName ?? "");
+      setCompanyState(result.state ?? "");
+      setCompanyPhone(result.phone ?? "");
+      setCompanyEmail(result.email ?? "");
       setCnaes(result.cnaes);
     } finally {
-      setBuscando(false);
+      setSearching(false);
     }
   }
 
-  function handleAdicionarCnae() {
-    if (!novoCnaeCodigo.trim() || !novoCnaeDescricao.trim()) return;
+  function handleAddCnae() {
+    if (!newCnaeCode.trim() || !newCnaeDescription.trim()) return;
     setCnaes((prev) => [
       ...prev,
       {
-        codigo: novoCnaeCodigo.trim(),
-        descricao: novoCnaeDescricao.trim(),
-        principal: prev.length === 0,
+        code: newCnaeCode.trim(),
+        description: newCnaeDescription.trim(),
+        isPrimary: prev.length === 0,
       },
     ]);
-    setNovoCnaeCodigo("");
-    setNovoCnaeDescricao("");
+    setNewCnaeCode("");
+    setNewCnaeDescription("");
   }
 
-  function handleRemoverCnae(index: number) {
+  function handleRemoveCnae(index: number) {
     setCnaes((prev) => {
       const next = prev.filter((_, i) => i !== index);
-      if (!next.some((c) => c.principal) && next.length > 0) {
-        next[0] = { ...next[0], principal: true };
+      if (!next.some((c) => c.isPrimary) && next.length > 0) {
+        next[0] = { ...next[0], isPrimary: true };
       }
       return next;
     });
   }
 
-  function handleSetPrincipal(index: number) {
-    setCnaes((prev) => prev.map((c, i) => ({ ...c, principal: i === index })));
+  function handleSetPrimary(index: number) {
+    setCnaes((prev) => prev.map((c, i) => ({ ...c, isPrimary: i === index })));
   }
 
   return (
@@ -136,11 +143,11 @@ export function SignupForm() {
             <Field label="CNPJ">
               <Input
                 type="text"
-                name="cnpj"
+                name="taxId"
                 required
-                value={cnpj}
-                onChange={(e) => setCnpj(e.target.value)}
-                onBlur={(e) => setCnpj(formatCNPJ(onlyDigits(e.target.value)))}
+                value={taxId}
+                onChange={(e) => setTaxId(e.target.value)}
+                onBlur={(e) => setTaxId(formatCNPJ(onlyDigits(e.target.value)))}
                 placeholder="00.000.000/0000-00"
               />
             </Field>
@@ -149,23 +156,23 @@ export function SignupForm() {
             type="button"
             variant="secondary"
             size="md"
-            onClick={handleBuscar}
-            disabled={buscando || onlyDigits(cnpj).length !== 14}
+            onClick={handleLookup}
+            disabled={searching || onlyDigits(taxId).length !== 14}
           >
-            {buscando ? "Buscando…" : "Buscar dados"}
+            {searching ? "Buscando…" : "Buscar dados"}
           </Button>
         </div>
-        {buscaFalhou ? (
+        {searchFailed ? (
           <p className="text-[13px] text-ink-faint">
             Não foi possível buscar os dados automaticamente. Preencha os
             campos manualmente.
           </p>
         ) : null}
-        {razaoSocial && !buscaFalhou ? (
+        {legalName && !searchFailed ? (
           <div className="flex items-center gap-2 rounded-[10px] bg-surface-raised px-3 py-2 text-[13px] text-ink-muted">
             <Check size={16} className="shrink-0 text-ok" />
             <span>
-              Dados encontrados: <strong className="text-ink">{razaoSocial}</strong>
+              Dados encontrados: <strong className="text-ink">{legalName}</strong>
             </span>
           </div>
         ) : null}
@@ -173,10 +180,10 @@ export function SignupForm() {
         <Field label="Razão social">
           <Input
             type="text"
-            name="razaoSocial"
+            name="legalName"
             required
-            value={razaoSocial}
-            onChange={(e) => setRazaoSocial(e.target.value)}
+            value={legalName}
+            onChange={(e) => setLegalName(e.target.value)}
           />
         </Field>
 
@@ -184,17 +191,17 @@ export function SignupForm() {
           <Field label="Nome fantasia">
             <Input
               type="text"
-              name="nomeFantasia"
-              value={nomeFantasia}
-              onChange={(e) => setNomeFantasia(e.target.value)}
+              name="tradeName"
+              value={tradeName}
+              onChange={(e) => setTradeName(e.target.value)}
             />
           </Field>
           <Field label="Natureza jurídica">
             <Input
               type="text"
-              name="naturezaJuridica"
-              value={naturezaJuridica}
-              onChange={(e) => setNaturezaJuridica(e.target.value)}
+              name="legalNature"
+              value={legalNature}
+              onChange={(e) => setLegalNature(e.target.value)}
             />
           </Field>
         </div>
@@ -202,14 +209,14 @@ export function SignupForm() {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <Field label="Porte">
             <Select
-              name="porte"
-              value={porte}
-              onChange={(e) => setPorte(e.target.value)}
+              name="size"
+              value={size}
+              onChange={(e) => setSize(e.target.value)}
             >
               <option value="">Selecione</option>
-              {PORTES.map((p) => (
-                <option key={p} value={p}>
-                  {p}
+              {COMPANY_SIZES.map((s) => (
+                <option key={s} value={s}>
+                  {s}
                 </option>
               ))}
             </Select>
@@ -217,17 +224,17 @@ export function SignupForm() {
           <Field label="Inscrição estadual">
             <Input
               type="text"
-              name="inscricaoEstadual"
-              value={inscricaoEstadual}
-              onChange={(e) => setInscricaoEstadual(e.target.value)}
+              name="stateRegistration"
+              value={stateRegistration}
+              onChange={(e) => setStateRegistration(e.target.value)}
             />
           </Field>
           <Field label="Inscrição municipal">
             <Input
               type="text"
-              name="inscricaoMunicipal"
-              value={inscricaoMunicipal}
-              onChange={(e) => setInscricaoMunicipal(e.target.value)}
+              name="municipalRegistration"
+              value={municipalRegistration}
+              onChange={(e) => setMunicipalRegistration(e.target.value)}
             />
           </Field>
         </div>
@@ -235,9 +242,9 @@ export function SignupForm() {
         <label className="flex items-center gap-2 text-sm text-ink">
           <input
             type="checkbox"
-            name="optanteSimples"
-            checked={optanteSimples}
-            onChange={(e) => setOptanteSimples(e.target.checked)}
+            name="simplesOptant"
+            checked={simplesOptant}
+            onChange={(e) => setSimplesOptant(e.target.checked)}
             className="h-4 w-4 rounded border-line accent-accent"
           />
           Optante pelo Simples Nacional
@@ -247,18 +254,18 @@ export function SignupForm() {
           <Field label="CEP">
             <Input
               type="text"
-              name="cep"
-              value={cep}
-              onChange={(e) => setCep(e.target.value)}
+              name="postalCode"
+              value={postalCode}
+              onChange={(e) => setPostalCode(e.target.value)}
             />
           </Field>
           <div className="col-span-1 sm:col-span-2">
             <Field label="Logradouro">
               <Input
                 type="text"
-                name="logradouro"
-                value={logradouro}
-                onChange={(e) => setLogradouro(e.target.value)}
+                name="street"
+                value={street}
+                onChange={(e) => setStreet(e.target.value)}
               />
             </Field>
           </div>
@@ -268,33 +275,33 @@ export function SignupForm() {
           <Field label="Número">
             <Input
               type="text"
-              name="numero"
-              value={numero}
-              onChange={(e) => setNumero(e.target.value)}
+              name="streetNumber"
+              value={streetNumber}
+              onChange={(e) => setStreetNumber(e.target.value)}
             />
           </Field>
           <Field label="Complemento">
             <Input
               type="text"
-              name="complemento"
-              value={complemento}
-              onChange={(e) => setComplemento(e.target.value)}
+              name="addressLine2"
+              value={addressLine2}
+              onChange={(e) => setAddressLine2(e.target.value)}
             />
           </Field>
           <Field label="Bairro">
             <Input
               type="text"
-              name="bairro"
-              value={bairro}
-              onChange={(e) => setBairro(e.target.value)}
+              name="district"
+              value={district}
+              onChange={(e) => setDistrict(e.target.value)}
             />
           </Field>
           <Field label="Município">
             <Input
               type="text"
-              name="municipio"
-              value={municipio}
-              onChange={(e) => setMunicipio(e.target.value)}
+              name="cityName"
+              value={cityName}
+              onChange={(e) => setCityName(e.target.value)}
             />
           </Field>
         </div>
@@ -302,14 +309,14 @@ export function SignupForm() {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <Field label="UF">
             <Select
-              name="uf"
-              value={uf}
-              onChange={(e) => setUf(e.target.value)}
+              name="state"
+              value={companyState}
+              onChange={(e) => setCompanyState(e.target.value)}
             >
               <option value="">Selecione</option>
-              {UF_LIST.map((sigla) => (
-                <option key={sigla} value={sigla}>
-                  {sigla}
+              {UF_LIST.map((uf) => (
+                <option key={uf} value={uf}>
+                  {uf}
                 </option>
               ))}
             </Select>
@@ -317,17 +324,17 @@ export function SignupForm() {
           <Field label="Telefone">
             <Input
               type="text"
-              name="empresaTelefone"
-              value={empresaTelefone}
-              onChange={(e) => setEmpresaTelefone(e.target.value)}
+              name="companyPhone"
+              value={companyPhone}
+              onChange={(e) => setCompanyPhone(e.target.value)}
             />
           </Field>
           <Field label="E-mail da empresa">
             <Input
               type="email"
-              name="empresaEmail"
-              value={empresaEmail}
-              onChange={(e) => setEmpresaEmail(e.target.value)}
+              name="companyEmail"
+              value={companyEmail}
+              onChange={(e) => setCompanyEmail(e.target.value)}
             />
           </Field>
         </div>
@@ -342,9 +349,9 @@ export function SignupForm() {
           <div className="flex flex-wrap gap-2">
             {cnaes.map((c, i) => (
               <span
-                key={`${c.codigo}-${i}`}
+                key={`${c.code}-${i}`}
                 className={`inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-[13px] font-medium ${
-                  i === principalIndex
+                  i === primaryIndex
                     ? "bg-accent-soft text-accent"
                     : "bg-surface-raised text-ink-muted"
                 }`}
@@ -352,38 +359,38 @@ export function SignupForm() {
                 <label className="flex items-center gap-1.5">
                   <input
                     type="radio"
-                    name="cnae_principal_ui"
-                    checked={i === principalIndex}
-                    onChange={() => handleSetPrincipal(i)}
+                    name="cnae_primary_ui"
+                    checked={i === primaryIndex}
+                    onChange={() => handleSetPrimary(i)}
                     className="h-3 w-3 accent-accent"
                   />
                   <span>
-                    {c.codigo} — {c.descricao}
+                    {c.code} — {c.description}
                   </span>
                 </label>
                 <button
                   type="button"
-                  onClick={() => handleRemoverCnae(i)}
+                  onClick={() => handleRemoveCnae(i)}
                   aria-label="Remover CNAE"
                   className="text-ink-faint hover:text-ink"
                 >
                   <X size={12} />
                 </button>
-                <input type="hidden" name="cnae_codigo" value={c.codigo} />
-                <input type="hidden" name="cnae_descricao" value={c.descricao} />
+                <input type="hidden" name="cnae_code" value={c.code} />
+                <input type="hidden" name="cnae_description" value={c.description} />
               </span>
             ))}
           </div>
         )}
-        <input type="hidden" name="cnae_principal" value={principalIndex} />
+        <input type="hidden" name="cnae_primary" value={primaryIndex} />
 
         <div className="grid grid-cols-1 gap-3 sm:flex sm:items-end">
           <div className="sm:w-32">
             <Field label="Código">
               <Input
                 type="text"
-                value={novoCnaeCodigo}
-                onChange={(e) => setNovoCnaeCodigo(e.target.value)}
+                value={newCnaeCode}
+                onChange={(e) => setNewCnaeCode(e.target.value)}
                 placeholder="6201501"
               />
             </Field>
@@ -392,12 +399,12 @@ export function SignupForm() {
             <Field label="Descrição">
               <Input
                 type="text"
-                value={novoCnaeDescricao}
-                onChange={(e) => setNovoCnaeDescricao(e.target.value)}
+                value={newCnaeDescription}
+                onChange={(e) => setNewCnaeDescription(e.target.value)}
               />
             </Field>
           </div>
-          <Button type="button" variant="secondary" size="md" onClick={handleAdicionarCnae} className="sm:flex-none">
+          <Button type="button" variant="secondary" size="md" onClick={handleAddCnae} className="sm:flex-none">
             Adicionar CNAE
           </Button>
         </div>
@@ -407,10 +414,10 @@ export function SignupForm() {
         <Field label="Nome">
           <Input
             type="text"
-            name="nome"
+            name="name"
             required
-            value={nome}
-            onChange={(e) => setNome(e.target.value)}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
           />
         </Field>
 
@@ -438,21 +445,21 @@ export function SignupForm() {
           <Field label="Senha">
             <Input
               type="password"
-              name="senha"
+              name="password"
               required
               minLength={8}
-              value={senha}
-              onChange={(e) => setSenha(e.target.value)}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
             />
           </Field>
           <Field label="Confirmar senha">
             <Input
               type="password"
-              name="confirmarSenha"
+              name="confirmPassword"
               required
               minLength={8}
-              value={confirmarSenha}
-              onChange={(e) => setConfirmarSenha(e.target.value)}
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
             />
           </Field>
         </div>
@@ -461,17 +468,17 @@ export function SignupForm() {
           <Field label="Telefone">
             <Input
               type="text"
-              name="telefone"
-              value={telefone}
-              onChange={(e) => setTelefone(e.target.value)}
+              name="phone"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
             />
           </Field>
           <Field label="Cargo">
             <Input
               type="text"
-              name="cargo"
-              value={cargo}
-              onChange={(e) => setCargo(e.target.value)}
+              name="jobTitle"
+              value={jobTitle}
+              onChange={(e) => setJobTitle(e.target.value)}
             />
           </Field>
         </div>

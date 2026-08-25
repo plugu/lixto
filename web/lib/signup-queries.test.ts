@@ -1,37 +1,37 @@
 import { describe, expect, it } from "vitest";
 import {
   buildInsertCnaes,
-  buildInsertEmpresa,
-  buildInsertUsuario,
-  type SignupEmpresaInput,
-  type SignupUsuarioInput,
+  buildInsertCompany,
+  buildInsertUser,
+  type SignupCompanyInput,
+  type SignupUserInput,
 } from "./signup-queries";
 
-const EMPRESA_INPUT: SignupEmpresaInput = {
-  cnpj: "00.000.000/0001-91",
-  razaoSocial: "BANCO DO BRASIL SA",
-  nomeFantasia: "BB",
-  naturezaJuridica: "206-2 - Sociedade de Economia Mista",
-  porte: "GRANDE",
-  optanteSimples: false,
-  inscricaoEstadual: null,
-  inscricaoMunicipal: null,
-  cep: "70040-912",
-  logradouro: "SAUN QUADRA 5",
-  numero: "S/N",
-  complemento: null,
-  bairro: "ASA NORTE",
-  municipio: "BRASILIA",
-  uf: "DF",
-  telefone: "6134938000",
+const COMPANY_INPUT: SignupCompanyInput = {
+  taxId: "00.000.000/0001-91",
+  legalName: "BANCO DO BRASIL SA",
+  tradeName: "BB",
+  legalNature: "206-2 - Sociedade de Economia Mista",
+  size: "LARGE",
+  simplesOptant: false,
+  stateRegistration: null,
+  municipalRegistration: null,
+  postalCode: "70040-912",
+  street: "SAUN QUADRA 5",
+  streetNumber: "S/N",
+  addressLine2: null,
+  district: "ASA NORTE",
+  cityName: "BRASILIA",
+  state: "DF",
+  phone: "6134938000",
   email: "Contato@BB.com.br",
 };
 
-describe("buildInsertEmpresa", () => {
-  it("produces a parameterized INSERT with digits-only cnpj/cep and lowercased email", () => {
-    const query = buildInsertEmpresa(EMPRESA_INPUT);
+describe("buildInsertCompany", () => {
+  it("produces a parameterized INSERT with digits-only tax_id/postal_code and lowercased email", () => {
+    const query = buildInsertCompany(COMPANY_INPUT);
 
-    expect(query.text).toContain("INSERT INTO empresa");
+    expect(query.text).toContain("INSERT INTO companies");
     expect(query.text).toContain("RETURNING id");
     expect(query.values[0]).toBe("00000000000191");
     expect(query.values[8]).toBe("70040912");
@@ -39,7 +39,11 @@ describe("buildInsertEmpresa", () => {
   });
 
   it("passes through null optional fields untouched", () => {
-    const query = buildInsertEmpresa({ ...EMPRESA_INPUT, cep: null, email: null });
+    const query = buildInsertCompany({
+      ...COMPANY_INPUT,
+      postalCode: null,
+      email: null,
+    });
     expect(query.values[8]).toBeNull();
     expect(query.values[query.values.length - 1]).toBeNull();
   });
@@ -48,11 +52,11 @@ describe("buildInsertEmpresa", () => {
 describe("buildInsertCnaes", () => {
   it("flattens multiple cnae rows into a single multi-row INSERT", () => {
     const query = buildInsertCnaes(42, [
-      { codigo: "6421200", descricao: "Bancos comerciais", principal: true },
-      { codigo: "6422100", descricao: "Bancos múltiplos", principal: false },
+      { code: "6421200", description: "Bancos comerciais", isPrimary: true },
+      { code: "6422100", description: "Bancos múltiplos", isPrimary: false },
     ]);
 
-    expect(query.text).toContain("INSERT INTO empresa_cnae");
+    expect(query.text).toContain("INSERT INTO company_cnaes");
     expect(query.text).toMatch(/\(\$1, \$2, \$3, \$4\), \(\$1, \$5, \$6, \$7\)/);
     expect(query.values).toEqual([
       42,
@@ -71,20 +75,20 @@ describe("buildInsertCnaes", () => {
   });
 });
 
-describe("buildInsertUsuario", () => {
-  const usuario: SignupUsuarioInput = {
-    nome: "Ana Silva",
+describe("buildInsertUser", () => {
+  const user: SignupUserInput = {
+    name: "Ana Silva",
     email: "Ana@Empresa.com",
-    senhaHash: "scrypt$abc$def",
+    passwordHash: "scrypt$abc$def",
     cpf: "111.444.777-35",
-    telefone: "11999999999",
-    cargo: "Diretora",
+    phone: "11999999999",
+    jobTitle: "Diretora",
   };
 
   it("produces a parameterized INSERT with role admin, digits-only cpf and lowercased email", () => {
-    const query = buildInsertUsuario(42, usuario);
+    const query = buildInsertUser(42, user);
 
-    expect(query.text).toContain("INSERT INTO usuario");
+    expect(query.text).toContain("INSERT INTO users");
     expect(query.text).toContain("'admin'");
     expect(query.values).toEqual([
       42,
@@ -98,7 +102,7 @@ describe("buildInsertUsuario", () => {
   });
 
   it("keeps cpf null when not provided", () => {
-    const query = buildInsertUsuario(42, { ...usuario, cpf: null });
+    const query = buildInsertUser(42, { ...user, cpf: null });
     expect(query.values[4]).toBeNull();
   });
 });

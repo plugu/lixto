@@ -1,19 +1,19 @@
 import { headers } from "next/headers";
 import { LinkButton } from "@/components/ui/button";
 import { Section } from "@/components/ui/section";
-import { ConviteForm } from "@/components/convite-form";
-import { UsuariosTable } from "@/components/usuarios-table";
+import { InviteForm } from "@/components/invite-form";
+import { UsersTable } from "@/components/users-table";
 import { requireAdmin } from "@/lib/auth";
-import { listUsuarios } from "@/lib/usuario-queries";
+import { listUsers } from "@/lib/user-queries";
 
-const EMPRESA_NAV = [
-  { href: "/empresa", label: "Perfil" },
-  { href: "/empresa/perfil", label: "Match" },
-  { href: "/empresa/usuarios", label: "Usuários" },
-  { href: "/empresa/documentos", label: "Documentos" },
+// The "Match" tab (/company/profile) is added by ticket 82.
+const COMPANY_NAV = [
+  { href: "/company", label: "Perfil" },
+  { href: "/company/users", label: "Usuários" },
+  { href: "/company/documents", label: "Documentos" },
 ];
 
-export default async function UsuariosPage() {
+export default async function UsersPage() {
   const session = await requireAdmin();
 
   const headerList = await headers();
@@ -21,24 +21,24 @@ export default async function UsuariosPage() {
   const proto = process.env.NODE_ENV === "production" ? "https" : "http";
   const origin = `${proto}://${host}`;
 
-  const rows = await listUsuarios(session.empresa.id);
+  const rows = await listUsers(session.company.id);
 
   return (
     <div className="flex flex-col gap-8">
       <Section eyebrow="Empresa" title="Usuários">
         <div className="flex flex-col gap-4">
           <p className="text-sm text-ink-muted">
-            Gerencie quem tem acesso à conta de {session.empresa.razaoSocial}.
+            Gerencie quem tem acesso à conta de {session.company.legalName}.
           </p>
           <nav className="flex items-center gap-2">
-            {EMPRESA_NAV.map((item) => (
+            {COMPANY_NAV.map((item) => (
               <LinkButton
                 key={item.href}
                 href={item.href}
                 variant="pill"
                 size="sm"
                 className={
-                  item.href === "/empresa/usuarios" ? "bg-accent-soft text-accent" : undefined
+                  item.href === "/company/users" ? "bg-accent-soft text-accent" : undefined
                 }
               >
                 {item.label}
@@ -48,9 +48,9 @@ export default async function UsuariosPage() {
         </div>
       </Section>
 
-      <ConviteForm origin={origin} />
+      <InviteForm origin={origin} />
 
-      <UsuariosTable rows={rows} currentUserId={session.usuario.id} />
+      <UsersTable rows={rows} currentUserId={session.user.id} />
     </div>
   );
 }

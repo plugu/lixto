@@ -1,6 +1,6 @@
 "use client";
 
-// Controlled list editor for empresa_cnae rows (ticket 26). Serializes into a
+// Controlled list editor for company_cnaes rows. Serializes into a
 // single hidden `cnaes` input (JSON) so the server action gets one field —
 // the form itself has no native multi-row input support. Restyled on the
 // cycle 8 kit (ticket 36) as a hairline list with a `Badge` marking the
@@ -14,13 +14,13 @@ import { Input } from "@/components/ui/input";
 import { Plus, X } from "@/components/ui/icons";
 
 export type CnaeRow = {
-  codigo: string;
-  descricao: string;
-  principal: boolean;
+  code: string;
+  description: string;
+  isPrimary: boolean;
 };
 
 /** Masks digits as `0000-0/00` (7-digit CNAE code) as the user types. */
-function maskCodigo(value: string): string {
+function maskCode(value: string): string {
   const digits = onlyDigits(value).slice(0, 7);
   let out = digits.slice(0, 4);
   if (digits.length > 4) out += "-" + digits.slice(4, 5);
@@ -41,8 +41,8 @@ export function CnaeEditor({
     setRows((prev) => prev.map((row, i) => (i === index ? { ...row, ...patch } : row)));
   }
 
-  function setPrincipal(index: number) {
-    setRows((prev) => prev.map((row, i) => ({ ...row, principal: i === index })));
+  function setPrimary(index: number) {
+    setRows((prev) => prev.map((row, i) => ({ ...row, isPrimary: i === index })));
   }
 
   function removeRow(index: number) {
@@ -50,7 +50,7 @@ export function CnaeEditor({
   }
 
   function addRow() {
-    setRows((prev) => [...prev, { codigo: "", descricao: "", principal: prev.length === 0 }]);
+    setRows((prev) => [...prev, { code: "", description: "", isPrimary: prev.length === 0 }]);
   }
 
   return (
@@ -68,27 +68,27 @@ export function CnaeEditor({
             >
               <Input
                 type="text"
-                value={maskCodigo(row.codigo)}
-                onChange={(e) => updateRow(index, { codigo: onlyDigits(e.target.value) })}
+                value={maskCode(row.code)}
+                onChange={(e) => updateRow(index, { code: onlyDigits(e.target.value) })}
                 placeholder="0000-0/00"
                 disabled={readOnly}
                 className="sm:max-w-32"
               />
               <Input
                 type="text"
-                value={row.descricao}
-                onChange={(e) => updateRow(index, { descricao: e.target.value })}
+                value={row.description}
+                onChange={(e) => updateRow(index, { description: e.target.value })}
                 placeholder="Descrição"
                 disabled={readOnly}
                 className="min-w-0 sm:flex-1"
               />
               <div className="flex items-center justify-between gap-3 sm:contents">
-                {row.principal ? (
+                {row.isPrimary ? (
                   <Badge tone="accent">Principal</Badge>
                 ) : !readOnly ? (
                   <button
                     type="button"
-                    onClick={() => setPrincipal(index)}
+                    onClick={() => setPrimary(index)}
                     className="shrink-0 text-xs font-medium text-ink-muted hover:text-ink"
                   >
                     Tornar principal

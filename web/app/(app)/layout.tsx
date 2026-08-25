@@ -13,9 +13,9 @@ export default async function AppLayout({
 
   const sidebarSession = session
     ? {
-        nome: session.usuario.nome,
-        empresa: session.empresa.nomeFantasia ?? session.empresa.razaoSocial,
-        role: session.usuario.role,
+        name: session.user.name,
+        company: session.company.tradeName ?? session.company.legalName,
+        role: session.user.role,
       }
     : null;
 
