@@ -1,14 +1,13 @@
 # STATE — rewrite after every ticket completes; never append. ≤30 lines total.
 
 ## Now
-- Cycle 17 (pgvector semantic layer) done: tickets 71–73, 1 attempt each. Main green (pytest 205, vitest 621, next build). Prod pg-shared = pgvector/pgvector:pg18-trixie (PG 18.6, pgvector 0.8.6); local = pg16-trixie. Cycle 16 + 17 unpushed (main ahead of origin).
+- Cycle 18 (Lixto core from zero: English schema, rename, PCA + contracts), production mode. PRODUCT approved (1/3). Plan written: ADR docs/adr/001-lixto-data-model.md + tickets 74–86. Awaiting plan approval (2/3).
 
 ## Next
-- Operator: set `PLIC_LLM_BASE_URL`/`PLIC_LLM_API_KEY`/`PLIC_LLM_MODEL_*` on Dokploy `cli`, plus `PLIC_CHAT_MODEL` on `web`; create Dokploy schedule `enrich-run` (`30 7,14,21 * * *`, `plic enrich run --days 30 --limit 300`); push → deploy; `db-init` schedule applies 010–012.
-- Run `plic enrich run --limit 5` once in prod, eyeball `enriquecimento` quality; then `plic enrich embed` to backfill vectors; re-save each empresa's /empresa/perfil so it gets an embedding.
-- Cycle 18 candidates: query-time semantic search in search_procurements; proactive digest/notifications (Python batch match); prepare/execute + approval; learning loop; retire legacy triage/deep + company_profile.md; streaming chat.
+- /forge:run cycle 18: 74 → {75 ∥ 79 ∥ 80} → {76 ∥ 77 ∥ 78 ∥ 81} → 82 → 83 → {84 (orchestrator+user) ∥ 85} → 86 → reviewer pass → approval 3/3.
 
 ## Decisions
+- Cycle 18: new DB `lixto` (not schema-in-old-DB), zero data migration incl. tenants, plural English table names, raw in `source_payloads`, facet tables for enrichment, agent-core tables created now/written later. Legacy `src/plic` kept until ticket 85 as porting reference. Data pulled only from PNCP (licinexus MCP was reference only, never a dependency).
 - pgvector now available (prod image pgvector/pgvector:pg18-trixie — trixie keeps glibc 2.41 so no collation mismatch; bookworm tag briefly ran ~4 min on 2026-08-25 19:33 UTC). Match = CNAE ∩ + term arrays + FTS + cosine bands (≥0.55 +20, ≥0.40 +10).
 - Match on-demand in web (no `match` table) — profile edits reflect instantly.
 - LLM via OpenAI-compatible env (`PLIC_LLM_*`): Chat Completions for text tiers (portable), Responses API for PDF tier (OpenAI only). Web reuses same env + `PLIC_CHAT_MODEL` (default gpt-5-mini).
