@@ -5,7 +5,7 @@ const DORES = [
     n: "01",
     titulo: "O volume não cabe no seu dia",
     texto:
-      "Órgãos de todo o país publicam no PNCP o dia inteiro. Acompanhar na mão vira um trabalho em tempo integral — e ninguém tem alguém só para isso.",
+      "Órgãos de todo o país publicam nos portais de compras públicas o dia inteiro. Acompanhar na mão vira um trabalho em tempo integral — e ninguém tem alguém só para isso.",
   },
   {
     n: "02",

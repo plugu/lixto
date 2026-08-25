@@ -1,7 +1,7 @@
 import { CtaPrimary, Eyebrow } from "./brand";
 
 const INCLUI = [
-  "Sincronização do PNCP duas vezes por dia",
+  "Monitoramento contínuo dos portais de licitação",
   "Leitura e análise dos editais publicados",
   "Score de encaixe com justificativa em texto",
   "Match por CNAE e preço-alvo por item",
@@ -60,7 +60,7 @@ export function Preco() {
                 </p>
               </div>
               <p className="max-w-[16rem] text-[14px] leading-relaxed text-canvas/65">
-                Uma empresa, quantas licitações o PNCP publicar.
+                Uma empresa, quantas licitações os portais publicarem.
               </p>
             </div>
           </div>

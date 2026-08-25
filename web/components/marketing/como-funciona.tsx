@@ -12,15 +12,15 @@ const PASSOS = [
     n: "2",
     titulo: "O agente entra em campo",
     texto:
-      "Todo dia, sem você lembrar dele: sincroniza o PNCP, lê os editais novos, extrai requisitos e prazos e pontua cada licitação contra o seu perfil.",
-    tempo: "Todo dia, sozinho",
+      "O tempo todo, sem você lembrar dele: monitora os portais de licitação, lê os editais novos, extrai requisitos e prazos e pontua cada licitação contra o seu perfil.",
+    tempo: "O tempo todo, sozinho",
   },
   {
     n: "3",
     titulo: "Você recebe só o que vale",
     texto:
       "No painel, as licitações chegam ordenadas por encaixe, com prazo, itens e o porquê de cada score. O que não serve o agente já descartou por você.",
-    tempo: "Minutos por dia",
+    tempo: "Poucos minutos",
   },
 ];
 

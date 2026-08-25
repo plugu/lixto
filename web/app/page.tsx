@@ -11,14 +11,13 @@ import { SiteHeader } from "@/components/marketing/site-header";
 
 const TITULO = "Lixto — agente autônomo de licitações";
 const DESCRICAO =
-  "O Lixto varre o PNCP duas vezes por dia, lê os editais e mede o encaixe com o perfil da sua empresa. Você entra só nas disputas que valem. Grátis durante o beta.";
+  "O Lixto monitora os portais de licitação constantemente, lê os editais e mede o encaixe com o perfil da sua empresa. Você entra só nas disputas que valem. Grátis durante o beta.";
 
 export const metadata: Metadata = {
   title: TITULO,
   description: DESCRICAO,
   keywords: [
     "licitações",
-    "PNCP",
     "editais",
     "agente de licitações",
     "licitações públicas",

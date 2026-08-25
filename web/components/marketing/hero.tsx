@@ -23,9 +23,10 @@ export function Hero() {
           </h1>
 
           <p className="mt-7 max-w-xl text-[17px] leading-relaxed text-canvas/70">
-            O Lixto vasculha o PNCP inteiro duas vezes por dia, lê os editais
-            de ponta a ponta e mede o encaixe com o perfil da sua empresa. Você
-            não procura, não filtra, não faz triagem — só decide o que disputar.
+            O Lixto vasculha os portais de licitação constantemente, lê os
+            editais de ponta a ponta e mede o encaixe com o perfil da sua
+            empresa. Você não procura, não filtra, não faz triagem — só decide
+            o que disputar.
           </p>
 
           <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:items-center">

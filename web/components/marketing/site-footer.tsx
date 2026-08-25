@@ -38,7 +38,8 @@ export function SiteFooter() {
             <Logo />
             <p className="mt-4 max-w-xs text-[14px] leading-relaxed text-canvas/50">
               Agente autônomo de licitações públicas. Busca, lê e mede o encaixe
-              dos editais do PNCP com a sua empresa.
+              dos editais publicados nos portais oficiais de compras públicas
+              com a sua empresa.
             </p>
           </div>
 
@@ -83,7 +84,7 @@ export function SiteFooter() {
         <div className="flex flex-col gap-2 border-t border-night-line py-8 text-[13px] text-canvas/35 sm:flex-row sm:items-center sm:justify-between">
           <p>© {ano} Lixto</p>
           <p>
-            Dados públicos do Portal Nacional de Contratações Públicas (PNCP).
+            Dados públicos dos portais oficiais de compras públicas.
           </p>
         </div>
       </div>

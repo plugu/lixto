@@ -62,10 +62,10 @@ const ETAPAS = [
     n: "Etapa 1",
     icone: <IconBusca />,
     titulo: "Busca",
-    chamada: "O PNCP inteiro, duas vezes por dia",
+    chamada: "Monitoramento contínuo dos portais de licitação",
     texto:
-      "O agente sincroniza com o Portal Nacional de Contratações Públicas de manhã e à noite. O alcance é a base toda — não uma lista de palavras-chave que você precisa manter.",
-    tags: ["Sync 2× ao dia", "Base nacional", "Sem palavra-chave"],
+      "O agente monitora os portais de licitação o tempo todo, sem pausa. O alcance é a base toda — não uma lista de palavras-chave que você precisa manter.",
+    tags: ["Monitoramento contínuo", "Portais de licitação", "Sem palavra-chave"],
   },
   {
     n: "Etapa 2",
@@ -154,13 +154,19 @@ export function Agente() {
             <path d="M12 16.1h.01" />
           </svg>
           <div>
-            <h3 className="text-[16px] font-semibold text-canvas">
-              Até onde o agente vai
-            </h3>
+            <div className="flex flex-wrap items-center gap-3">
+              <h3 className="text-[16px] font-semibold text-canvas">
+                Até onde o agente vai
+              </h3>
+              <span className="rounded-full border border-mint/25 bg-mint/[0.06] px-3 py-1 text-[11px] font-semibold tracking-[0.1em] text-mint uppercase">
+                Em breve: envio de propostas
+              </span>
+            </div>
             <p className="mt-2 max-w-3xl text-[15px] leading-relaxed text-canvas/65">
               Ele analisa, prioriza e recomenda. A decisão de disputar e o envio
-              da proposta continuam com você, no portal oficial da licitação — o
-              Lixto não envia proposta no seu lugar.
+              da proposta continuam com você, no portal oficial da licitação —
+              o Lixto ainda não envia a proposta no seu lugar. O envio
+              automático de propostas está chegando.
             </p>
           </div>
         </div>

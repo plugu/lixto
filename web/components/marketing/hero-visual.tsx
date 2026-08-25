@@ -1,5 +1,6 @@
-// Abstract diagram of the funnel the agent runs: everything the PNCP publishes
-// (dot field) -> leitura/análise (the sweeping lens) -> the few that fit (cards).
+// Abstract diagram of the funnel the agent runs: everything the procurement
+// portals publish (dot field) -> leitura/análise (the sweeping lens) -> the
+// few that fit (cards).
 // Pure inline SVG, deterministic (no randomness, safe for SSR).
 
 const COLS = 8;
@@ -22,7 +23,7 @@ export function HeroVisual() {
     <svg
       viewBox="0 0 540 380"
       role="img"
-      aria-label="Diagrama: o agente varre tudo o que o PNCP publica, lê os editais e entrega só as licitações que encaixam com a sua empresa."
+      aria-label="Diagrama: o agente varre tudo o que os portais de licitação publicam, lê os editais e entrega só as licitações que encaixam com a sua empresa."
       className="h-auto w-full max-w-[540px]"
     >
       <defs>
@@ -80,7 +81,7 @@ export function HeroVisual() {
         letterSpacing="1.6"
         opacity="0.75"
       >
-        TUDO QUE O PNCP PUBLICA
+        TUDO QUE OS PORTAIS PUBLICAM
       </text>
 
       {/* Lens: the reading pass. */}

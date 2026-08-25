@@ -3,7 +3,7 @@ import { Eyebrow } from "./brand";
 const PERGUNTAS = [
   {
     q: "De onde vêm as licitações?",
-    a: "Do PNCP, o Portal Nacional de Contratações Públicas — a fonte oficial do governo federal, onde órgãos de todo o país publicam suas contratações. O agente sincroniza essa base duas vezes por dia.",
+    a: "O agente monitora constantemente os portais oficiais de compras públicas do governo, onde órgãos de todo o país publicam suas licitações.",
   },
   {
     q: "O que exatamente o agente lê?",
@@ -11,7 +11,7 @@ const PERGUNTAS = [
   },
   {
     q: "O agente envia a proposta por mim?",
-    a: "Não. Ele analisa, prioriza e recomenda. A decisão de disputar e o envio da proposta continuam com você, no portal oficial da licitação.",
+    a: "Ainda não. Ele analisa, prioriza e recomenda. O envio da proposta continua com você, no portal oficial da licitação — e em breve o Lixto poderá enviar a proposta por você.",
   },
   {
     q: "Como o encaixe é calculado?",
