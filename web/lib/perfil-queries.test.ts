@@ -8,6 +8,7 @@ import { pool } from "./db";
 import {
   buildUpsertPerfil,
   getPerfil,
+  getPerfilEmbeddingText,
   parseTermList,
   parseValor,
   type PerfilInput,
@@ -119,6 +120,67 @@ describe("buildUpsertPerfil", () => {
     const { values } = buildUpsertPerfil(1, { ...baseInput, observacoes: "   " });
     expect(values[9]).toBeNull();
   });
+
+  it("leaves the embedding columns out when none is given", () => {
+    const { text, values } = buildUpsertPerfil(1, baseInput);
+    expect(text).not.toContain("embedding");
+    expect(text).not.toContain("::vector");
+    expect(values).toHaveLength(10);
+  });
+
+  it("binds the vector as text and casts it when an embedding is given", () => {
+    const { text, values } = buildUpsertPerfil(42, baseInput, {
+      vector: [0.1, 0.2, 0.3],
+      model: "text-embedding-3-small",
+      texto: "produtos: papel",
+    });
+
+    expect(values[0]).toBe(42);
+    expect(text).toContain("$11::vector");
+    expect(text).toContain("embedding_texto = $12");
+    expect(text).toContain("embedding_modelo = $13");
+    expect(values[10]).toBe("[0.1,0.2,0.3]");
+    expect(values[11]).toBe("produtos: papel");
+    expect(values[12]).toBe("text-embedding-3-small");
+    expect(text).not.toContain("0.1,0.2,0.3");
+  });
+
+  it("keeps every placeholder numbered with no gaps", () => {
+    const { text, values } = buildUpsertPerfil(1, baseInput, {
+      vector: [0.5],
+      model: "m",
+      texto: "t",
+    });
+    const usados = new Set(
+      [...text.matchAll(/\$(\d+)/g)].map((m) => Number(m[1])),
+    );
+    for (let i = 1; i <= values.length; i++) {
+      expect(usados.has(i)).toBe(true);
+    }
+    expect(Math.max(...usados)).toBe(values.length);
+  });
+});
+
+describe("getPerfilEmbeddingText", () => {
+  it("selects the vector cast to text and returns null when absent", async () => {
+    query.mockResolvedValueOnce({ rows: [] });
+    expect(await getPerfilEmbeddingText(1)).toBeNull();
+
+    const [text, values] = query.mock.calls[0];
+    expect(text).toContain("embedding::text AS embedding");
+    expect(text).toContain("WHERE empresa_id = $1");
+    expect(values).toEqual([1]);
+  });
+
+  it("returns the literal when present", async () => {
+    query.mockResolvedValueOnce({ rows: [{ embedding: "[0.1,0.2]" }] });
+    expect(await getPerfilEmbeddingText(1)).toBe("[0.1,0.2]");
+  });
+
+  it("returns null when the row exists but has no vector", async () => {
+    query.mockResolvedValueOnce({ rows: [{ embedding: null }] });
+    expect(await getPerfilEmbeddingText(1)).toBeNull();
+  });
 });
 
 describe("getPerfil", () => {
@@ -139,6 +201,7 @@ describe("getPerfil", () => {
       valor_min: null,
       valor_max: null,
       observacoes: null,
+      embedding_texto: "produtos: papel",
     };
     query.mockResolvedValueOnce({ rows: [row] });
     expect(await getPerfil(1)).toEqual(row);
