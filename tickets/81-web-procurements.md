@@ -1,6 +1,6 @@
 ---
 id: 81
-status: todo
+status: doing
 model: opus
 depends_on: [80]
 max_attempts: 4
@@ -49,6 +49,11 @@ Dashboard, procurement list (search + facets) and procurement detail (items, doc
 ## Context
 
 Read `PRODUCT.md`, `docs/adr/001-lixto-data-model.md` (D3: `procurements`, `agency_units`, `procurement_items`, `procurement_documents`, `procurement_results`, `procurement_enrichments` + facet tables), **`web/AGENTS.md`**, `docs/WEB_STYLE.md`. **Port with rename** from `web/lib/queries.ts` (`parseFilters`, `buildWhereClause`, facets), `detail-queries.ts`, `preco-queries.ts` (`buildTsQuery`, LATERAL benchmark, winner-only rule, `enqueue…`), `stats-queries.ts`, and the pages/components listed; same UX and Portuguese copy. Legacy Portuguese-named files are deleted once replaced. Tests: vitest mocked pool.
+
+### Notes from ticket 80 (merged)
+- `getSession/requireSession/requireAdmin` return `ActiveSession` (`user`/`company` required) from `web/lib/auth.ts`; `Session` is a compat union until 82 — type your pages with `ActiveSession`. Use `session.user.companyId`, `session.company.id`.
+- Compat shims still present (owned by 82, do not extend): `web/lib/tenant-types.ts`, `web/lib/empresa-queries.ts` (`getCnaes`). For company CNAEs use `getCompanyCnaes` from `web/lib/company-queries.ts`.
+- Sidebar already links `/procurements` — create that route here.
 
 ### Rules
 - `procurement-queries.ts`: `ProcurementFilters` = same dimensions (q, portals → `origin_system`, modalityIds, statuses `open|upcoming|closed` with predicates on `proposal_opens_at`/`proposal_closes_at`, categories facet replaces `setor` (join `procurement_categories`), kind facet `product|service|mixed` from `procurement_items.kind`, states, valueMin/Max, compat via `procurement_cnaes ∩ company_cnaes`). `PORTAIS_ATIVOS` allowlist becomes `ACTIVE_PORTALS` in `portals.ts` and is applied as today. `enriched` flag column from `LEFT JOIN procurement_enrichments`.

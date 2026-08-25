@@ -36,6 +36,8 @@ Read `PRODUCT.md`, `docs/adr/001-lixto-data-model.md` (D4 `company_profiles`, D3
 
 Add the `Match` tab (`/company/profile`) to the company nav constant in the pages owned by ticket 80 — coordinate by adding it only in `sidebar.tsx`'s `COMPANY_ITEMS` export that those pages consume; if they hardcode the nav, add the entry in `web/lib/types.ts` as `COMPANY_NAV` and import it (touching those page files is allowed only for that import).
 
+Also from ticket 80: collapse `Session`/`ActiveSession` back into one `Session` type (fix `web/lib/agent/run.test.ts` fixture to the English shape), delete `web/lib/tenant-types.ts` and `web/lib/empresa-queries.ts` shims, drop the `session.usuario`/`session.empresa` getters, and make `web/lib/cnpj-lookup.ts` emit `MEDIUM/LARGE` directly (remove the mapping in `signup/actions.ts` — add `web/lib/cnpj-lookup.ts` + its test and `web/app/(app)/signup/actions.ts` to your files).
+
 Delete the compat re-exports/getters that ticket 80 left in `types.ts`/`auth.ts`; delete all legacy Portuguese-named files in your `files:` list.
 
 ## Checks (run in order — cheapest first)
