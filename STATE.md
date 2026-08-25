@@ -1,7 +1,7 @@
 # STATE — rewrite after every ticket completes; never append. ≤30 lines total.
 
 ## Now
-- Cycle 18 running (production). Plan approved 2/3. Ticket 74 (foundation, opus) in place on main.
+- Cycle 18 running. 74 done (1 attempt). Wave 2 in worktrees: 75 (sync procurements) ∥ 79 (enrichment port) ∥ 80 (web foundation).
 
 ## Next
 - /forge:run cycle 18: 74 → {75 ∥ 79 ∥ 80} → {76 ∥ 77 ∥ 78 ∥ 81} → 82 → 83 → {84 (orchestrator+user) ∥ 85} → 86 → reviewer pass → approval 3/3.
