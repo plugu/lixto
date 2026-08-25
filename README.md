@@ -79,6 +79,7 @@ The enrichment worker and chat interface use a tiered LLM strategy: cheap models
 - `PLIC_LLM_MODEL_DOC` — Doc tier for PDF input via Responses API (default: `gpt-5.1`, OpenAI only). Read by `cli`.
 - `PLIC_LLM_MODEL_STRONG` — Strong model for deep reasoning (default: `gpt-5.1`). Read by `cli`.
 - `PLIC_LLM_MODEL_FALLBACK` — Optional; if set, buys one retry on this model when the primary tier fails. Read by `cli`.
+- `PLIC_LLM_MODEL_EMBED` — Embedding model for semantic search (default: `text-embedding-3-small`, 1536 dims). Read by `cli`.
 - `PLIC_CHAT_MODEL` — Chat model for the Lixto agent (default: `gpt-5-mini`). Read by `web`.
 
 ## CLI Commands
@@ -94,6 +95,7 @@ The enrichment worker and chat interface use a tiered LLM strategy: cheap models
 
 ### Enrichment
 - `plic enrich run [--limit N] [--days N] [--retry-errors]` — Produce one canonical enrichment per open licitação (globally, reused by all empresas). Routes each row to the cheapest LLM tier: text → cheap, PDF → doc, structured only → cheap. Resumable; only rows with no prior enrichment are processed (set `--retry-errors` to reprocess failures).
+- `plic enrich embed [--limit N]` — Backfill pgvector embeddings for enriched rows that lack them (e.g., enriquecimentos completed before cycle 17 or whose inline embed failed). Resumable and idempotent; embed failures do not block enrichment. Generates a semantic vector from the canonical enrichment text (resumo + conceitos + palavras_chave + categorias).
 
 #### Demand-Driven Results Queue
 
@@ -150,6 +152,7 @@ Schedules live in Dokploy → project `plataforma-licitante` → environment
 | `enrich-run` | `30 7,14,21 * * *` | `plic enrich run --days 30 --limit 300` | yes |
 | `sync-resultados` | `0 3 * * *` | `plic sync resultados --limit 2000` | yes |
 | `db-init` | `0 0 31 2 *` | `plic db init` | no (manual) |
+| `enrich-embed` | `0 0 31 2 *` | `plic enrich embed` | no (manual) |
 | `cnae-classify-30d` | `0 0 31 2 *` | `plic cnae seed && plic cnae classify --days 30` | no (manual) |
 
 `0 0 31 2 *` is February 31st — a date that never arrives. It is the idiom for
