@@ -17,7 +17,7 @@ import {
 
 export type CompanyActionState = {
   ok?: boolean;
-  erro?: string;
+  error?: string;
 };
 
 function field(formData: FormData, name: string): string {
@@ -32,22 +32,22 @@ export async function updateCompanyAction(
 
   const legalName = field(formData, "legalName");
   if (!legalName) {
-    return { erro: "Razão social é obrigatória." };
+    return { error: "Razão social é obrigatória." };
   }
 
   const postalCode = field(formData, "postalCode");
   if (postalCode && !isValidCEP(postalCode)) {
-    return { erro: "CEP inválido." };
+    return { error: "CEP inválido." };
   }
 
   const state = field(formData, "state");
   if (state && !UF_LIST.includes(state.toUpperCase())) {
-    return { erro: "UF inválida." };
+    return { error: "UF inválida." };
   }
 
   const email = field(formData, "email");
   if (email && !isValidEmail(email)) {
-    return { erro: "E-mail inválido." };
+    return { error: "E-mail inválido." };
   }
 
   let cnaes: CnaeInput[];
@@ -65,7 +65,7 @@ export async function updateCompanyAction(
     validateCnaes(cnaes);
   } catch (err) {
     const message = err instanceof Error ? err.message : "CNAEs inválidos.";
-    return { erro: message };
+    return { error: message };
   }
 
   const input: CompanyInput = {

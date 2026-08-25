@@ -2,8 +2,7 @@
 
 Applies `migrations/*.sql` in filename order, tracking progress in the
 `schema_migrations` table so re-running is a no-op for already-applied files.
-The Lixto schema lives in `migrations/001_core.sql` (ADR 001); the legacy
-`plic` migrations moved to `legacy/migrations/` and are never applied again.
+The Lixto schema lives in `migrations/001_core.sql` (ADR 001).
 """
 
 from __future__ import annotations

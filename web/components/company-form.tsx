@@ -47,9 +47,9 @@ export function CompanyForm({
 
   return (
     <form action={formAction} className="flex flex-col gap-10 pb-24">
-      {state.erro ? (
+      {state.error ? (
         <p role="alert" className="rounded-md bg-danger/10 px-3 py-2 text-sm text-danger">
-          {state.erro}
+          {state.error}
         </p>
       ) : null}
       {state.ok ? (

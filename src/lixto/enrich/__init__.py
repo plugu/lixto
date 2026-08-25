@@ -1,4 +1,4 @@
-"""Global procurement enrichment (ported from `plic.enrich`, cycle 18).
+"""Global procurement enrichment.
 
 One canonical, versioned enrichment per procurement — produced once and
 reused by every company, never re-run per tenant. This package holds the

@@ -13,7 +13,7 @@ export default async function InvitePage(
 ) {
   const { token } = await props.params;
   const searchParams = await props.searchParams;
-  const erro = first(searchParams.erro);
+  const error = first(searchParams.error);
 
   const invite = await getInvite(token);
 
@@ -48,12 +48,12 @@ export default async function InvitePage(
           </p>
         </div>
 
-        {erro ? (
+        {error ? (
           <p
             role="alert"
             className="rounded-md bg-warn-soft px-3 py-2 text-sm text-warn"
           >
-            {erro}
+            {error}
           </p>
         ) : null}
 

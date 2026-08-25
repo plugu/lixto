@@ -1,4 +1,4 @@
-"""Deterministic edital text extraction (ported from `plic.enrich.documents`).
+"""Deterministic edital text extraction.
 
 Downloads up to MAX_DOCS edital PDFs per procurement and extracts their text
 with pypdf, persisting the result in `procurement_document_texts` so the

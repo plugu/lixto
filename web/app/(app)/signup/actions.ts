@@ -14,7 +14,7 @@ import { createCompanyWithAdmin } from "@/lib/signup-queries";
 import { COMPANY_SIZES, UF_LIST, type CompanySize } from "@/lib/types";
 
 export type SignupState = {
-  erro: string | null;
+  error: string | null;
 };
 
 export type CompanyLookup = {
@@ -131,21 +131,21 @@ export async function signupAction(
 
   const cnaes = parseCnaes(formData);
 
-  if (!isValidCNPJ(taxId)) return { erro: "CNPJ inválido." };
-  if (!legalName) return { erro: "Informe a razão social." };
-  if (!isValidEmail(email)) return { erro: "E-mail inválido." };
+  if (!isValidCNPJ(taxId)) return { error: "CNPJ inválido." };
+  if (!legalName) return { error: "Informe a razão social." };
+  if (!isValidEmail(email)) return { error: "E-mail inválido." };
   if (password.length < 8) {
-    return { erro: "A senha deve ter ao menos 8 caracteres." };
+    return { error: "A senha deve ter ao menos 8 caracteres." };
   }
-  if (password !== confirmPassword) return { erro: "As senhas não coincidem." };
-  if (cpf && !isValidCPF(cpf)) return { erro: "CPF inválido." };
-  if (postalCode && !isValidCEP(postalCode)) return { erro: "CEP inválido." };
+  if (password !== confirmPassword) return { error: "As senhas não coincidem." };
+  if (cpf && !isValidCPF(cpf)) return { error: "CPF inválido." };
+  if (postalCode && !isValidCEP(postalCode)) return { error: "CEP inválido." };
   if (cnaes.length === 0) {
-    return { erro: "Adicione ao menos um CNAE." };
+    return { error: "Adicione ao menos um CNAE." };
   }
   const primaries = cnaes.filter((c) => c.isPrimary);
   if (primaries.length !== 1) {
-    return { erro: "Selecione exatamente um CNAE principal." };
+    return { error: "Selecione exatamente um CNAE principal." };
   }
 
   const size = isCompanySize(sizeRaw) ? sizeRaw : null;
@@ -188,7 +188,7 @@ export async function signupAction(
   } catch (err) {
     const code = (err as { code?: string } | null)?.code;
     if (code === "23505") {
-      return { erro: "CNPJ ou e-mail já cadastrado." };
+      return { error: "CNPJ ou e-mail já cadastrado." };
     }
     throw err;
   }

@@ -10,7 +10,7 @@ export async function loginAction(formData: FormData): Promise<void> {
 
   const session = await login(email, password);
   if (!session) {
-    const params = new URLSearchParams({ erro: "1" });
+    const params = new URLSearchParams({ error: "1" });
     if (next.startsWith("/")) params.set("next", next);
     redirect(`/login?${params.toString()}`);
   }

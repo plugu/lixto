@@ -8,7 +8,7 @@ import { createInvite, removeUser, updateRole } from "@/lib/user-queries";
 
 export type CreateInviteState = {
   token?: string;
-  erro?: string;
+  error?: string;
 };
 
 export async function createInviteAction(
@@ -21,10 +21,10 @@ export async function createInviteAction(
   const email = String(formData.get("email") ?? "").trim();
   const role = String(formData.get("role") ?? "");
 
-  if (!name) return { erro: "Informe o nome." };
-  if (!isValidEmail(email)) return { erro: "E-mail inválido." };
+  if (!name) return { error: "Informe o nome." };
+  if (!isValidEmail(email)) return { error: "E-mail inválido." };
   if (role !== "admin" && role !== "member") {
-    return { erro: "Papel inválido." };
+    return { error: "Papel inválido." };
   }
 
   try {
@@ -36,7 +36,7 @@ export async function createInviteAction(
     revalidatePath("/company/users");
     return { token };
   } catch (err) {
-    return { erro: err instanceof Error ? err.message : "Erro ao gerar convite." };
+    return { error: err instanceof Error ? err.message : "Erro ao gerar convite." };
   }
 }
 

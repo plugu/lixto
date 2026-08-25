@@ -14,7 +14,7 @@ import { Section } from "@/components/ui/section";
 import { StatusDot } from "@/components/ui/status-dot";
 import { Check, X } from "@/components/ui/icons";
 
-const INITIAL_STATE: SignupState = { erro: null };
+const INITIAL_STATE: SignupState = { error: null };
 
 type CnaeRow = {
   code: string;
@@ -122,12 +122,12 @@ export function SignupForm() {
 
   return (
     <form action={formAction} className="mt-2 flex flex-col gap-8">
-      {state.erro ? (
+      {state.error ? (
         <p
           role="alert"
           className="rounded-md bg-warn-soft px-3 py-2 text-sm text-warn"
         >
-          {state.erro}
+          {state.error}
         </p>
       ) : null}
 

@@ -9,8 +9,8 @@ Two independent phases, each wrapped by the caller in its own
   single watermark (`sync_state` key `incremental:contracts`) to today,
   upserting `agencies`/`agency_units` first (contracts FK-reference the
   agency), then the contract itself guarded by `source_global_updated_at`
-  (a same-or-older incoming row is a no-op, mirroring
-  `plic.sync_publicacao.upsert_licitacao`), resolving `procurement_id` with
+  (a same-or-older incoming row is a no-op, mirroring the incremental
+  procurement sync), resolving `procurement_id` with
   a `SELECT id FROM procurements WHERE source='pncp' AND source_id =
   numeroControlePncpCompra` (NULL when the procurement hasn't been synced —
   a contract may arrive on PNCP before, or independently of, the

@@ -14,8 +14,8 @@ export async function acceptInviteAction(formData: FormData): Promise<void> {
   const phone = String(formData.get("phone") ?? "").trim();
   const jobTitle = String(formData.get("jobTitle") ?? "").trim();
 
-  const fail = (mensagem: string) => {
-    const params = new URLSearchParams({ erro: mensagem });
+  const fail = (message: string) => {
+    const params = new URLSearchParams({ error: message });
     redirect(`/invite/${token}?${params.toString()}`);
   };
 

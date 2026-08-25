@@ -50,9 +50,9 @@ export function InviteForm({ origin }: { origin: string }) {
           </Select>
         </Field>
 
-        {state.erro ? (
+        {state.error ? (
           <p role="alert" className="text-sm text-danger">
-            {state.erro}
+            {state.error}
           </p>
         ) : null}
 

@@ -1,24 +1,24 @@
-"""Unit tests for src/plic/enrich/embed.py — mocked psycopg + mocked LlmClient."""
+"""Unit tests for src/lixto/enrich/embed.py — mocked psycopg + mocked LlmClient."""
 
 from unittest.mock import MagicMock
 
-from plic.enrich import embed
-from plic.enrich.embed import BATCH_SIZE, build_embedding_text, embed_pending, to_pgvector
+from lixto.enrich import embed
+from lixto.enrich.embed import BATCH_SIZE, build_embedding_text, embed_pending, to_pgvector
 
 
-def _row(numero="num-1"):
+def _row(procurement_id=1):
     return {
-        "numero_controle_pncp": numero,
-        "resumo": "Compra de lápis.",
-        "conceitos": ["lapis"],
-        "palavras_chave": ["lapis", "lapis preto"],
-        "categorias": ["material escolar"],
+        "procurement_id": procurement_id,
+        "summary": "Compra de lápis.",
+        "concepts": ["lapis"],
+        "keywords": ["lapis", "lapis preto"],
+        "categories": ["material escolar"],
     }
 
 
 def _conn(rows):
     """Cursor order inside embed_pending: select (dict_row), then one cursor
-    per batch of UPDATEs."""
+    per batch of upserts."""
     select_cur = MagicMock()
     select_cur.fetchall.return_value = rows
     update_curs = [MagicMock() for _ in range(1 + len(rows) // max(BATCH_SIZE, 1))]
@@ -45,7 +45,7 @@ def test_build_embedding_text_joins_all_parts_in_order():
 
 
 def test_build_embedding_text_skips_empty_parts():
-    row = {"resumo": None, "conceitos": [], "palavras_chave": ["lapis"], "categorias": []}
+    row = {"summary": None, "concepts": [], "keywords": ["lapis"], "categories": []}
     assert build_embedding_text(row) == "lapis"
 
 
@@ -71,15 +71,17 @@ def test_to_pgvector_of_empty_vector():
 # --- embed_pending -------------------------------------------------------
 
 
-def test_embed_pending_selects_done_rows_without_embedding():
+def test_embed_pending_selects_done_enrichments_without_an_embeddings_row():
     conn, select_cur, _ = _conn([])
 
     result = embed_pending(conn, limit=10, llm=_llm())
 
     assert result == {"processed": 0, "embedded": 0, "error": 0}
     sql = select_cur.execute.call_args.args[0]
-    assert "status = 'done' AND embedding IS NULL" in sql
-    assert "ORDER BY enriquecido_em DESC" in sql
+    assert "e.status = 'done'" in sql
+    assert "FROM procurement_embeddings pe" in sql
+    assert "LEFT JOIN procurement_categories c" in sql
+    assert "ORDER BY e.enriched_at DESC" in sql
     assert select_cur.execute.call_args.args[1] == {"limit": 10}
 
 
@@ -92,7 +94,7 @@ def test_embed_pending_with_nothing_pending_builds_no_llm_client(monkeypatch):
 
 
 def test_embed_pending_batches_rows_into_one_embed_call():
-    rows = [_row("num-1"), _row("num-2"), _row("num-3")]
+    rows = [_row(1), _row(2), _row(3)]
     conn, _select_cur, update_curs = _conn(rows)
     llm = _llm()
 
@@ -105,21 +107,24 @@ def test_embed_pending_batches_rows_into_one_embed_call():
     conn.commit.assert_called_once()
 
 
-def test_embed_pending_updates_carry_vector_model_and_numero():
-    conn, _select_cur, update_curs = _conn([_row("num-1")])
+def test_embed_pending_upserts_carry_vector_model_and_procurement_id():
+    conn, _select_cur, update_curs = _conn([_row(42)])
 
     embed_pending(conn, llm=_llm())
 
     sql, params = update_curs[0].execute.call_args.args
-    assert "SET embedding = %(embedding)s::vector" in sql
-    assert "embedding_em = now()" in sql
-    assert params["numero"] == "num-1"
-    assert params["modelo"] == "embed-model"
-    assert params["embedding"] == "[0.5,0.5,0.5,0.5]"
+    assert "INSERT INTO procurement_embeddings" in sql
+    assert "%(embedding)s::vector" in sql
+    assert "ON CONFLICT (procurement_id) DO UPDATE" in sql
+    assert params == {
+        "procurement_id": 42,
+        "model": "embed-model",
+        "embedding": "[0.5,0.5,0.5,0.5]",
+    }
 
 
 def test_embed_pending_splits_into_batches_of_batch_size():
-    rows = [_row(f"num-{i}") for i in range(BATCH_SIZE + 5)]
+    rows = [_row(i) for i in range(BATCH_SIZE + 5)]
     conn, _select_cur, _update_curs = _conn(rows)
     llm = _llm()
 
@@ -133,7 +138,7 @@ def test_embed_pending_splits_into_batches_of_batch_size():
 
 
 def test_embed_pending_stops_on_sdk_error_without_marking_rows():
-    rows = [_row("num-1"), _row("num-2")]
+    rows = [_row(1), _row(2)]
     conn, _select_cur, update_curs = _conn(rows)
     llm = MagicMock()
     llm.embed.side_effect = RuntimeError("provider exploded")
@@ -146,7 +151,7 @@ def test_embed_pending_stops_on_sdk_error_without_marking_rows():
 
 
 def test_embed_pending_second_batch_error_keeps_first_batch():
-    rows = [_row(f"num-{i}") for i in range(BATCH_SIZE + 3)]
+    rows = [_row(i) for i in range(BATCH_SIZE + 3)]
     conn, _select_cur, _update_curs = _conn(rows)
     llm = MagicMock()
     llm.embed.side_effect = [
@@ -158,3 +163,14 @@ def test_embed_pending_second_batch_error_keeps_first_batch():
 
     assert result == {"processed": BATCH_SIZE + 3, "embedded": BATCH_SIZE, "error": 3}
     conn.commit.assert_called_once()
+
+
+def test_embed_pending_fills_the_run_counters():
+    from lixto.runs import RunCounters
+
+    conn, _select_cur, _update_curs = _conn([_row(1)])
+    counters = RunCounters()
+
+    embed_pending(conn, llm=_llm(), counters=counters)
+
+    assert counters.as_dict() == {"processed": 1, "embedded": 1, "error": 0}

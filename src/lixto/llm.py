@@ -1,4 +1,4 @@
-"""Provider-abstracted LLM client (ported from `plic.llm`, cycle 18).
+"""Provider-abstracted LLM client.
 
 One module the whole Python side uses, so switching provider (OpenAI, an
 OpenAI-compatible gateway, a local server) is an env change and not a code

@@ -1,4 +1,4 @@
-"""Canonical global-enrichment contract (ported from `plic.enrich.schema`).
+"""Canonical global-enrichment contract.
 
 Holds the versioned LLM JSON schema, the term-normalization rule shared with
 the match engine, and the payload validator that turns a raw model response

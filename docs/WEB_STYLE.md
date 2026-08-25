@@ -1,6 +1,6 @@
 # Dashboard style guide (cycle 8 — "calm canvas, dense data")
 
-Reference: `docs/design/cycle8-direction.md` (source of truth for values).
+Reference: `docs/WEB_DESIGN_DIRECTION.md` (source of truth for values).
 Perplexity for chrome/home/empty states/auth (warm canvas, tone-separated
 surfaces, one centered action, pill controls, whitespace); Attio for
 lists/tables/filters/detail (compact icon+label sidebar with ⌘K, toolbar with

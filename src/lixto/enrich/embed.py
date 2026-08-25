@@ -1,4 +1,4 @@
-"""Embeddings for the canonical enrichment (ported from `plic.enrich.embed`).
+"""Embeddings for the canonical enrichment.
 
 One vector per enriched procurement in `procurement_embeddings`, produced
 from a deterministic canonical text (summary + concepts + keywords +

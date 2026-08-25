@@ -1,12 +1,12 @@
-"""Unit tests for src/plic/llm.py — mocked OpenAI SDK object, no network."""
+"""Unit tests for src/lixto/llm.py — mocked OpenAI SDK object, no network."""
 
 import json
 from unittest.mock import MagicMock
 
 import pytest
 
-from plic import llm as llm_module
-from plic.llm import LlmClient
+from lixto import llm as llm_module
+from lixto.llm import LlmClient
 
 SCHEMA = {"type": "object", "properties": {"a": {"type": "string"}}, "required": ["a"]}
 
@@ -80,19 +80,39 @@ def test_unknown_tier_raises():
         )
 
 
+# --- env prefix ----------------------------------------------------------
+
+
+def test_env_defaults_use_the_lixto_prefix(monkeypatch):
+    monkeypatch.setenv("LIXTO_LLM_BASE_URL", "https://gateway.example/v1")
+    monkeypatch.setenv("LIXTO_LLM_API_KEY", "sk-lixto")
+    client = llm_module.build_client()
+
+    assert str(client.base_url).startswith("https://gateway.example/v1")
+    assert client.api_key == "sk-lixto"
+
+
+def test_api_key_falls_back_to_openai_api_key(monkeypatch):
+    monkeypatch.delenv("LIXTO_LLM_API_KEY", raising=False)
+    monkeypatch.delenv("LIXTO_LLM_BASE_URL", raising=False)
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-openai")
+
+    assert llm_module.build_client().api_key == "sk-openai"
+
+
 # --- request payload -----------------------------------------------------
 
 
 def test_response_format_is_portable_json_schema():
     sdk = _client()
     _llm(sdk).complete_json_text(
-        tier="cheap", instructions="sys", prompt="user", schema=SCHEMA, name="enriquecimento"
+        tier="cheap", instructions="sys", prompt="user", schema=SCHEMA, name="enrichment"
     )
 
     kwargs = sdk.chat.completions.create.call_args.kwargs
     assert kwargs["response_format"] == {
         "type": "json_schema",
-        "json_schema": {"name": "enriquecimento", "strict": True, "schema": SCHEMA},
+        "json_schema": {"name": "enrichment", "strict": True, "schema": SCHEMA},
     }
     assert kwargs["messages"] == [
         {"role": "system", "content": "sys"},
@@ -198,7 +218,7 @@ def test_complete_json_pdf_uses_doc_model_and_input_file_blocks():
         prompt="context",
         pdfs=[{"filename": "edital.pdf", "content": b"%PDF-1.4"}],
         schema=SCHEMA,
-        name="enriquecimento",
+        name="enrichment",
     )
 
     assert payload == {"a": "b"}
@@ -210,7 +230,7 @@ def test_complete_json_pdf_uses_doc_model_and_input_file_blocks():
     assert content[0]["filename"] == "edital.pdf"
     assert content[0]["file_data"].startswith("data:application/pdf;base64,")
     assert content[-1] == {"type": "input_text", "text": "context"}
-    assert kwargs["text"]["format"]["name"] == "enriquecimento"
+    assert kwargs["text"]["format"]["name"] == "enrichment"
 
 
 def test_complete_json_pdf_refusal_returns_none():

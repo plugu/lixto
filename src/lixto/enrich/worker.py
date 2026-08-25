@@ -1,4 +1,4 @@
-"""Global enrichment worker (ported from `plic.enrich.worker`, cycle 18).
+"""Global enrichment worker.
 
 Produces one canonical enrichment per pending open procurement — once,
 globally, reused by every company. Select → per-row LLM → persist → commit
