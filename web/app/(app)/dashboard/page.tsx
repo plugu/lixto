@@ -27,7 +27,7 @@ const SCOPE_SUBTITLES: Record<ChartScope, string> = {
   tudo: "Todas as licitações desde jan/2026",
 };
 
-export default async function Painel({ searchParams }: PageProps<"/painel">) {
+export default async function Painel({ searchParams }: PageProps<"/dashboard">) {
   const resolved = await searchParams;
   const scope = parseChartScope(resolved.escopo);
 
@@ -69,7 +69,7 @@ export default async function Painel({ searchParams }: PageProps<"/painel">) {
         {SCOPES.map((s) => (
           <Link
             key={s.value}
-            href={s.value === "abertas" ? "/painel" : `/painel?escopo=${s.value}`}
+            href={s.value === "abertas" ? "/dashboard" : `/dashboard?escopo=${s.value}`}
             className={`rounded-[9999px] px-3 py-1 text-[13px] font-medium transition-colors ${
               s.value === scope
                 ? "bg-ink text-surface"

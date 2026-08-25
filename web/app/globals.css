@@ -53,3 +53,86 @@ body {
 body {
   font-variant-numeric: tabular-nums;
 }
+
+/* ─────────────────────────────────────────────────────────────
+   Landing page (public "/") — marketing-only tokens and effects.
+   Deliberately darker/warmer than the dashboard palette above.
+   ───────────────────────────────────────────────────────────── */
+@theme {
+  --color-night: #061513;
+  --color-night-raised: #0c2320;
+  --color-night-line: #17403a;
+  --color-mint: #5eead4;
+  --color-sand: #f6f3ec;
+  --color-sand-line: #e5dfd2;
+}
+
+/* Display face. Deliberately NOT a `--font-*` @theme token: next/font declares
+   --font-editorial-var on the landing page wrapper (the root layout only loads
+   Inter), and a theme token would substitute that var at :root — where it does
+   not exist yet — computing to invalid and silently falling back to Inter. */
+.font-editorial {
+  font-family: var(--font-editorial-var), Georgia, "Times New Roman", serif;
+}
+
+/* Fine grid texture over the dark bands. */
+.mkt-grid {
+  background-image:
+    linear-gradient(to right, rgba(94, 234, 212, 0.055) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(94, 234, 212, 0.055) 1px, transparent 1px);
+  background-size: 76px 76px;
+  -webkit-mask-image: radial-gradient(80% 70% at 50% 30%, #000 30%, transparent 100%);
+  mask-image: radial-gradient(80% 70% at 50% 30%, #000 30%, transparent 100%);
+}
+
+.mkt-glow {
+  background: radial-gradient(
+    55% 100% at 50% 0%,
+    rgba(15, 118, 110, 0.5),
+    transparent 70%
+  );
+}
+
+@keyframes mkt-sweep {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  88% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(320px);
+    opacity: 0;
+  }
+}
+
+@keyframes mkt-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+  70%,
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+
+.mkt-sweep {
+  animation: mkt-sweep 6.5s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+.mkt-pulse {
+  animation: mkt-pulse 2.6s ease-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mkt-sweep,
+  .mkt-pulse {
+    animation: none;
+  }
+}

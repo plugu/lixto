@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 import { formatCNPJ, onlyDigits } from "@/lib/br-validators";
 import type { CnpjCnae } from "@/lib/cnpj-lookup";
-import { lookupAction, signupAction, type SignupState } from "@/app/signup/actions";
+import { lookupAction, signupAction, type SignupState } from "@/app/(app)/signup/actions";
 import { PORTES, UF_LIST } from "@/lib/tenant-types";
 import { Field, Input, Select } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";

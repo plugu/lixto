@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { removerDocumentoAction } from "@/app/empresa/documentos/actions";
+import { removerDocumentoAction } from "@/app/(app)/empresa/documentos/actions";
 import { Button } from "@/components/ui/button";
 import { X } from "@/components/ui/icons";
 import { StatusDot, type StatusDotTone } from "@/components/ui/status-dot";

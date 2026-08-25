@@ -17,15 +17,17 @@ export default function Error({
   }, [error]);
 
   return (
-    <EmptyState
-      icon={<Alert size={20} />}
-      title="Algo deu errado"
-      hint="Ocorreu um erro inesperado ao carregar esta página."
-      action={
-        <Button type="button" variant="primary" size="sm" onClick={() => reset()}>
-          Tentar novamente
-        </Button>
-      }
-    />
+    <div className="flex min-h-screen items-center justify-center px-4 py-10">
+      <EmptyState
+        icon={<Alert size={20} />}
+        title="Algo deu errado"
+        hint="Ocorreu um erro inesperado ao carregar esta página."
+        action={
+          <Button type="button" variant="primary" size="sm" onClick={() => reset()}>
+            Tentar novamente
+          </Button>
+        }
+      />
+    </div>
   );
 }

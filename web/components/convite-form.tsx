@@ -7,7 +7,7 @@ import { Section } from "@/components/ui/section";
 import {
   criarConviteAction,
   type CriarConviteState,
-} from "@/app/empresa/usuarios/actions";
+} from "@/app/(app)/empresa/usuarios/actions";
 
 const INITIAL_STATE: CriarConviteState = {};
 

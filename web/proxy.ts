@@ -19,9 +19,14 @@ export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (pathname === "/") {
-    const url = request.nextUrl.clone();
-    url.pathname = "/painel";
-    return NextResponse.redirect(url);
+    // `/` is the public marketing page for logged-out visitors, but a
+    // logged-in session should still land on the dashboard.
+    if (request.cookies.get(SESSION_COOKIE)?.value) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/dashboard";
+      return NextResponse.redirect(url);
+    }
+    return NextResponse.next();
   }
 
   if (PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix))) {

@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Field, Input, Select } from "@/components/ui/input";
 import { Section } from "@/components/ui/section";
 import { CnaeEditor, type CnaeRow } from "./cnae-editor";
-import { updateEmpresaAction, type EmpresaActionState } from "@/app/empresa/actions";
+import { updateEmpresaAction, type EmpresaActionState } from "@/app/(app)/empresa/actions";
 
 const INITIAL_STATE: EmpresaActionState = {};
 

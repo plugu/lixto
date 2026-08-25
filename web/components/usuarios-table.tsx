@@ -1,6 +1,6 @@
 "use client";
 
-import { updateRoleAction, removerUsuarioAction } from "@/app/empresa/usuarios/actions";
+import { updateRoleAction, removerUsuarioAction } from "@/app/(app)/empresa/usuarios/actions";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/input";
 import { X } from "@/components/ui/icons";

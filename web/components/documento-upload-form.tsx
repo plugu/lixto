@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { uploadDocumentoAction, type UploadState } from "@/app/empresa/documentos/actions";
+import { uploadDocumentoAction, type UploadState } from "@/app/(app)/empresa/documentos/actions";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select } from "@/components/ui/input";
 import { Section } from "@/components/ui/section";
