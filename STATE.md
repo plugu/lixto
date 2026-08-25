@@ -19,4 +19,4 @@
 - Carried: no cron on dev machine; resultados demand-driven.
 
 ## Blockers
-- none.
+- none. Follow-up (cycle 19+): `/pca/atualizacao` ≈ 200k rows per 3-day window — plans sync needs per-page resumable watermark / narrower chunks before any prod run.
