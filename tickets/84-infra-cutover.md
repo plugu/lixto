@@ -18,8 +18,8 @@ Production runs Lixto from the renamed repo and Dokploy apps on the new `lixto` 
 2. **GitHub**: `gh repo rename lixto` → `alexazevedo/lixto`; update local remote (`git remote set-url origin git@github.com:alexazevedo/lixto.git`); rename the local checkout directory to `~/dev/lixto` (Claude memory dir is keyed by path — note the new path).
 3. **Dokploy**: create project `lixto` with apps `lixto-web` (Dockerfile `web/Dockerfile`, build context `web`, domain = current web domain moved over, volume `lixto-uploads` → `/app/uploads`, env `LIXTO_DATABASE_URL`, `LIXTO_LLM_*`, `LIXTO_CHAT_MODEL`, `UPLOADS_DIR`) and `lixto-cli` (`Dockerfile.cli`, env `LIXTO_DATABASE_URL`, `LIXTO_LLM_*`), Git provider pointing at the renamed repo, autoDeploy watch paths as before. New webhooks → GitHub secrets `DOKPLOY_DEPLOY_WEBHOOK_WEB` / `_CLI`. Schedules on `lixto-cli`: `sync-incremental` `0 6,13,20 * * *` → `lixto sync incremental --max-details 2000`; `results-sync` `0 3 * * *` → `lixto results sync --limit 2000`; `plans-sync` `0 4 * * *` → `lixto plans sync`; `contracts-sync` `0 5 * * *` → `lixto contracts sync --max-amendments 500`; `enrich-run` `30 7,14,21 * * *` → `lixto enrich run --days 30 --limit 300`; `enrich-embed` manual (`0 0 31 2 *`) → `lixto enrich embed`; `db-init` manual → `lixto db init`.
 4. **Deploy**: push `main`; `application-deploy` both apps; `lixto db init` runs on cli start → verify 35 tables (34 + schema_migrations) in `lixto`.
-5. **Populate**: run `lixto cnae seed`, then start `lixto backfill` (schedule run or `docker exec`) — it takes days; then `lixto plans sync --since 2026-01-01`, `lixto contracts sync --since 2026-01-01`. Enrichment schedules pick up as data lands.
-6. **Verify**: sign up a company at the new domain, fill `/company/profile`, ask `/lixto` a question once ≥ 1 enriched procurement exists.
+5. **Populate — NOT in this cycle**: do not run `lixto backfill`, `plans sync`, `contracts sync` or `enrich` in prod. Only `lixto cnae seed` (reference table). All sync/enrich schedules are created **disabled** (manual `0 0 31 2 *` idiom); the user decides when to start ingestion after reviewing the vision doc.
+6. **Verify**: sign up a company at the new domain, fill `/company/profile`, open `/procurements` (empty state) and `/lixto` (chat answers with zero results — acceptable).
 7. **Decommission** (only after 6 passes, separate approval): stop/delete Dokploy project `plataforma-licitante`, `DROP DATABASE "plataforma-licitante_db"`, remove old uploads volume.
 
 ## Checks (run in order — cheapest first)
@@ -27,10 +27,10 @@ Production runs Lixto from the renamed repo and Dokploy apps on the new `lixto` 
 2. Dokploy MCP `application-one` for `lixto-web` and `lixto-cli` report `applicationStatus: done`
 3. `curl -s -o /dev/null -w '%{http_code}' https://<web-domain>/login` → `200`
 4. Dokploy `postgres-readLogs` / cli app logs show `Applied 1 migration(s): 001_core.sql`
-5. `lixto status` via cli container logs shows procurements > 0 after the first backfill chunk
+5. `lixto status` via cli container shows 0 procurements and the `cnae_codes` count > 1000
 
 ## Done when
-- Lixto serves from the renamed infra on the new DB with backfill running; legacy project/DB decommissioned after verification.
+- Lixto serves from the renamed infra on the new, empty DB (only `cnae_codes` seeded); no ingestion started; legacy project/DB decommissioned after verification.
 
 ## Not included
 - Code changes (none); legacy code deletion (85); docs (86).

@@ -7,6 +7,7 @@
 - /forge:run cycle 18: 74 → {75 ∥ 79 ∥ 80} → {76 ∥ 77 ∥ 78 ∥ 81} → 82 → 83 → {84 (orchestrator+user) ∥ 85} → 86 → reviewer pass → approval 3/3.
 
 ## Decisions
+- No prod backfill/sync/enrich in cycle 18 (user decision 2026-08-25): schedules created disabled; ingestion starts only after the user re-reviews docs/VISION.md.
 - Cycle 18 dispatch: parallel worktrees, 3 concurrent (`../plataforma-licitante-wt/<id>`, branch `forge/<id>`, `cp -Rc` node_modules), 74 alone first; merge from main checkout.
 - Cycle 18: new DB `lixto` (not schema-in-old-DB), zero data migration incl. tenants, plural English table names, raw in `source_payloads`, facet tables for enrichment, agent-core tables created now/written later. Legacy `src/plic` kept until ticket 85 as porting reference. Data pulled only from PNCP (licinexus MCP was reference only, never a dependency).
 - pgvector now available (prod image pgvector/pgvector:pg18-trixie — trixie keeps glibc 2.41 so no collation mismatch; bookworm tag briefly ran ~4 min on 2026-08-25 19:33 UTC). Match = CNAE ∩ + term arrays + FTS + cosine bands (≥0.55 +20, ≥0.40 +10).
