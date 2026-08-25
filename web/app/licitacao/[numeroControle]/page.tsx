@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import { AnalisePanel } from "@/components/analise-panel";
 import { DocumentosList } from "@/components/documentos-list";
 import { FitBadge } from "@/components/fit-badge";
@@ -13,6 +14,7 @@ import {
   type LicitacaoDetail,
 } from "@/lib/detail-queries";
 import { formatCurrencyBRL, formatDateBR } from "@/lib/format";
+import { enqueueResultadosFaltantes, fetchPrecoBenchmark } from "@/lib/preco-queries";
 import { computeStatus } from "@/lib/status";
 
 // The route segment carries numero_controle_pncp, which contains a literal
@@ -52,11 +54,19 @@ export default async function LicitacaoDetailPage(
     );
   }
 
-  const [itens, documentos, analise] = await Promise.all([
+  const [itens, documentos, analise, precos] = await Promise.all([
     fetchItens(numeroControlePncp),
     fetchDocumentos(numeroControlePncp),
     fetchAnalise(numeroControlePncp),
+    fetchPrecoBenchmark(numeroControlePncp),
   ]);
+
+  // Lazy-fill queueing is a write, not read-path data: it must never delay
+  // first byte. Runs after the response is sent; a queue failure here must
+  // not break the page.
+  after(() =>
+    enqueueResultadosFaltantes(numeroControlePncp).catch(() => {}),
+  );
 
   const status = computeStatus(
     detail.data_abertura_proposta,
@@ -144,7 +154,7 @@ export default async function LicitacaoDetailPage(
       >
         <div className="flex min-w-0 flex-col gap-6">
           <CollapsibleCard title="Itens">
-            <ItensTable itens={itens} />
+            <ItensTable itens={itens} precos={precos} />
           </CollapsibleCard>
 
           <CollapsibleCard title="Documentos">

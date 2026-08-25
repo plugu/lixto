@@ -7,7 +7,8 @@
 import { Badge } from "@/components/ui/badge";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import type { ItemRow } from "@/lib/detail-queries";
-import { formatCurrencyBRL } from "@/lib/format";
+import type { PrecoItem } from "@/lib/preco-queries";
+import { formatCurrencyBRL, formatDateBR } from "@/lib/format";
 
 const quantidadeFormatter = new Intl.NumberFormat("pt-BR");
 
@@ -18,7 +19,71 @@ function formatQuantidade(value: string | null): string {
   return quantidadeFormatter.format(num);
 }
 
-export function ItensTable({ itens }: { itens: ItemRow[] }) {
+/** Desktop cell: median + n as a `<details>` disclosure when there is history,
+ * an honest muted note otherwise. `undefined` covers a missing map entry —
+ * `fetchPrecoBenchmark` always returns one per item, but the prop is optional
+ * so the component still works uncalled. */
+function HomologadoCell({ preco }: { preco: PrecoItem | undefined }) {
+  if (!preco || preco.estado === "coletando") {
+    return <span className="text-ink-muted">Coletando…</span>;
+  }
+  if (preco.estado === "insuficiente") {
+    return <span className="text-ink-muted">Amostra insuficiente</span>;
+  }
+  return (
+    <details>
+      <summary className="cursor-pointer tabular-nums text-ink">
+        {formatCurrencyBRL(preco.mediana)}{" "}
+        <span className="text-ink-muted">· n={preco.n}</span>
+      </summary>
+      <div className="mt-2 flex flex-col gap-1.5 text-xs">
+        <p className="tabular-nums text-ink-muted">
+          {formatCurrencyBRL(preco.p25)} – {formatCurrencyBRL(preco.p75)}
+        </p>
+        {preco.vencedores.map((vencedor, index) => (
+          <p
+            key={vencedor.ni_fornecedor ?? index}
+            className="flex flex-wrap items-center gap-1.5 text-ink-muted"
+          >
+            <span className="text-ink">
+              {vencedor.nome_razao_social_fornecedor || "—"}
+            </span>
+            {vencedor.porte_fornecedor_nome && (
+              <Badge tone="neutral">{vencedor.porte_fornecedor_nome}</Badge>
+            )}
+            <span className="tabular-nums">
+              {formatCurrencyBRL(vencedor.valor_unitario_homologado)}
+            </span>
+            <span>{formatDateBR(vencedor.data_resultado)}</span>
+          </p>
+        ))}
+      </div>
+    </details>
+  );
+}
+
+/** Mobile line: same three states, no disclosure. */
+function HomologadoLine({ preco }: { preco: PrecoItem | undefined }) {
+  if (!preco || preco.estado === "coletando") {
+    return <span className="text-ink-muted">Coletando…</span>;
+  }
+  if (preco.estado === "insuficiente") {
+    return <span className="text-ink-muted">Amostra insuficiente</span>;
+  }
+  return (
+    <span className="tabular-nums text-ink-muted">
+      Homologado {formatCurrencyBRL(preco.mediana)} · n={preco.n}
+    </span>
+  );
+}
+
+export function ItensTable({
+  itens,
+  precos,
+}: {
+  itens: ItemRow[];
+  precos?: Map<number, PrecoItem>;
+}) {
   if (itens.length === 0) {
     return <p className="text-sm text-ink-muted">Nenhum item encontrado.</p>;
   }
@@ -33,6 +98,7 @@ export function ItensTable({ itens }: { itens: ItemRow[] }) {
             <TH align="right">Quantidade</TH>
             <TH>Unidade</TH>
             <TH align="right">Valor unitário</TH>
+            <TH>Homologado</TH>
             <TH align="right">Valor total</TH>
             <TH>Situação</TH>
             <TH>Benefício</TH>
@@ -50,6 +116,9 @@ export function ItensTable({ itens }: { itens: ItemRow[] }) {
                 <TD>{item.unidade_medida || "—"}</TD>
                 <TD align="right" numeric>
                   {formatCurrencyBRL(item.valor_unitario_estimado)}
+                </TD>
+                <TD className="align-top">
+                  <HomologadoCell preco={precos?.get(item.numero_item)} />
                 </TD>
                 <TD align="right" numeric>
                   {formatCurrencyBRL(item.valor_total)}
@@ -89,6 +158,9 @@ export function ItensTable({ itens }: { itens: ItemRow[] }) {
                 {formatCurrencyBRL(item.valor_unitario_estimado)} / un
               </span>
             </div>
+            <p className="text-xs">
+              <HomologadoLine preco={precos?.get(item.numero_item)} />
+            </p>
             <p className="text-sm font-medium tabular-nums text-ink">
               {formatCurrencyBRL(item.valor_total)}
             </p>

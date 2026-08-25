@@ -1,16 +1,16 @@
-# Graph Report - plataforma-licitante  (2026-08-24)
+# Graph Report - plataforma-licitante  (2026-08-25)
 
 ## Corpus Check
-- 196 files · ~73,652 words
+- 204 files · ~82,421 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1606 nodes · 3224 edges · 118 communities (111 shown, 7 thin omitted)
-- Extraction: 97% EXTRACTED · 3% INFERRED · 0% AMBIGUOUS · INFERRED: 109 edges (avg confidence: 0.8)
+- 1756 nodes · 3436 edges · 136 communities (129 shown, 7 thin omitted)
+- Extraction: 96% EXTRACTED · 4% INFERRED · 0% AMBIGUOUS · INFERRED: 126 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `838b64ba`
+- Built from commit: `3d61afe1`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -128,18 +128,36 @@
 - [[_COMMUNITY_Community 110|Community 110]]
 - [[_COMMUNITY_Community 111|Community 111]]
 - [[_COMMUNITY_Community 112|Community 112]]
+- [[_COMMUNITY_Community 113|Community 113]]
+- [[_COMMUNITY_Community 114|Community 114]]
+- [[_COMMUNITY_Community 115|Community 115]]
+- [[_COMMUNITY_Community 116|Community 116]]
+- [[_COMMUNITY_Community 117|Community 117]]
+- [[_COMMUNITY_Community 118|Community 118]]
+- [[_COMMUNITY_Community 119|Community 119]]
+- [[_COMMUNITY_Community 120|Community 120]]
+- [[_COMMUNITY_Community 121|Community 121]]
+- [[_COMMUNITY_Community 122|Community 122]]
+- [[_COMMUNITY_Community 123|Community 123]]
+- [[_COMMUNITY_Community 124|Community 124]]
+- [[_COMMUNITY_Community 125|Community 125]]
+- [[_COMMUNITY_Community 126|Community 126]]
+- [[_COMMUNITY_Community 127|Community 127]]
+- [[_COMMUNITY_Community 128|Community 128]]
+- [[_COMMUNITY_Community 129|Community 129]]
+- [[_COMMUNITY_Community 130|Community 130]]
 
 ## God Nodes (most connected - your core abstractions)
 1. `base()` - 26 edges
 2. `onlyDigits()` - 24 edges
-3. `PncpClient` - 21 edges
+3. `PncpClient` - 24 edges
 4. `sync_detalhes()` - 17 edges
 5. `analyze_one()` - 17 edges
 6. `Button()` - 15 edges
-7. `signupAction()` - 13 edges
-8. `formatCurrencyBRL()` - 13 edges
-9. `requireAdmin()` - 13 edges
-10. `_client_with_handler()` - 13 edges
+7. `formatCurrencyBRL()` - 15 edges
+8. `generate_plist()` - 14 edges
+9. `signupAction()` - 13 edges
+10. `formatDateBR()` - 13 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `maskCodigo()` --calls--> `onlyDigits()`  [EXTRACTED]
@@ -153,231 +171,231 @@
 - `test_parse_stage1_response_tolerates_fences_and_prose()` --calls--> `parse_stage1_response()`  [INFERRED]
   tests/test_cnae_match.py → src/plic/cnae_match.py
 
-## Communities (118 total, 7 thin omitted)
+## Communities (136 total, 7 thin omitted)
 
 ### Community 0 - "Community 0"
 Cohesion: 0.05
-Nodes (73): AnalisePanel(), ATENDE_LABELS, DEEP_STATUS_NOTES, STATUS_LABELS, STATUS_STYLES, STATUS_TONES, StatusDocumento, TIPO_LABELS (+65 more)
+Nodes (83): buildHref(), CATEGORIA_LABELS, Chip, FilterChips(), FIT_LABELS, formatValor(), RawSearchParams, toURLSearchParams() (+75 more)
 
 ### Community 1 - "Community 1"
-Cohesion: 0.05
-Nodes (82): buildHref(), CATEGORIA_LABELS, Chip, FilterChips(), FIT_LABELS, formatValor(), RawSearchParams, toURLSearchParams() (+74 more)
+Cohesion: 0.06
+Nodes (51): bricolage, hanken, instrumentSans, instrumentSerif, inter, metadata, RootLayout(), ALL_KEYS (+43 more)
 
 ### Community 2 - "Community 2"
 Cohesion: 0.06
-Nodes (48): bricolage, hanken, instrumentSans, instrumentSerif, inter, metadata, RootLayout(), ALL_KEYS (+40 more)
+Nodes (39): PncpApiError, PncpClient, Thin sync HTTP client for the PNCP consulta API.  Policy (docs/PNCP_API.md, "Mea, Fetch one page of a `PaginaRetornoRecuperarCompra...DTO` endpoint.          Shar, Fetch one page of `/v1/contratacoes/publicacao`.          Returns the decoded `P, Fetch one page of `/v1/contratacoes/atualizacao` (incremental sync         by `d, Yield each page dict for a modalidade until `paginasRestantes` is 0., Yield each `/publicacao` page dict for a modalidade until drained. (+31 more)
 
 ### Community 3 - "Community 3"
 Cohesion: 0.06
-Nodes (41): PncpApiError, PncpClient, Thin sync HTTP client for the PNCP consulta API.  Policy (docs/PNCP_API.md, "Mea, Fetch one page of a `PaginaRetornoRecuperarCompra...DTO` endpoint.          Shar, Fetch one page of `/v1/contratacoes/publicacao`.          Returns the decoded `P, Fetch one page of `/v1/contratacoes/atualizacao` (incremental sync         by `d, Yield each page dict for a modalidade until `paginasRestantes` is 0., Yield each `/publicacao` page dict for a modalidade until drained. (+33 more)
+Nodes (41): build_stage1_prompt(), build_stage2_prompt(), classify(), classify_stage1(), classify_stage2(), eval_pending(), parse_stage1_response(), parse_stage2_response() (+33 more)
 
 ### Community 4 - "Community 4"
-Cohesion: 0.07
-Nodes (50): generate_plist(), get_launchd_agent_path(), get_log_path(), get_repo_path(), get_uid(), get_uv_path(), install(), macOS launchd job scheduler for twice-daily incremental syncs. (+42 more)
+Cohesion: 0.05
+Nodes (53): 1. Start the Database, 2. Initialize the Database, 3. Run the Full Backfill, 4. Install the Scheduler, Architecture, Backfill taking too long?, CLI Commands, CNAE matching (+45 more)
 
 ### Community 5 - "Community 5"
 Cohesion: 0.06
-Nodes (41): build_stage1_prompt(), build_stage2_prompt(), classify(), classify_stage1(), classify_stage2(), eval_pending(), parse_stage1_response(), parse_stage2_response() (+33 more)
+Nodes (48): generate_plist(), get_launchd_agent_path(), get_log_path(), get_repo_path(), get_uid(), get_uv_path(), install(), macOS launchd job scheduler for twice-daily incremental syncs. (+40 more)
 
 ### Community 6 - "Community 6"
-Cohesion: 0.05
-Nodes (49): `plic agents run` orchestration: fit-triage (ticket 13) then deep-analysis (tick, run_agents(), agents_run_cmd(), backfill_cmd(), classify_cmd(), cnae_classify_cmd(), cnae_eval_cmd(), cnae_seed_cmd() (+41 more)
-
-### Community 7 - "Community 7"
 Cohesion: 0.13
 Nodes (47): analyze_one(), build_context_text(), build_input_content(), build_instructions(), deep_analyze(), download_pdfs(), fetch_itens(), parse_response() (+39 more)
 
-### Community 8 - "Community 8"
-Cohesion: 0.11
-Nodes (35): ChartCard(), CHIPS, Dashboard(), Home(), SCOPE_SUBTITLES, SCOPES, BarList(), numberFormat (+27 more)
+### Community 7 - "Community 7"
+Cohesion: 0.12
+Nodes (33): ChartCard(), CHIPS, Dashboard(), Home(), SCOPE_SUBTITLES, SCOPES, BarList(), numberFormat (+25 more)
 
-### Community 9 - "Community 9"
+### Community 8 - "Community 8"
 Cohesion: 0.13
 Nodes (37): fetch_arquivos(), _fetch_bare_array_pages(), fetch_itens(), `plic sync detalhes` — fetches items + edital/anexo metadata (arquivos) for lici, Flatten one `RecuperarCompraItemSigiloDTO` into `item` row params., Flatten one `RecuperarDadosDocumentoCompraDTO` into `documento` row params., Page a bare-array endpoint (itens/arquivos) until an empty page.      A 404 on t, Fetch itens + arquivos for licitações missing either sync stamp.      Selection: (+29 more)
 
+### Community 9 - "Community 9"
+Cohesion: 0.11
+Nodes (29): ConviteForm(), INITIAL_STATE, DocumentoUploadForm(), INITIAL_STATE, DocumentosEmpresaTable(), CnaeRow, INITIAL_STATE, SignupForm() (+21 more)
+
 ### Community 10 - "Community 10"
-Cohesion: 0.13
-Nodes (30): get_profile_path(), load_profile(), Loads `company_profile.md`, the versioned config the agents score against.  mvp, Read the company profile markdown as plain text for prompt-building., build_instructions(), build_prompt(), parse_response(), Fit-triage agent (ticket 13).  For each new top-7-portal licitação (aberta/futur (+22 more)
+Cohesion: 0.11
+Nodes (31): isDocumentoTipo(), removerDocumentoAction(), uploadDocumentoAction(), buildContentDisposition(), GET(), requireAdmin(), assertTipo(), buildDeleteDocumento() (+23 more)
 
 ### Community 11 - "Community 11"
+Cohesion: 0.12
+Nodes (31): get_profile_path(), load_profile(), Loads `company_profile.md`, the versioned config the agents score against.  mvp, Read the company profile markdown as plain text for prompt-building., build_instructions(), build_prompt(), parse_response(), Fit-triage agent (ticket 13).  For each new top-7-portal licitação (aberta/futur (+23 more)
+
+### Community 12 - "Community 12"
+Cohesion: 0.12
+Nodes (27): _advance_watermark(), _bootstrap_start_date(), _get_existing_watermarks(), `plic sync incremental` — the twice-daily run: pulls everything changed since ea, Page `/atualizacao` for one modalidade, upserting each DTO.      Returns `(rows_, Sync every modalidade's `/atualizacao` changes since its watermark,     then `sy, All `incremental:*` watermarks already recorded, keyed by modalidade., First-ever-run fallback: the newest `data_atualizacao_global` already     in the (+19 more)
+
+### Community 13 - "Community 13"
+Cohesion: 0.12
+Nodes (26): AceiteConvite, buildAcceptConvite(), buildListUsuarios(), buildRemoveUsuario(), buildUpdateRole(), ConviteInfo, countOtherAdmins(), createConvite() (+18 more)
+
+### Community 14 - "Community 14"
+Cohesion: 0.17
+Nodes (20): DocumentGroup(), DocumentosList(), formatQuantidade(), ItensTable(), quantidadeFormatter, DocumentoRow, fetchDocumentos(), fetchItens() (+12 more)
+
+### Community 15 - "Community 15"
 Cohesion: 0.16
 Nodes (25): backfill(), backfill_unit_key(), generate_chunks(), _get_done_unit_keys(), _mark_unit_done(), `plic backfill` — resumable full backfill of every modalidade over 7-day date ch, Resumable backfill: every (modalidade, 7-day chunk) unit from `since`     to `un, Split the inclusive range [since, until] into `chunk_days`-wide,     non-overlap (+17 more)
 
-### Community 12 - "Community 12"
-Cohesion: 0.14
-Nodes (23): requireAdmin(), acceptConvite(), AceiteConvite, buildAcceptConvite(), buildListUsuarios(), buildRemoveUsuario(), buildUpdateRole(), ConviteInfo (+15 more)
-
-### Community 13 - "Community 13"
-Cohesion: 0.16
-Nodes (20): clearSessionCookie(), createSession(), destroySession(), getSession(), hashPassword(), login(), scrypt(), Session (+12 more)
-
-### Community 14 - "Community 14"
-Cohesion: 0.13
-Nodes (19): CnaeRow, INITIAL_STATE, SignupForm(), BrasilApiCnaeSecundario, BrasilApiCnpjResponse, CnpjCnae, CnpjLookup, lookupCNPJ() (+11 more)
-
-### Community 15 - "Community 15"
-Cohesion: 0.14
-Nodes (21): DocumentosPage(), assertTipo(), buildDeleteDocumento(), buildGetDocumento(), buildInsertDocumento(), buildListDocumentos(), DocumentoDbRow, DocumentoRow (+13 more)
-
 ### Community 16 - "Community 16"
-Cohesion: 0.17
-Nodes (16): ConviteForm(), INITIAL_STATE, DocumentoUploadForm(), INITIAL_STATE, DocumentosEmpresaTable(), UsuariosTable(), EMPRESA_NAV, listUsuarios() (+8 more)
+Cohesion: 0.24
+Nodes (21): EmpresaForm(), hashPassword(), setSessionCookie(), formatCEP(), formatCNPJ(), formatCPF(), isValidCEP(), isValidCNPJ() (+13 more)
 
 ### Community 17 - "Community 17"
-Cohesion: 0.29
-Nodes (19): _atualizacao_page(), _dto(), _mock_conn(), _patch_db_helpers(), Unit tests for src/plic/sync_incremental.py.  No network, no live database: wate, test_advance_watermark_upserts_sync_state_value(), test_bootstrap_start_date_falls_back_to_today_when_db_empty(), test_bootstrap_start_date_uses_newest_data_atualizacao_global() (+11 more)
+Cohesion: 0.17
+Nodes (18): STATUS_LABELS, STATUS_STYLES, STATUS_TONES, StatusDocumento, TIPO_LABELS, ROLE_LABELS, ROLE_STYLES, STATUS_STYLES (+10 more)
 
 ### Community 18 - "Community 18"
-Cohesion: 0.22
-Nodes (19): Out of scope, plataforma-licitante — multi-tenant empresa / usuário (cycle 7), Primary user story, Scope, Success demo, What / why, CNAE matching de licitações, Escopo (+11 more)
+Cohesion: 0.23
+Nodes (20): Out of scope, plataforma-licitante — multi-tenant empresa / usuário (cycle 7), Primary user story, Scope, Success demo, What / why, CNAE matching de licitações, Escopo (+12 more)
 
 ### Community 19 - "Community 19"
 Cohesion: 0.19
-Nodes (17): EmpresaActionState, field(), updateEmpresaAction(), buildUpdateEmpresa(), CnaeInput, EmpresaInput, normalizePorte(), nullIfEmpty() (+9 more)
+Nodes (18): EmpresaActionState, field(), updateEmpresaAction(), buildInsertCnaes(), buildUpdateEmpresa(), CnaeInput, EmpresaInput, normalizePorte() (+10 more)
 
 ### Community 20 - "Community 20"
+Cohesion: 0.17
+Nodes (17): clearSessionCookie(), createSession(), destroySession(), getSession(), login(), scrypt(), Session, SessionRow (+9 more)
+
+### Community 21 - "Community 21"
+Cohesion: 0.14
+Nodes (17): AlvoRow, BenchmarkRow, buildTsQuery(), enqueueResultadosFaltantes(), fetchAlvos(), fetchPrecoBenchmark(), PrecoEstado, PrecoItem (+9 more)
+
+### Community 22 - "Community 22"
+Cohesion: 0.29
+Nodes (19): _atualizacao_page(), _dto(), _mock_conn(), _patch_db_helpers(), Unit tests for src/plic/sync_incremental.py.  No network, no live database: wate, test_advance_watermark_upserts_sync_state_value(), test_bootstrap_start_date_falls_back_to_today_when_db_empty(), test_bootstrap_start_date_uses_newest_data_atualizacao_global() (+11 more)
+
+### Community 23 - "Community 23"
 Cohesion: 0.19
 Nodes (14): CnaeEditor(), CnaeRow, maskCodigo(), INITIAL_STATE, DOCUMENTO_TIPOS, DocumentoEmpresa, DocumentoTipo, Empresa (+6 more)
 
-### Community 21 - "Community 21"
-Cohesion: 0.16
-Nodes (14): getConvite(), first(), LoginPage(), ConvitePage(), first(), Button(), ButtonProps, ButtonSize (+6 more)
+### Community 24 - "Community 24"
+Cohesion: 0.32
+Nodes (15): _client_with_handler(), _load_fixture_page(), _no_sleep(), Unit tests for src/plic/pncp_client.py.  No live network calls: httpx.MockTransp, Every test in this module runs with retry/backoff sleeps stubbed out., test_does_not_retry_on_400(), test_get_atualizacao_page_204_returns_empty_page(), test_get_atualizacao_page_success_returns_decoded_json() (+7 more)
 
-### Community 22 - "Community 22"
-Cohesion: 0.21
-Nodes (14): isDocumentoTipo(), removerDocumentoAction(), uploadDocumentoAction(), UploadState, buildContentDisposition(), GET(), requireSession(), deleteDocumento() (+6 more)
+### Community 25 - "Community 25"
+Cohesion: 0.25
+Nodes (11): HomologadoCell(), HomologadoLine(), LicitacaoCard(), currencyFormatter, dateFormatter, formatCurrencyBRL(), formatDateBR(), abertura (+3 more)
 
-### Community 23 - "Community 23"
+### Community 26 - "Community 26"
 Cohesion: 0.21
 Nodes (14): entry_to_row(), fetch_subclasses(), Seeds the `cnae` reference table from the IBGE subclasses API.  One-shot/idempot, Maps one IBGE subclasse JSON entry to `cnae` row params.      Entry shape: {"id", Fetches all IBGE CNAE subclasses and upserts them into `cnae`.     Returns {"see, seed(), _mock_client(), _mock_connection() (+6 more)
 
-### Community 24 - "Community 24"
-Cohesion: 0.46
-Nodes (11): EmpresaForm(), formatCEP(), formatCNPJ(), formatCPF(), isValidCEP(), isValidCNPJ(), isValidCPF(), isValidEmail() (+3 more)
-
-### Community 25 - "Community 25"
+### Community 27 - "Community 27"
 Cohesion: 0.21
 Nodes (13): buildInsertCnaes(), buildInsertEmpresa(), buildInsertUsuario(), createEmpresaComAdmin(), SignupCnae, SignupEmpresaInput, SignupInput, SignupResult (+5 more)
 
-### Community 26 - "Community 26"
+### Community 28 - "Community 28"
+Cohesion: 0.2
+Nodes (10): AnalisePanel(), ATENDE_LABELS, DEEP_STATUS_NOTES, AnaliseRow, AnaliseVerdict, DeepStatus, fetchAnalise(), Prazo (+2 more)
+
+### Community 29 - "Community 29"
+Cohesion: 0.25
+Nodes (10): StatusBadge(), STYLES, TONES, computeStatus(), STATUS_LABELS, StatusLicitacao, toDate(), StatusDot() (+2 more)
+
+### Community 30 - "Community 30"
 Cohesion: 0.24
 Nodes (11): apply_migration(), ensure_migrations_table(), get_applied_migrations(), get_connection(), list_migration_files(), Plain-SQL migration runner (no ORM, no Alembic).  Applies `migrations/*.sql` in, Return .sql migration files sorted by filename (ascending)., Apply all pending migrations in filename order. Returns filenames applied. (+3 more)
 
-### Community 27 - "Community 27"
+### Community 31 - "Community 31"
+Cohesion: 0.13
+Nodes (13): Base URLs, Endpoints used by this project, `GET /api/consulta/v1/contratacoes/atualizacao` — incremental by update date, `GET /api/consulta/v1/contratacoes/proposta` — open proposal windows (not used for sync; useful for reconciliation), `GET /api/consulta/v1/contratacoes/publicacao` — backfill by publication date, `GET /api/pncp/v1/orgaos/{cnpj}/compras/{ano}/{sequencial}/arquivos` — edital + anexos, `GET /api/pncp/v1/orgaos/{cnpj}/compras/{ano}/{sequencial}/itens` — line items, `GET /api/pncp/v1/orgaos/{cnpj}/compras/{ano}/{sequencial}/itens/{numeroItem}/resultados` — homologated results per item (+5 more)
+
+### Community 32 - "Community 32"
+Cohesion: 0.22
+Nodes (8): DocumentosPage(), EMPRESA_NAV, EmpresaPage(), requireSession(), getCnaes(), getEmpresa(), EmptyState(), Alert()
+
+### Community 33 - "Community 33"
+Cohesion: 0.2
+Nodes (11): BrasilApiCnaeSecundario, BrasilApiCnpjResponse, CnpjCnae, CnpjLookup, lookupCNPJ(), mapPorte(), mapResponse(), padCnaeCodigo() (+3 more)
+
+### Community 34 - "Community 34"
 Cohesion: 0.18
 Nodes (12): Chrome, Components, Dashboard style guide (cycle 2 — revised), Dashboard style guide (cycle 8 — "calm canvas, dense data"), Form rules, Formulários, Kit usage (`web/components/ui/`), Layout (+4 more)
 
-### Community 28 - "Community 28"
-Cohesion: 0.21
-Nodes (13): code:sql (SELECT), code:sql (SELECT), code:sql (SELECT), code:sql (SELECT), code:sql (SELECT), code:bash (export PLIC_OLLAMA_URL=http://plugu-local-m4:11434), Example Queries, Filter by State (UF) and Modalidade (+5 more)
+### Community 35 - "Community 35"
+Cohesion: 0.22
+Nodes (11): Print counts/report of the current mirror state., Print counts/report of the current mirror state., Print counts/report of the current mirror state., Print counts/report of the current mirror state., Print counts/report of the current mirror state., status_cmd(), format_status(), get_status() (+3 more)
 
-### Community 29 - "Community 29"
-Cohesion: 0.15
-Nodes (11): Base URLs, Endpoints used by this project, `GET /api/consulta/v1/contratacoes/atualizacao` — incremental by update date, `GET /api/consulta/v1/contratacoes/proposta` — open proposal windows (not used for sync; useful for reconciliation), `GET /api/consulta/v1/contratacoes/publicacao` — backfill by publication date, `GET /api/pncp/v1/orgaos/{cnpj}/compras/{ano}/{sequencial}/arquivos` — edital + anexos, `GET /api/pncp/v1/orgaos/{cnpj}/compras/{ano}/{sequencial}/itens` — line items, Key DTO fields (+3 more)
+### Community 36 - "Community 36"
+Cohesion: 0.17
+Nodes (11): Checks (run in order — cheapest first), code:sql (CREATE EXTENSION IF NOT EXISTS pg_trgm;), code:sql (SELECT i.numero_controle_pncp, i.numero_item,), Context, Done when, Goal, `migrations/009_resultado.sql`, Not included (+3 more)
 
-### Community 30 - "Community 30"
-Cohesion: 0.26
-Nodes (6): EMPRESA_NAV, EmpresaPage(), getCnaes(), getEmpresa(), EmptyState(), Alert()
+### Community 37 - "Community 37"
+Cohesion: 0.17
+Nodes (11): Checks (run in order — cheapest first), code:ts (export type PrecoEstado = "ok" | "insuficiente" | "coletando), Context, Done when, `enqueueResultadosFaltantes`, Estado, Exports required, Goal (+3 more)
 
-### Community 31 - "Community 31"
-Cohesion: 0.18
-Nodes (10): Blockers, Decisions, Next, Now, STATE — rewrite after every ticket completes; never append. ≤30 lines total., Blockers, Decisions, Next (+2 more)
-
-### Community 32 - "Community 32"
-Cohesion: 0.18
-Nodes (11): 1. Start the Database, 2. Initialize the Database, 3. Run the Full Backfill, 4. Install the Scheduler, code:bash (docker compose up -d), code:bash (uv run plic db init), code:bash (uv run plic backfill), code:bash (uv run plic schedule install) (+3 more)
-
-### Community 33 - "Community 33"
+### Community 38 - "Community 38"
 Cohesion: 0.44
 Nodes (9): _mock_connection(), Unit tests for the migration runner (src/plic/db.py).  No live database required, Build a MagicMock psycopg.Connection whose cursor supports the     `with conn.cu, test_list_migration_files_missing_dir_returns_empty(), test_list_migration_files_sorted_by_filename(), test_run_migrations_applies_pending_in_order(), test_run_migrations_noop_when_all_applied(), test_run_migrations_skips_already_applied() (+1 more)
 
-### Community 34 - "Community 34"
+### Community 39 - "Community 39"
+Cohesion: 0.18
+Nodes (10): Blockers, Decisions, Next, Now, STATE — rewrite after every ticket completes; never append. ≤30 lines total., Blockers, Decisions, Next (+2 more)
+
+### Community 40 - "Community 40"
 Cohesion: 0.2
 Nodes (8): CNAEs, Empresa, Exclusões, Faixa de valor, O que fornecemos, Palavras-chave, Perfil da empresa, UFs de interesse
 
-### Community 35 - "Community 35"
+### Community 41 - "Community 41"
+Cohesion: 0.2
+Nodes (9): Checks (run in order — cheapest first), code:python ("ProgramArguments": [), Context, `docs/PNCP_API.md`, Done when, Goal, Not included, `README.md` (+1 more)
+
+### Community 42 - "Community 42"
+Cohesion: 0.31
+Nodes (6): LABELS, STYLES, TONES, Badge(), BadgeTone, TONE_CLASSES
+
+### Community 43 - "Community 43"
 Cohesion: 0.42
 Nodes (7): build_prompt(), classify(), classify_batch(), parse_response(), Sector classification of licitações via a local LLM (Ollama).  One-time/backlog, Classify pending abertas/futuras in batches until drained (or `limit`     licita, Returns {n: setor} for valid entries only. Tolerates ```json fences and     stra
 
-### Community 36 - "Community 36"
-Cohesion: 0.22
-Nodes (7): Architecture, code:bash (cd web), Dashboard, Logs, Multi-Tenant (Cycle 7), plataforma-licitante — PNCP Ingestion Agent, Prerequisites
-
-### Community 37 - "Community 37"
-Cohesion: 0.28
-Nodes (9): Backfill taking too long?, code:sql (SELECT), code:bash (launchctl print gui/$UID/com.plic.sync), code:bash (uv run plic schedule uninstall), code:bash (docker compose ps), code:bash (docker compose up -d), Database connection refused?, Scheduler not running? (+1 more)
-
-### Community 38 - "Community 38"
+### Community 44 - "Community 44"
 Cohesion: 0.22
 Nodes (8): code:block1 (Volume Name: plataforma-licitante-uploads), Data Model, Document Storage, Multi-Tenant Architecture (Cycle 7), Public Routes, Roles, Session & Auth, Tenant Scoping Rule
 
-### Community 39 - "Community 39"
+### Community 45 - "Community 45"
+Cohesion: 0.25
+Nodes (7): `plic agents run` orchestration: fit-triage (ticket 13) then deep-analysis (tick, run_agents(), agents_run_cmd(), Run the agent pipeline: fit-triage (gpt-5-mini vs. company_profile.md)     then, Run the agent pipeline: fit-triage (gpt-5-mini vs. company_profile.md)     then, Run the agent pipeline: fit-triage (gpt-5-mini vs. company_profile.md)     then, Run the agent pipeline: fit-triage (gpt-5-mini vs. company_profile.md)     then
+
+### Community 46 - "Community 46"
 Cohesion: 0.39
 Nodes (6): Checks (run in order — cheapest first), code:yaml (paths:), Context, Done when, Goal, Not included
 
-### Community 40 - "Community 40"
+### Community 47 - "Community 47"
+Cohesion: 0.25
+Nodes (7): Checks (run in order — cheapest first), Context, Done when, Goal, Not included, `web/app/licitacao/[numeroControle]/page.tsx`, `web/components/itens-table.tsx`
+
+### Community 48 - "Community 48"
 Cohesion: 0.39
 Nodes (6): Checks (run in order — cheapest first), code:dockerfile (FROM python:3.12-slim), Context, Done when, Goal, Not included
 
-### Community 41 - "Community 41"
-Cohesion: 0.39
-Nodes (6): Checks (run in order — cheapest first), code:tsx (<div className="mx-auto max-w-5xl px-8 py-10 has-[.page-wide), Context, Done when, Goal, Not included
-
-### Community 42 - "Community 42"
-Cohesion: 0.39
-Nodes (6): Checks (run in order — cheapest first), code:block1 (SRC_URL=postgresql://... DST_URL=postgresql://... scripts/se), Context, Done when, Goal, Not included
-
-### Community 43 - "Community 43"
-Cohesion: 0.25
-Nodes (6): Out of scope, plataforma-licitante — dashboard de licitações (cycle 2), Primary user story, Scope, Success demo, What / why
-
-### Community 44 - "Community 44"
-Cohesion: 0.25
-Nodes (6): Out of scope, plataforma-licitante — PNCP ingestion agent, Primary user story, Scope, Success demo, What / why
-
-### Community 45 - "Community 45"
-Cohesion: 0.39
-Nodes (5): Checks (run in order — cheapest first), Context, Done when, Goal, Not included
-
-### Community 46 - "Community 46"
-Cohesion: 0.48
-Nodes (5): test_build_prompt_numbers_rows_and_includes_labels(), test_parse_response_drops_unknown_labels_and_bad_n(), test_parse_response_garbage_returns_empty(), test_parse_response_plain_array(), test_parse_response_tolerates_fences_and_prose()
-
-### Community 47 - "Community 47"
-Cohesion: 0.29
-Nodes (7): CLI Commands, CNAE matching, code:bash (OLLAMA_HOST=0.0.0.0:11434 ollama serve), Database, Other, Scheduler (macOS only), Sync
-
-### Community 48 - "Community 48"
-Cohesion: 0.48
-Nodes (5): Checks (run in order — cheapest first), Context, Done when, Goal, Not included
-
 ### Community 49 - "Community 49"
-Cohesion: 0.48
+Cohesion: 0.39
 Nodes (5): Checks (run in order — cheapest first), Context, Done when, Goal, Not included
 
 ### Community 50 - "Community 50"
-Cohesion: 0.48
-Nodes (5): Checks (run in order — cheapest first), Context, Done when, Goal, Not included
+Cohesion: 0.39
+Nodes (6): Checks (run in order — cheapest first), code:block1 (SRC_URL=postgresql://... DST_URL=postgresql://... scripts/se), Context, Done when, Goal, Not included
 
 ### Community 51 - "Community 51"
-Cohesion: 0.48
-Nodes (5): Checks (run in order — cheapest first), Context, Done when, Goal, Not included
+Cohesion: 0.25
+Nodes (6): Out of scope, plataforma-licitante — dashboard de licitações (cycle 2), Primary user story, Scope, Success demo, What / why
 
 ### Community 52 - "Community 52"
-Cohesion: 0.48
-Nodes (5): Checks (run in order — cheapest first), Context, Done when, Goal, Not included
+Cohesion: 0.25
+Nodes (6): Out of scope, plataforma-licitante — PNCP ingestion agent, Primary user story, Scope, Success demo, What / why
 
 ### Community 53 - "Community 53"
-Cohesion: 0.48
-Nodes (5): Checks (run in order — cheapest first), Context, Done when, Goal, Not included
+Cohesion: 0.25
+Nodes (7): cnae_seed_cmd(), Drain the demand queue of items (`resultados_solicitados_em` set) and     fetch, Drain the demand queue of items (`resultados_solicitados_em` set) and     fetch, Fetch the IBGE CNAE subclasses list and upsert it into `cnae`     (idempotent —, Fetch the IBGE CNAE subclasses list and upsert it into `cnae`     (idempotent —, Fetch the IBGE CNAE subclasses list and upsert it into `cnae`     (idempotent —, sync_resultados_cmd()
 
 ### Community 54 - "Community 54"
-Cohesion: 0.48
-Nodes (5): Checks (run in order — cheapest first), Context, Done when, Goal, Not included
+Cohesion: 0.39
+Nodes (6): Checks (run in order — cheapest first), code:tsx (<div className="mx-auto max-w-5xl px-8 py-10 has-[.page-wide), Context, Done when, Goal, Not included
 
 ### Community 55 - "Community 55"
 Cohesion: 0.48
-Nodes (5): Checks (run in order — cheapest first), Context, Done when, Goal, Not included
+Nodes (5): test_build_prompt_numbers_rows_and_includes_labels(), test_parse_response_drops_unknown_labels_and_bad_n(), test_parse_response_garbage_returns_empty(), test_parse_response_plain_array(), test_parse_response_tolerates_fences_and_prose()
 
 ### Community 56 - "Community 56"
 Cohesion: 0.48
@@ -385,7 +403,7 @@ Nodes (5): Checks (run in order — cheapest first), Context, Done when, Goal, N
 
 ### Community 57 - "Community 57"
 Cohesion: 0.29
-Nodes (6): Amendment (attempt 2 — ticket was underspecified), Checks (run in order — cheapest first), Context, Done when, Goal, Not included
+Nodes (6): Changes, Checks (run in order — cheapest first), Context, Done when, Goal, Not included
 
 ### Community 58 - "Community 58"
 Cohesion: 0.48
@@ -408,20 +426,20 @@ Cohesion: 0.48
 Nodes (5): Checks (run in order — cheapest first), Context, Done when, Goal, Not included
 
 ### Community 63 - "Community 63"
-Cohesion: 0.29
-Nodes (6): Checks (run in order — cheapest first), code:css (--font-sans: ui-sans-serif, system-ui, sans-serif;), Context, Done when, Goal, Not included
+Cohesion: 0.48
+Nodes (5): Checks (run in order — cheapest first), Context, Done when, Goal, Not included
 
 ### Community 64 - "Community 64"
 Cohesion: 0.48
 Nodes (5): Checks (run in order — cheapest first), Context, Done when, Goal, Not included
 
 ### Community 65 - "Community 65"
-Cohesion: 0.29
-Nodes (5): Blockers, Decisions, Next, Now, STATE — rewrite after every ticket completes; never append. ≤30 lines total.
-
-### Community 66 - "Community 66"
 Cohesion: 0.48
 Nodes (5): Checks (run in order — cheapest first), Context, Done when, Goal, Not included
+
+### Community 66 - "Community 66"
+Cohesion: 0.29
+Nodes (6): Amendment (attempt 2 — ticket was underspecified), Checks (run in order — cheapest first), Context, Done when, Goal, Not included
 
 ### Community 67 - "Community 67"
 Cohesion: 0.48
@@ -432,8 +450,8 @@ Cohesion: 0.48
 Nodes (5): Checks (run in order — cheapest first), Context, Done when, Goal, Not included
 
 ### Community 69 - "Community 69"
-Cohesion: 0.29
-Nodes (5): Blockers, Decisions, Next, Now, STATE — rewrite after every ticket completes; never append. ≤30 lines total.
+Cohesion: 0.48
+Nodes (5): Checks (run in order — cheapest first), Context, Done when, Goal, Not included
 
 ### Community 70 - "Community 70"
 Cohesion: 0.48
@@ -444,60 +462,60 @@ Cohesion: 0.48
 Nodes (5): Checks (run in order — cheapest first), Context, Done when, Goal, Not included
 
 ### Community 72 - "Community 72"
-Cohesion: 0.48
-Nodes (5): Checks (run in order — cheapest first), Context, Done when, Goal, Not included
+Cohesion: 0.29
+Nodes (6): Checks (run in order — cheapest first), code:css (--font-sans: ui-sans-serif, system-ui, sans-serif;), Context, Done when, Goal, Not included
 
 ### Community 73 - "Community 73"
 Cohesion: 0.48
 Nodes (5): Checks (run in order — cheapest first), Context, Done when, Goal, Not included
 
 ### Community 74 - "Community 74"
-Cohesion: 0.48
-Nodes (5): Checks (run in order — cheapest first), Context, Done when, Goal, Not included
+Cohesion: 0.29
+Nodes (5): Blockers, Decisions, Next, Now, STATE — rewrite after every ticket completes; never append. ≤30 lines total.
 
 ### Community 75 - "Community 75"
 Cohesion: 0.48
 Nodes (5): Checks (run in order — cheapest first), Context, Done when, Goal, Not included
 
 ### Community 76 - "Community 76"
-Cohesion: 0.33
+Cohesion: 0.48
 Nodes (5): Checks (run in order — cheapest first), Context, Done when, Goal, Not included
 
 ### Community 77 - "Community 77"
-Cohesion: 0.33
+Cohesion: 0.48
 Nodes (5): Checks (run in order — cheapest first), Context, Done when, Goal, Not included
 
 ### Community 78 - "Community 78"
-Cohesion: 0.33
-Nodes (5): Checks (run in order — cheapest first), Context, Done when, Goal, Not included
+Cohesion: 0.29
+Nodes (5): Blockers, Decisions, Next, Now, STATE — rewrite after every ticket completes; never append. ≤30 lines total.
 
 ### Community 79 - "Community 79"
-Cohesion: 0.33
+Cohesion: 0.48
 Nodes (5): Checks (run in order — cheapest first), Context, Done when, Goal, Not included
 
 ### Community 80 - "Community 80"
-Cohesion: 0.33
+Cohesion: 0.48
 Nodes (5): Checks (run in order — cheapest first), Context, Done when, Goal, Not included
 
 ### Community 81 - "Community 81"
-Cohesion: 0.33
+Cohesion: 0.48
 Nodes (5): Checks (run in order — cheapest first), Context, Done when, Goal, Not included
 
 ### Community 82 - "Community 82"
-Cohesion: 0.33
+Cohesion: 0.48
 Nodes (5): Checks (run in order — cheapest first), Context, Done when, Goal, Not included
 
 ### Community 83 - "Community 83"
-Cohesion: 0.33
+Cohesion: 0.48
 Nodes (5): Checks (run in order — cheapest first), Context, Done when, Goal, Not included
 
 ### Community 84 - "Community 84"
-Cohesion: 0.33
+Cohesion: 0.48
 Nodes (5): Checks (run in order — cheapest first), Context, Done when, Goal, Not included
 
 ### Community 85 - "Community 85"
-Cohesion: 0.33
-Nodes (5): Checks (run in order — cheapest first), Context, Done when, Goal, Not included
+Cohesion: 0.29
+Nodes (6): `plic` CLI entrypoint (typer)., Fetch items + edital/anexo metadata for licitações missing them., Fetch items + edital/anexo metadata for licitações missing them., Fetch items + edital/anexo metadata for licitações missing them., Fetch items + edital/anexo metadata for licitações missing them., sync_detalhes_cmd()
 
 ### Community 86 - "Community 86"
 Cohesion: 0.33
@@ -548,8 +566,8 @@ Cohesion: 0.33
 Nodes (5): Checks (run in order — cheapest first), Context, Done when, Goal, Not included
 
 ### Community 98 - "Community 98"
-Cohesion: 0.47
-Nodes (4): code:bash (npm run dev), Deploy on Vercel, Getting Started, Learn More
+Cohesion: 0.33
+Nodes (5): Checks (run in order — cheapest first), Context, Done when, Goal, Not included
 
 ### Community 99 - "Community 99"
 Cohesion: 0.33
@@ -572,32 +590,104 @@ Cohesion: 0.33
 Nodes (5): Checks (run in order — cheapest first), Context, Done when, Goal, Not included
 
 ### Community 104 - "Community 104"
+Cohesion: 0.33
+Nodes (5): Checks (run in order — cheapest first), Context, Done when, Goal, Not included
+
+### Community 105 - "Community 105"
+Cohesion: 0.33
+Nodes (5): Checks (run in order — cheapest first), Context, Done when, Goal, Not included
+
+### Community 106 - "Community 106"
+Cohesion: 0.33
+Nodes (5): Checks (run in order — cheapest first), Context, Done when, Goal, Not included
+
+### Community 107 - "Community 107"
+Cohesion: 0.33
+Nodes (5): Checks (run in order — cheapest first), Context, Done when, Goal, Not included
+
+### Community 108 - "Community 108"
+Cohesion: 0.47
+Nodes (4): code:bash (npm run dev), Deploy on Vercel, Getting Started, Learn More
+
+### Community 109 - "Community 109"
+Cohesion: 0.33
+Nodes (5): Checks (run in order — cheapest first), Context, Done when, Goal, Not included
+
+### Community 110 - "Community 110"
+Cohesion: 0.33
+Nodes (5): Checks (run in order — cheapest first), Context, Done when, Goal, Not included
+
+### Community 111 - "Community 111"
+Cohesion: 0.33
+Nodes (5): Checks (run in order — cheapest first), Context, Done when, Goal, Not included
+
+### Community 112 - "Community 112"
+Cohesion: 0.33
+Nodes (5): Checks (run in order — cheapest first), Context, Done when, Goal, Not included
+
+### Community 113 - "Community 113"
+Cohesion: 0.33
+Nodes (5): Checks (run in order — cheapest first), Context, Done when, Goal, Not included
+
+### Community 114 - "Community 114"
 Cohesion: 0.4
 Nodes (4): Component kit (`web/components/ui/`), Cycle 8 — visual direction: "calm canvas, dense data", Screens (canvas artboards, 1440×900), Tokens (Tailwind v4 `@theme`, `web/app/globals.css`)
 
-### Community 106 - "Community 106"
-Cohesion: 0.5
-Nodes (4): Database Schema, Indexes, Tables, Views
+### Community 115 - "Community 115"
+Cohesion: 0.4
+Nodes (5): Page PNCP's publicacao endpoint for a date range and upsert into Postgres., Page PNCP's publicacao endpoint for a date range and upsert into Postgres., Page PNCP's publicacao endpoint for a date range and upsert into Postgres., Page PNCP's publicacao endpoint for a date range and upsert into Postgres., sync_publicacao_cmd()
+
+### Community 116 - "Community 116"
+Cohesion: 0.4
+Nodes (5): Twice-daily run: pull everything changed since each modalidade's     watermark (, Twice-daily run: pull everything changed since each modalidade's     watermark (, Twice-daily run: pull everything changed since each modalidade's     watermark (, Twice-daily run: pull everything changed since each modalidade's     watermark (, sync_incremental_cmd()
+
+### Community 117 - "Community 117"
+Cohesion: 0.4
+Nodes (5): classify_cmd(), Classify abertas/futuras licitações into setores (TI, Saúde, Obras...)     using, Classify abertas/futuras licitações into setores (TI, Saúde, Obras...)     using, Classify abertas/futuras licitações into setores (TI, Saúde, Obras...)     using, Classify abertas/futuras licitações into setores (TI, Saúde, Obras...)     using
+
+### Community 118 - "Community 118"
+Cohesion: 0.4
+Nodes (5): Uninstall the macOS launchd job., Uninstall the macOS launchd job., Uninstall the macOS launchd job., Uninstall the macOS launchd job., schedule_uninstall_cmd()
+
+### Community 119 - "Community 119"
+Cohesion: 0.4
+Nodes (5): db_init(), Apply all pending SQL migrations (idempotent)., Apply all pending SQL migrations (idempotent)., Apply all pending SQL migrations (idempotent)., Apply all pending SQL migrations (idempotent).
+
+### Community 120 - "Community 120"
+Cohesion: 0.4
+Nodes (5): backfill_cmd(), Resumable full backfill: every modalidade x 7-day date chunk from     `--since`, Resumable full backfill: every modalidade x 7-day date chunk from     `--since`, Resumable full backfill: every modalidade x 7-day date chunk from     `--since`, Resumable full backfill: every modalidade x 7-day date chunk from     `--since`
+
+### Community 121 - "Community 121"
+Cohesion: 0.4
+Nodes (5): Install the macOS launchd job for twice-daily incremental syncs.      With --dry, Install the macOS launchd job for twice-daily incremental syncs.      With --dry, Install the macOS launchd job for twice-daily incremental syncs.      With --dry, Install the macOS launchd job for twice-daily incremental syncs.      With --dry, schedule_install_cmd()
+
+### Community 122 - "Community 122"
+Cohesion: 0.4
+Nodes (5): cnae_eval_cmd(), Dry-run evaluation of CNAE tagging via Ollama. Runs the two-stage     classifica, Dry-run evaluation of CNAE tagging via Ollama. Runs the two-stage     classifica, Dry-run evaluation of CNAE tagging via Ollama. Runs the two-stage     classifica, Dry-run evaluation of CNAE tagging via Ollama. Runs the two-stage     classifica
+
+### Community 123 - "Community 123"
+Cohesion: 0.4
+Nodes (5): cnae_classify_cmd(), Two-stage CNAE tagging of abertas/futuras licitações via Ollama     (PLIC_OLLAMA, Two-stage CNAE tagging of abertas/futuras licitações via Ollama     (PLIC_OLLAMA, Two-stage CNAE tagging of abertas/futuras licitações via Ollama     (PLIC_OLLAMA, Two-stage CNAE tagging of abertas/futuras licitações via Ollama     (PLIC_OLLAMA
 
 ## Knowledge Gaps
-- **426 isolated node(s):** `PUBLIC_PREFIXES`, `config`, `inter`, `EMPRESA_NAV`, `EMPRESA_NAV` (+421 more)
+- **515 isolated node(s):** `PUBLIC_PREFIXES`, `config`, `inter`, `EMPRESA_NAV`, `EMPRESA_NAV` (+510 more)
   These have ≤1 connection - possible missing edges or undocumented components.
 - **7 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `List()` connect `Community 3` to `Community 2`, `Community 4`, `Community 5`, `Community 8`, `Community 11`?**
-  _High betweenness centrality (0.094) - this node is a cross-community bridge._
-- **Why does `str()` connect `Community 4` to `Community 14`, `Community 7`?**
-  _High betweenness centrality (0.080) - this node is a cross-community bridge._
-- **Why does `analyze_one()` connect `Community 7` to `Community 4`?**
-  _High betweenness centrality (0.038) - this node is a cross-community bridge._
-- **Are the 6 inferred relationships involving `PncpClient` (e.g. with `_client_with_handler()` and `_client_with_handler()`) actually correct?**
-  _`PncpClient` has 6 INFERRED edges - model-reasoned connections that need verification._
+- **Why does `List()` connect `Community 1` to `Community 3`, `Community 7`, `Community 12`, `Community 15`, `Community 24`?**
+  _High betweenness centrality (0.111) - this node is a cross-community bridge._
+- **Why does `str()` connect `Community 16` to `Community 12`, `Community 5`, `Community 6`?**
+  _High betweenness centrality (0.095) - this node is a cross-community bridge._
+- **Why does `analyze_one()` connect `Community 6` to `Community 16`?**
+  _High betweenness centrality (0.050) - this node is a cross-community bridge._
+- **Are the 9 inferred relationships involving `PncpClient` (e.g. with `_FirstPageOnly` and `_client_with_handler()`) actually correct?**
+  _`PncpClient` has 9 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 9 inferred relationships involving `sync_detalhes()` (e.g. with `test_sync_detalhes_fetches_upserts_and_stamps_both_columns()` and `test_sync_detalhes_stamps_even_when_both_arrays_empty()`) actually correct?**
   _`sync_detalhes()` has 9 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 6 inferred relationships involving `analyze_one()` (e.g. with `test_analyze_one_persists_done_with_pdf()` and `test_analyze_one_no_documents_skips_with_metadata_only_analysis()`) actually correct?**
   _`analyze_one()` has 6 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `PUBLIC_PREFIXES`, `config`, `inter` to the rest of the system?**
-  _426 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _515 weakly-connected nodes found - possible documentation gaps or missing edges._

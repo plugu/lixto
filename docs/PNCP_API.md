@@ -37,6 +37,17 @@ Response: bare JSON array of `RecuperarCompraItemSigiloDTO` (no page envelope). 
 
 Params: same shape as `/itens`. Response: bare array of `RecuperarDadosDocumentoCompraDTO`.
 
+### `GET /api/pncp/v1/orgaos/{cnpj}/compras/{ano}/{sequencial}/itens/{numeroItem}/resultados` — homologated results per item
+
+Params: path cnpj/ano/sequencial/numeroItem. Optional `pagina` parameter is **ignored** (see trap below).
+Response: bare JSON array of `RecuperarCompraItemResultadoDTO`.
+Verified live 2026-08-24 (HTTP 200 on `42498600000171/2026/2592` item 1).
+
+**PAGINATION TRAP (critical):** Unlike `/itens` and `/arquivos`, this endpoint does **not** implement real pagination.
+The `pagina` parameter is silently ignored; pages 2, 3, … 200+ all echo page 1's exact content back with HTTP 200 — never a 404, 204, or `200 []`.
+This was confirmed independently twice: once on a same-day result and once on a historical result from April 2026, and again by direct curl at `pagina=5`.
+A naive paginator loops forever here. The solution is to always fetch only page 1 (the `_FirstPageOnly` wrapper in `src/plic/sync_resultados.py` demonstrates this).
+
 ## Key DTO fields
 
 `RecuperarCompraPublicacaoDTO` (35 fields; store full JSON in `raw`, promote these to columns):
@@ -58,6 +69,20 @@ Params: same shape as `/itens`. Response: bare array of `RecuperarDadosDocumento
 `sequencialDocumento`, `titulo`, `tipoDocumentoId`, `tipoDocumentoNome`, `tipoDocumentoDescricao`,
 `url` (download link — this is what we store; tipoDocumentoId 2 = edital), `statusAtivo`, `dataPublicacaoPncp`,
 `cnpj`, `anoCompra`, `sequencialCompra`.
+
+`RecuperarCompraItemResultadoDTO` (promoted fields):
+`numeroItem`, `sequencialResultado`, `niFornecedor`, `nomeRazaoSocialFornecedor`, `tipoPessoa`,
+`porteFornecedorId`, `porteFornecedorNome`, `quantidadeHomologada`, `valorUnitarioHomologado`, `valorTotalHomologado`,
+`percentualDesconto`, `ordemClassificacaoSrp`, `situacaoCompraItemResultadoId`, `situacaoCompraItemResultadoNome`,
+`indicadorSubcontratacao`, `dataResultado`, `dataCancelamento`, `motivoCancelamento`, `dataInclusao`, `dataAtualizacao`.
+Note: `reservaRemanescente` is a nested `{codigo, nome}` object and is not stored.
+
+## Measured sparsity
+
+- `catalogoCodigoItem` (CATMAT/CATSER catalog join key): present on only **0.25%** of items (19,714 of 7,856,405 rows as of 2026-08-24).
+- `ncmNbsCodigo` (NCM classification): present on only **3%** of items.
+
+Both are too sparse for reliable catalog joins; price comparison uses description text instead. The next person looking for a catalog cross-reference should not have to rediscover this.
 
 ## Modalidade codes (`codigoModalidadeContratacao`)
 

@@ -1,0 +1,28 @@
+[
+    {
+        "numeroItem": 1,
+        "sequencialResultado": 1,
+        "niFornecedor": "12345678000199",
+        "nomeRazaoSocialFornecedor": "Agro Sementes LTDA",
+        "tipoPessoa": "PJ",
+        "porteFornecedorId": 2,
+        "porteFornecedorNome": "Empresa de Pequeno Porte",
+        "quantidadeHomologada": 3500.0,
+        "valorUnitarioHomologado": 12.9,
+        "valorTotalHomologado": 45150.0,
+        "percentualDesconto": 6.18,
+        "ordemClassificacaoSrp": 1,
+        "situacaoCompraItemResultadoId": 1,
+        "situacaoCompraItemResultadoNome": "Homologado",
+        "indicadorSubcontratacao": false,
+        "dataResultado": "2026-02-10",
+        "dataCancelamento": null,
+        "motivoCancelamento": null,
+        "dataInclusao": "2026-02-10T14:32:00",
+        "dataAtualizacao": "2026-02-10T14:32:00",
+        "reservaRemanescente": {
+            "codigo": 0,
+            "nome": "Não se aplica"
+        }
+    }
+]

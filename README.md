@@ -41,27 +41,10 @@ To limit the backfill for testing:
 - `uv run plic backfill --until 2026-02-01` (backfill through Feb only)
 - `uv run plic backfill --modalidade 1 --until 2026-01-15` (single modalidade, short date range)
 
-### 4. Install the Scheduler
-
-```bash
-uv run plic schedule install
-```
-
-This creates a macOS launchd job that runs `plic sync incremental` twice daily:
-- **07:00** (7 AM)
-- **19:00** (7 PM)
-
-The job logs to `~/Library/Logs/plic-sync.log`.
-
-To preview the generated plist without installing:
-```bash
-uv run plic schedule install --dry-run
-```
-
-To uninstall later:
-```bash
-uv run plic schedule uninstall
-```
+> **Scheduling does not run here.** The CLI ships no scheduler of its own, by
+> design — every recurring job runs on the VPS against production. See
+> [Scheduling (production)](#scheduling-production). Run `plic sync` locally
+> only when you deliberately want a one-off against your dev database.
 
 ## Dashboard
 
@@ -93,7 +76,16 @@ The dashboard now supports multi-tenant company profiles. See [`docs/TENANT.md`]
 ### Sync
 - `plic sync publicacao --data-inicial YYYY-MM-DD --data-final YYYY-MM-DD` — Page PNCP's publicacao endpoint and upsert.
 - `plic sync detalhes [--limit N]` — Fetch items and edital/anexo metadata for licitações missing them.
-- `plic sync incremental [--since YYYY-MM-DD]` — Twice-daily incremental sync (runs via launchd scheduler).
+- `plic sync incremental [--since YYYY-MM-DD] [--max-detalhes N]` — Incremental sync from each modalidade's watermark (scheduled in production, see below).
+- `plic sync resultados [--limit N]` — Fetch homologated results (winner + unit price) for itens queued by the dashboard.
+
+#### Demand-Driven Results Queue
+
+The results queue is populated when a user opens a licitação on the dashboard — the `item.resultados_solicitados_em` timestamp is set. The `plic sync resultados` command drains this queue in FIFO order and stamps `item.resultados_sincronizados_em` when done (set even when PNCP publishes no result, so items are not retried forever).
+
+There is no mass backfill because a full crawl of the ~4.06M homologated items would take ~23 days at PNCP's ~2 req/s rate limit. In production a Dokploy schedule runs `sync resultados --limit 2000` (~17 minutes) nightly at 03:00 BRT — the widest observed gap between incremental runs, so the two crawls do not compete for PNCP's rate limit.
+
+Measured 2026-08-24: one dashboard page view on a 74-item licitação enqueued ~1700 itens, and ~43% of matched historical itens turn out to have a published resultado. At 2000/night the queue can fall behind heavy browsing — raise the limit or add a second daily run before assuming the feature is broken.
 
 ### Other
 - `plic backfill [--since YYYY-MM-DD] [--until YYYY-MM-DD] [--modalidade ...]` — Full backfill from scratch (resumable).
@@ -126,9 +118,31 @@ plic cnae classify
 
 If the consumer goes offline, untagged licitações remain pending and retry on the next run — offline is not a fatal error.
 
-### Scheduler (macOS only)
-- `plic schedule install [--dry-run]` — Install the launchd job.
-- `plic schedule uninstall` — Uninstall the launchd job.
+## Scheduling (production)
+
+Every recurring job runs on the VPS, never on a developer machine. There is no
+`plic schedule` command and no local cron: `Dockerfile.cli` ends in
+`sleep infinity` precisely so Dokploy schedules can `exec` into the running
+`cli` container.
+
+Schedules live in Dokploy → project `plataforma-licitante` → environment
+`production` → application `cli` → Schedules. Timezone `America/Sao_Paulo`:
+
+| name | cron | command | enabled |
+|---|---|---|---|
+| `sync-incremental` | `0 6,13,20 * * *` | `plic sync incremental --max-detalhes 2000` | yes |
+| `sync-resultados` | `0 3 * * *` | `plic sync resultados --limit 2000` | yes |
+| `db-init` | `0 0 31 2 *` | `plic db init` | no (manual) |
+| `cnae-classify-30d` | `0 0 31 2 *` | `plic cnae seed && plic cnae classify --days 30` | no (manual) |
+
+`0 0 31 2 *` is February 31st — a date that never arrives. It is the idiom for
+"this schedule only ever runs when a human presses Run", used for the jobs that
+must not fire on their own: migrations, and the CNAE classifier that depends on
+an Ollama host reachable over Tailscale.
+
+Migrations are also applied automatically on every deploy — the container's
+command is `plic db init && exec sleep infinity`. The `db-init` schedule exists
+to apply them without a redeploy.
 
 ## Example Queries
 
@@ -265,6 +279,7 @@ LIMIT 100;
 - **licitacao** — Core tender metadata (ID, number, object, modalidade, status, dates, values, etc.)
 - **item** — Line items (itens de compra) within each licitação.
 - **documento** — Edital and annexo documents with download URLs.
+- **resultado** — Homologated results per item (winner CNPJ, razão social, porte, unit price, discount, date).
 - **sync_state** — Watermarks for incremental syncs (one row per modalidade).
 
 ### Views
@@ -277,23 +292,14 @@ LIMIT 100;
 
 ## Logs
 
-- Incremental sync logs are written to `~/Library/Logs/plic-sync.log` (stdout + stderr combined).
-- Check logs to diagnose any missed scheduled runs or failures.
+- Scheduled runs log to the VPS, under
+  `/etc/dokploy/schedules/<schedule-appName>/<appName>-<timestamp>.log`. The
+  Dokploy UI shows them per run under the schedule's deployment history.
+- A `sync incremental` run exits non-zero when a modalidade fails after
+  retries — that surfaces in Dokploy as a failed run on purpose, and the other
+  modalidades still complete first.
 
 ## Troubleshooting
-
-### Scheduler not running?
-
-Check if it's loaded:
-```bash
-launchctl print gui/$UID/com.plic.sync
-```
-
-If not found, reinstall:
-```bash
-uv run plic schedule uninstall
-uv run plic schedule install
-```
 
 ### Database connection refused?
 
@@ -317,7 +323,7 @@ The agent uses:
 - **PNCP API** (public, no auth) — paginated fetch of licitações by date range and modalidade.
 - **PostgreSQL** — local mirror of licitações, items, and documents.
 - **Typer** — CLI framework.
-- **launchd** (macOS) — twice-daily scheduling via StartCalendarInterval.
+- **Dokploy schedules** (VPS) — all recurring jobs; the CLI has no scheduler.
 - **uv** — Python package/project runner.
 
 Runs are idempotent and resumable after failure.

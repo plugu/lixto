@@ -13,12 +13,11 @@ from plic.classify import classify as run_classify
 from plic.cnae_match import classify as run_cnae_classify
 from plic.cnae_match import eval_pending as run_cnae_eval
 from plic.cnae_seed import seed as run_cnae_seed
-from plic.schedule import install as schedule_install
-from plic.schedule import uninstall as schedule_uninstall
 from plic.status import format_status, get_status
 from plic.sync_detalhes import sync_detalhes
 from plic.sync_incremental import sync_incremental as run_sync_incremental
 from plic.sync_publicacao import ALL_MODALIDADES, sync_publicacao
+from plic.sync_resultados import sync_resultados
 
 _DATA_INICIAL_OPTION = typer.Option(..., "--data-inicial", help="YYYY-MM-DD")
 _DATA_FINAL_OPTION = typer.Option(..., "--data-final", help="YYYY-MM-DD")
@@ -55,8 +54,6 @@ db_app = typer.Typer(help="Database commands")
 app.add_typer(db_app, name="db")
 sync_app = typer.Typer(help="Sync commands")
 app.add_typer(sync_app, name="sync")
-schedule_app = typer.Typer(help="Scheduler commands")
-app.add_typer(schedule_app, name="schedule")
 agents_app = typer.Typer(help="Agent pipeline commands")
 app.add_typer(agents_app, name="agents")
 cnae_app = typer.Typer(help="CNAE reference table commands")
@@ -123,6 +120,19 @@ def sync_detalhes_cmd(limit: int = _LIMIT_OPTION) -> None:
         conn.close()
 
     typer.echo(f"processed {processed} licitação(ões)")
+
+
+@sync_app.command("resultados")
+def sync_resultados_cmd(limit: int = _LIMIT_OPTION) -> None:
+    """Drain the demand queue of items (`resultados_solicitados_em` set) and
+    fetch their homologated results (winner CNPJ + unit price)."""
+    conn = db.get_connection()
+    try:
+        processed = sync_resultados(conn, limit=limit)
+    finally:
+        conn.close()
+
+    typer.echo(f"processed {processed} item(ns)")
 
 
 @app.command("backfill")
@@ -305,20 +315,6 @@ def status_cmd() -> None:
     typer.echo(format_status(report))
 
 
-@schedule_app.command("install")
-def schedule_install_cmd(dry_run: bool = typer.Option(False, "--dry-run")) -> None:
-    """Install the macOS launchd job for twice-daily incremental syncs.
-
-    With --dry-run, prints the plist and exits without installing.
-    """
-    schedule_install(dry_run=dry_run)
-
-
-@schedule_app.command("uninstall")
-def schedule_uninstall_cmd() -> None:
-    """Uninstall the macOS launchd job."""
-    schedule_uninstall()
-    typer.echo("Launchd job uninstalled.")
 
 
 @agents_app.command("run")
