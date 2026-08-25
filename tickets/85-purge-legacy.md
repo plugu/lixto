@@ -80,6 +80,17 @@ files:
   - tickets/71-*.md
   - tickets/72-*.md
   - tickets/73-*.md
+  - web/app/(app)/invite/**
+  - web/app/(app)/company/actions.ts
+  - web/app/(app)/company/users/actions.ts
+  - web/app/(app)/login/**
+  - web/app/(app)/signup/actions.ts
+  - web/components/company-form.tsx
+  - web/components/invite-form.tsx
+  - web/components/users-table.tsx
+  - web/components/signup-form.tsx
+  - web/components/profile-form.tsx
+  - web/vitest.config.ts
 ---
 ## Goal
 No legacy code, schema, config or docs remain in the repo — only Lixto.
@@ -88,12 +99,15 @@ No legacy code, schema, config or docs remain in the repo — only Lixto.
 
 Read `PRODUCT.md`. Everything the new tickets ported from is now dead. Delete (git rm): `src/plic/`, legacy `tests/test_*.py` at the top level (new tests live in `tests/lixto/`), `tests/fixtures/` if only legacy used them (check imports), `legacy/migrations/`, `company_profile.md`, `scripts/seed_open.sh`, `docs/TENANT.md` (86 writes the replacement), `docs/cycles/`, `docs/design/` (keep content only if `docs/WEB_STYLE.md` references it — then move the referenced file next to it), and tickets `10`–`73` (history lives in git). `pyproject.toml`: packages `["src/lixto"]`, scripts only `lixto`, `uv lock`. Then flatten `tests/lixto/*` into `tests/` (git mv) and fix imports.
 
+Web leftovers (from ticket 82's report): rename the cross-cutting Portuguese identifiers `erro` → `error` and `mensagem` → `message` in `web/app/(app)/{invite/[token],company,company/users,login,signup}/actions.ts` and the forms that read that state (`web/components/{company-form,invite-form,users-table,signup-form,profile-form}.tsx`, login page) — add those files to your `files:`; UI copy stays Portuguese. Add `web/vitest.config.ts` with `test.exclude` covering `.next/**` and `node_modules/**` so a post-build `vitest run` doesn't discover `.next/standalone` copies (verify `npm test` still reports 19 files).
+
 ## Checks (run in order — cheapest first)
 1. `! test -d src/plic && ! test -d legacy && ! test -f company_profile.md`
 2. `! grep -rn "plic\b\|from plic\|import plic\|PLIC_" src tests web/lib web/app web/components pyproject.toml Dockerfile.cli docker-compose.yml .github`
 3. `uv run ruff check src tests && uv run ruff format --check src tests`
 4. `uv run pytest -q`
 5. `cd web && npx tsc --noEmit && npm run lint && npm test && npm run build`
+6. `! grep -rEn "\b(erro|mensagem)\b" web/app web/components web/lib --include='*.ts' --include='*.tsx' | grep -v '"'` (identifiers only)
 
 ## Done when
 - Repo tree = `src/lixto`, `tests/`, `migrations/001_core.sql`, `web/`, `docs/`, `tickets/74+`; all checks green.
