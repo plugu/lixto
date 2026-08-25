@@ -1,10 +1,10 @@
 # STATE — rewrite after every ticket completes; never append. ≤30 lines total.
 
 ## Now
-- Cycle 16 (intelligence layer: enrich + match + chat), mvp. Wave 1 running: 63 (enrich schema + doc text, opus) ∥ 65 (perfil match, sonnet) in worktrees.
+- Cycle 16 (intelligence layer: enrich + match + chat), mvp. 65 done (1 attempt, merged). 63 (enrich schema + doc text, opus) running in worktree.
 
 ## Next
-- Wave 2: 64 (enrich worker) ∥ 66 (match engine web) after 63+65 merge.
+- Wave 2: 64 (enrich worker) ∥ 66 (match engine web) once 63 merges.
 - Then 67 → 68 → 69 → 70 sequential in place.
 
 ## Decisions
