@@ -1,6 +1,6 @@
 ---
 id: 68
-status: todo
+status: doing
 model: opus
 depends_on: [67]
 max_attempts: 3

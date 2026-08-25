@@ -1,10 +1,11 @@
 # STATE — rewrite after every ticket completes; never append. ≤30 lines total.
 
 ## Now
-- Cycle 16 (intelligence layer: enrich + match + chat), mvp. 63 + 65 done (1 attempt each, merged). Wave 2 running: 64 (enrich worker) ∥ 66 (match engine web) in worktrees.
+- Cycle 16 (enrich + match + chat), mvp. Done: 63, 64, 65, 66, 67 (all 1 attempt). 68 (chat runtime, opus) running in place.
 
 ## Next
-- Then 67 → 68 → 69 → 70 sequential in place.
+- 69 (chat UI, sonnet) → 70 (docs, haiku) sequential in place, then mvp final diff review (approval 2 of 2).
+- Post-cycle operator steps: set PLIC_LLM_* env on Dokploy `cli` + `web`, create `enrich-run` schedule.
 
 ## Decisions
 - Dispatch: parallel worktrees, 2 concurrent, `../plataforma-licitante-wt/<id>` branch `forge/<id>`; node_modules copied with `cp -Rc` (Turbopack symlink gotcha); merge from main checkout.
