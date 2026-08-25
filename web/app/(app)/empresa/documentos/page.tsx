@@ -9,6 +9,7 @@ import { listDocumentos } from "@/lib/documento-queries";
 
 const EMPRESA_NAV = [
   { href: "/empresa", label: "Perfil" },
+  { href: "/empresa/perfil", label: "Match" },
   { href: "/empresa/usuarios", label: "Usuários" },
   { href: "/empresa/documentos", label: "Documentos" },
 ];
