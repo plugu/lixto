@@ -25,6 +25,7 @@ import httpx
 import psycopg
 
 from plic.enrich.documents import DOWNLOAD_TIMEOUT, extract_for_licitacao, pick_documents
+from plic.enrich.embed import build_embedding_text, to_pgvector
 from plic.enrich.schema import ENRIQUECIMENTO_SCHEMA, SCHEMA_VERSION, validate_payload
 from plic.llm import LlmClient
 
@@ -135,12 +136,16 @@ INSERT INTO enriquecimento (
     numero_controle_pncp, schema_version, modelo, confianca, status, erro, fonte,
     resumo, categorias, conceitos, palavras_chave, cnae_candidatos, requisitos,
     exige_certificacao, exige_atestado_tecnico, me_epp_exclusivo, me_epp_preferencia,
-    entrega, riscos, complexidade, dados, enriquecido_em, updated_at
+    entrega, riscos, complexidade, dados, embedding, embedding_modelo, embedding_em,
+    enriquecido_em, updated_at
 ) VALUES (
     %(numero)s, %(schema_version)s, %(modelo)s, %(confianca)s, %(status)s, %(erro)s, %(fonte)s,
     %(resumo)s, %(categorias)s, %(conceitos)s, %(palavras_chave)s, %(cnae_candidatos)s,
     %(requisitos)s, %(exige_certificacao)s, %(exige_atestado_tecnico)s, %(me_epp_exclusivo)s,
-    %(me_epp_preferencia)s, %(entrega)s, %(riscos)s, %(complexidade)s, %(dados)s, now(), now()
+    %(me_epp_preferencia)s, %(entrega)s, %(riscos)s, %(complexidade)s, %(dados)s,
+    %(embedding)s::vector, %(embedding_modelo)s,
+    CASE WHEN %(embedding)s IS NULL THEN NULL ELSE now() END,
+    now(), now()
 )
 ON CONFLICT (numero_controle_pncp) DO UPDATE
 SET schema_version = EXCLUDED.schema_version,
@@ -163,6 +168,12 @@ SET schema_version = EXCLUDED.schema_version,
     riscos = EXCLUDED.riscos,
     complexidade = EXCLUDED.complexidade,
     dados = EXCLUDED.dados,
+    -- re-enrichment rewrites the canonical text, so any previous vector is
+    -- stale: take the new one (NULL when the embed call failed, which puts
+    -- the row back in `plic enrich embed`'s queue).
+    embedding = EXCLUDED.embedding,
+    embedding_modelo = EXCLUDED.embedding_modelo,
+    embedding_em = EXCLUDED.embedding_em,
     enriquecido_em = now(),
     updated_at = now()
 """
@@ -274,6 +285,8 @@ def _upsert(
     modelo: str | None,
     erro: str | None,
     payload: dict[str, Any] | None,
+    embedding: str | None = None,
+    embedding_modelo: str | None = None,
 ) -> None:
     payload = payload or {}
     params = {
@@ -298,10 +311,31 @@ def _upsert(
         "riscos": payload.get("riscos") or [],
         "complexidade": payload.get("complexidade"),
         "dados": json.dumps(payload),
+        "embedding": embedding,
+        "embedding_modelo": embedding_modelo if embedding else None,
     }
     with conn.cursor() as cur:
         cur.execute(_UPSERT_SQL, params)
     conn.commit()
+
+
+def _embed_payload(
+    llm: LlmClient, numero: str, payload: dict[str, Any]
+) -> tuple[str | None, str | None]:
+    """Vector of the payload's canonical text, or (None, None) when the embed
+    call fails. An embedding is a nice-to-have here: never let it cost us the
+    enrichment itself — `plic enrich embed` backfills whatever is missing."""
+    texto = build_embedding_text(payload)
+    if not texto:
+        return None, None
+    try:
+        vectors, embed_modelo = llm.embed([texto])
+    except Exception:
+        logger.exception("embedding failed for %s; persisting without vector", numero)
+        return None, None
+    if not vectors:
+        return None, None
+    return to_pgvector(vectors[0]), embed_modelo
 
 
 def enrich_one(
@@ -360,6 +394,7 @@ def enrich_one(
             )
             return "error"
 
+        embedding, embedding_modelo = _embed_payload(llm, numero, payload)
         _upsert(
             conn,
             numero,
@@ -368,6 +403,8 @@ def enrich_one(
             modelo=modelo,
             erro=None,
             payload=payload,
+            embedding=embedding,
+            embedding_modelo=embedding_modelo,
         )
         return "done"
     except Exception as exc:

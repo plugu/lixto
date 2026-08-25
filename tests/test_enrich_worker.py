@@ -9,6 +9,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from plic.enrich import worker
+from plic.enrich.embed import build_embedding_text
 from plic.enrich.worker import (
     _SELECT_PENDING_SQL,
     CONTEXT_TEXT_CHARS,
@@ -79,6 +80,7 @@ def _llm(payload=None, model="cheap-model"):
     llm = MagicMock()
     llm.complete_json_text.return_value = (payload or _payload(), model)
     llm.complete_json_pdf.return_value = (payload or _payload(), "doc-model")
+    llm.embed.side_effect = lambda texts: ([[0.5] * 4 for _ in texts], "embed-model")
     return llm
 
 
@@ -250,6 +252,55 @@ def test_no_docs_routes_to_structured(patched):
     assert status == "done"
     assert llm.complete_json_text.call_args.kwargs["tier"] == "cheap"
     assert upsert_cur.execute.call_args.args[1]["fonte"] == "estruturado"
+
+
+# --- embedding -----------------------------------------------------------
+
+
+def test_successful_row_embeds_canonical_text_into_the_upsert(patched):
+    patched.docs = [_doc(metodo="pypdf")]
+    conn, upsert_cur = _conn([_item()])
+    llm = _llm()
+
+    status = enrich_one(conn, _row(), llm=llm, http_client=MagicMock())
+
+    assert status == "done"
+    assert llm.embed.call_args.args[0] == [build_embedding_text(_payload())]
+    params = upsert_cur.execute.call_args.args[1]
+    assert params["embedding"] == "[0.5,0.5,0.5,0.5]"
+    assert params["embedding_modelo"] == "embed-model"
+
+
+def test_upsert_sql_casts_embedding_to_vector():
+    assert "%(embedding)s::vector" in worker._UPSERT_SQL
+    assert "embedding_modelo = EXCLUDED.embedding_modelo" in worker._UPSERT_SQL
+
+
+def test_embed_failure_still_persists_the_enrichment(patched):
+    patched.docs = [_doc(metodo="pypdf")]
+    conn, upsert_cur = _conn([_item()])
+    llm = _llm()
+    llm.embed.side_effect = RuntimeError("embeddings down")
+
+    status = enrich_one(conn, _row(), llm=llm, http_client=MagicMock())
+
+    assert status == "done"
+    params = upsert_cur.execute.call_args.args[1]
+    assert params["status"] == "done"
+    assert params["embedding"] is None
+    assert params["embedding_modelo"] is None
+    assert params["resumo"] == "Compra de lápis."
+    conn.commit.assert_called()
+
+
+def test_error_row_carries_no_embedding(patched):
+    conn, upsert_cur = _conn([])
+    llm = _llm(payload="not a dict")
+
+    enrich_one(conn, _row(), llm=llm, http_client=MagicMock())
+
+    llm.embed.assert_not_called()
+    assert upsert_cur.execute.call_args.args[1]["embedding"] is None
 
 
 # --- failure handling ----------------------------------------------------

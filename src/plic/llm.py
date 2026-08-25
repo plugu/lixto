@@ -33,6 +33,11 @@ MODEL_CHEAP = os.environ.get("PLIC_LLM_MODEL_CHEAP", "gpt-5-mini")
 MODEL_DOC = os.environ.get("PLIC_LLM_MODEL_DOC", "gpt-5.1")
 MODEL_STRONG = os.environ.get("PLIC_LLM_MODEL_STRONG", "gpt-5.1")
 MODEL_FALLBACK = os.environ.get("PLIC_LLM_MODEL_FALLBACK") or None
+MODEL_EMBED = os.environ.get("PLIC_LLM_MODEL_EMBED", "text-embedding-3-small")
+
+EMBED_DIMS = 1536
+EMBED_BATCH = 100
+EMBED_CHARS = 8_000
 
 
 def build_client() -> OpenAI:
@@ -83,6 +88,17 @@ def _responses_text(response: Any) -> str | None:
     return getattr(response, "output_text", None)
 
 
+def _embedding_vectors(response: Any, expected: int) -> list[list[float]]:
+    """Vectors of an embeddings response, ordered by the API's `index` field
+    (providers are allowed to return them out of order)."""
+    data = list(getattr(response, "data", None) or [])
+    if len(data) != expected:
+        raise ValueError(f"embeddings response has {len(data)} vectors, expected {expected}")
+    if all(isinstance(getattr(item, "index", None), int) for item in data):
+        data.sort(key=lambda item: item.index)
+    return [list(item.embedding) for item in data]
+
+
 class LlmClient:
     """Tiered, provider-agnostic JSON completion client."""
 
@@ -94,12 +110,14 @@ class LlmClient:
         doc: str | None = None,
         strong: str | None = None,
         fallback: str | None = None,
+        embed: str | None = None,
     ) -> None:
         self.client = client or build_client()
         self.cheap = cheap or MODEL_CHEAP
         self.doc = doc or MODEL_DOC
         self.strong = strong or MODEL_STRONG
         self.fallback = fallback if fallback is not None else MODEL_FALLBACK
+        self.embed_model = embed or MODEL_EMBED
 
     def model_for(self, tier: str) -> str:
         if tier == "cheap":
@@ -196,3 +214,20 @@ class LlmClient:
             },
         )
         return _loads(_responses_text(response)), self.doc
+
+    def embed(self, texts: list[str]) -> tuple[list[list[float]], str]:
+        """Embeddings for `texts`, in input order, plus the model used.
+
+        Long inputs are truncated to EMBED_CHARS (the canonical enrichment
+        text is far shorter; this only guards pathological rows) and the list
+        is split into batches of EMBED_BATCH. SDK errors propagate — callers
+        decide whether a missing embedding is fatal."""
+        if not texts:
+            return [], self.embed_model
+
+        vectors: list[list[float]] = []
+        for start in range(0, len(texts), EMBED_BATCH):
+            batch = [t[:EMBED_CHARS] for t in texts[start : start + EMBED_BATCH]]
+            response = self.client.embeddings.create(model=self.embed_model, input=batch)
+            vectors.extend(_embedding_vectors(response, len(batch)))
+        return vectors, self.embed_model

@@ -13,6 +13,7 @@ from plic.classify import classify as run_classify
 from plic.cnae_match import classify as run_cnae_classify
 from plic.cnae_match import eval_pending as run_cnae_eval
 from plic.cnae_seed import seed as run_cnae_seed
+from plic.enrich.embed import embed_pending as run_embed
 from plic.enrich.worker import enrich as run_enrich
 from plic.status import format_status, get_status
 from plic.sync_detalhes import sync_detalhes
@@ -340,6 +341,31 @@ def enrich_run_cmd(
     if result["error"] > 0 and result["done"] == 0:
         typer.echo(
             "nenhuma licitação enriquecida com sucesso — verifique a chave/URL do provedor LLM",
+            err=True,
+        )
+        raise typer.Exit(code=1)
+
+
+@enrich_app.command("embed")
+def enrich_embed_cmd(limit: int = _LIMIT_OPTION) -> None:
+    """Backfill de embeddings: gera o vetor pgvector das linhas de
+    `enriquecimento` já concluídas que ainda não têm `embedding` (as
+    enriquecidas antes do ciclo 17 ou cujo embed inline falhou). Retomável e
+    idempotente — sem linhas pendentes, é um no-op.
+    """
+    conn = db.get_connection()
+    try:
+        result = run_embed(conn, limit=limit)
+    finally:
+        conn.close()
+
+    typer.echo(
+        f"embeddings: {result['processed']} processadas "
+        f"({result['embedded']} ok, {result['error']} erro)"
+    )
+    if result["error"] > 0 and result["embedded"] == 0:
+        typer.echo(
+            "nenhum embedding gerado — verifique a chave/URL do provedor LLM",
             err=True,
         )
         raise typer.Exit(code=1)
