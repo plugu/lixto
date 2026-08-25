@@ -27,39 +27,9 @@ export type SessionCompany = {
   taxId: string;
 };
 
-/** COMPAT SHIM (ticket 80): legacy modules this ticket does not own
- * (lib/agent/*, /licitacoes, /lixto, /api/chat, /empresa/perfil) still read
- * `session.usuario` / `session.empresa`. Ticket 82 removes both. */
-type SessionCompat = {
-  readonly usuario: {
-    id: number;
-    nome: string;
-    email: string;
-    role: Role;
-    empresaId: number;
-  };
-  readonly empresa: {
-    id: number;
-    razaoSocial: string;
-    nomeFantasia: string | null;
-    cnpj: string;
-  };
-};
-
-/** The session. `user`/`company` are the real fields — they are optional
- * *only* while the compat shim lives, because a legacy module this ticket
- * does not own (lib/agent/run.test.ts) still builds a Portuguese-shaped
- * `Session` literal. Everything auth.ts hands out is an `ActiveSession`,
- * where both are present, so callers that go through
- * getSession()/requireSession()/requireAdmin()/login() never see the
- * optionality. Ticket 82 drops SessionCompat and merges ActiveSession back
- * into Session. */
-export type Session = SessionCompat & {
-  user?: SessionUser;
-  company?: SessionCompany;
-};
-
-export type ActiveSession = Session & {
+/** A live session: the logged-in user plus the company they belong to.
+ * Everything auth.ts hands out has both fields. */
+export type Session = {
   user: SessionUser;
   company: SessionCompany;
 };
@@ -158,46 +128,26 @@ const SESSION_SELECT = `SELECT u.id   AS user_id,
        FROM users u
        JOIN companies c ON c.id = u.company_id`;
 
-function toSession(row: SessionRow): ActiveSession {
-  const user = {
-    id: Number(row.user_id),
-    name: row.name,
-    email: row.email,
-    role: row.role,
-    companyId: Number(row.company_id),
-  };
-  const company = {
-    id: Number(row.company_id),
-    legalName: row.legal_name,
-    tradeName: row.trade_name,
-    taxId: row.tax_id,
-  };
+function toSession(row: SessionRow): Session {
   return {
-    user,
-    company,
-    // Compat getters — see SessionCompat above.
-    get usuario() {
-      return {
-        id: user.id,
-        nome: user.name,
-        email: user.email,
-        role: user.role,
-        empresaId: user.companyId,
-      };
+    user: {
+      id: Number(row.user_id),
+      name: row.name,
+      email: row.email,
+      role: row.role,
+      companyId: Number(row.company_id),
     },
-    get empresa() {
-      return {
-        id: company.id,
-        razaoSocial: company.legalName,
-        nomeFantasia: company.tradeName,
-        cnpj: company.taxId,
-      };
+    company: {
+      id: Number(row.company_id),
+      legalName: row.legal_name,
+      tradeName: row.trade_name,
+      taxId: row.tax_id,
     },
   };
 }
 
 /** Resolves the cookie to a live session, or null when missing/expired. */
-export async function getSession(): Promise<ActiveSession | null> {
+export async function getSession(): Promise<Session | null> {
   const store = await cookies();
   const token = store.get(SESSION_COOKIE)?.value;
   if (!token) return null;
@@ -211,13 +161,13 @@ export async function getSession(): Promise<ActiveSession | null> {
   return rows[0] ? toSession(rows[0]) : null;
 }
 
-export async function requireSession(): Promise<ActiveSession> {
+export async function requireSession(): Promise<Session> {
   const session = await getSession();
   if (!session) redirect("/login");
   return session;
 }
 
-export async function requireAdmin(): Promise<ActiveSession> {
+export async function requireAdmin(): Promise<Session> {
   const session = await requireSession();
   if (session.user.role !== "admin") redirect("/company");
   return session;
@@ -238,7 +188,7 @@ export async function destroySession(): Promise<void> {
 export async function login(
   email: string,
   password: string,
-): Promise<ActiveSession | null> {
+): Promise<Session | null> {
   const normalized = email.trim().toLowerCase();
   if (!normalized || !password) return null;
 

@@ -1,37 +1,33 @@
 import { LinkButton } from "@/components/ui/button";
 import { Section } from "@/components/ui/section";
-import { PerfilMatchForm } from "@/components/perfil-match-form";
+import { ProfileForm } from "@/components/profile-form";
 import { requireSession } from "@/lib/auth";
-import { getPerfil } from "@/lib/perfil-queries";
+import { getProfile } from "@/lib/profile-queries";
+import { COMPANY_NAV } from "@/lib/types";
 
-const EMPRESA_NAV = [
-  { href: "/empresa", label: "Perfil" },
-  { href: "/empresa/perfil", label: "Match" },
-  { href: "/empresa/usuarios", label: "Usuários" },
-  { href: "/empresa/documentos", label: "Documentos" },
-];
-
-export default async function PerfilMatchPage() {
+export default async function CompanyProfilePage() {
   const session = await requireSession();
-  const perfil = await getPerfil(session.usuario.empresaId);
+  const profile = await getProfile(session.user.companyId);
 
   return (
     <div className="flex flex-col gap-8">
       <Section eyebrow="Empresa" title="Perfil de match">
         <div className="flex flex-col gap-4">
           <p className="text-sm text-ink-muted">
-            Lixto usa este perfil para calcular a aderência de cada licitação
-            à sua empresa.
+            Lixto usa estes dados para calcular a aderência de cada licitação à
+            sua empresa.
           </p>
           <nav className="flex items-center gap-2">
-            {EMPRESA_NAV.map((item) => (
+            {COMPANY_NAV.map((item) => (
               <LinkButton
                 key={item.href}
                 href={item.href}
                 variant="pill"
                 size="sm"
                 className={
-                  item.href === "/empresa/perfil" ? "bg-accent-soft text-accent" : undefined
+                  item.href === "/company/profile"
+                    ? "bg-accent-soft text-accent"
+                    : undefined
                 }
               >
                 {item.label}
@@ -41,9 +37,9 @@ export default async function PerfilMatchPage() {
         </div>
       </Section>
 
-      <PerfilMatchForm
-        perfil={perfil}
-        readOnly={session.usuario.role !== "admin"}
+      <ProfileForm
+        profile={profile}
+        readOnly={session.user.role !== "admin"}
       />
     </div>
   );

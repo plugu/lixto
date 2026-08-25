@@ -111,6 +111,15 @@ export type CompanyDocument = {
   created_at: Date;
 };
 
+/** Tabs of the "Empresa" area, shared by every page under /company so the
+ * four screens can't drift apart. Labels stay Portuguese. */
+export const COMPANY_NAV: { href: string; label: string }[] = [
+  { href: "/company", label: "Perfil" },
+  { href: "/company/profile", label: "Match" },
+  { href: "/company/users", label: "Usuários" },
+  { href: "/company/documents", label: "Documentos" },
+];
+
 export const UF_LIST: string[] = [
   "AC",
   "AL",

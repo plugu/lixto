@@ -4,7 +4,7 @@ import type OpenAI from "openai";
 
 import {
   EMBED_DIMS,
-  buildPerfilEmbeddingText,
+  buildProfileEmbeddingText,
   embedText,
   toPgVector,
 } from "./embed";
@@ -27,13 +27,13 @@ describe("toPgVector", () => {
   });
 });
 
-describe("buildPerfilEmbeddingText", () => {
+describe("buildProfileEmbeddingText", () => {
   it("joins the three labelled parts with newlines", () => {
     expect(
-      buildPerfilEmbeddingText({
-        produtos: ["papel A4", "caneta"],
-        palavrasChave: ["material escolar"],
-        observacoes: "atendemos o RJ",
+      buildProfileEmbeddingText({
+        products: ["papel A4", "caneta"],
+        keywords: ["material escolar"],
+        notes: "atendemos o RJ",
       }),
     ).toBe(
       "produtos: papel A4, caneta\npalavras-chave: material escolar\nobservações: atendemos o RJ",
@@ -42,17 +42,17 @@ describe("buildPerfilEmbeddingText", () => {
 
   it("skips empty parts", () => {
     expect(
-      buildPerfilEmbeddingText({
-        produtos: ["papel"],
-        palavrasChave: [],
-        observacoes: "   ",
+      buildProfileEmbeddingText({
+        products: ["papel"],
+        keywords: [],
+        notes: "   ",
       }),
     ).toBe("produtos: papel");
   });
 
   it("returns an empty string when everything is empty", () => {
     expect(
-      buildPerfilEmbeddingText({ produtos: [], palavrasChave: [], observacoes: "" }),
+      buildProfileEmbeddingText({ products: [], keywords: [], notes: "" }),
     ).toBe("");
   });
 });
@@ -99,19 +99,19 @@ describe("embedText", () => {
 
   it("returns null and warns when no API key is configured", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const antes = {
-      plic: process.env.PLIC_LLM_API_KEY,
+    const before = {
+      lixto: process.env.LIXTO_LLM_API_KEY,
       openai: process.env.OPENAI_API_KEY,
     };
-    delete process.env.PLIC_LLM_API_KEY;
+    delete process.env.LIXTO_LLM_API_KEY;
     delete process.env.OPENAI_API_KEY;
 
     try {
       expect(await embedText("papel")).toBeNull();
       expect(warn).toHaveBeenCalled();
     } finally {
-      if (antes.plic !== undefined) process.env.PLIC_LLM_API_KEY = antes.plic;
-      if (antes.openai !== undefined) process.env.OPENAI_API_KEY = antes.openai;
+      if (before.lixto !== undefined) process.env.LIXTO_LLM_API_KEY = before.lixto;
+      if (before.openai !== undefined) process.env.OPENAI_API_KEY = before.openai;
     }
   });
 });

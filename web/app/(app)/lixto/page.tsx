@@ -1,11 +1,14 @@
-// Conversational-first screen (ticket 69): fetch the most recent conversa +
-// its messages server-side, hand them to the client Chat component. No
-// fetch to our own /api/chat from here — listConversas/listMensagens read
-// straight from the DB (ticket 68).
+// Conversational-first screen: fetch the most recent conversation + its
+// messages server-side, hand them to the client Chat component. No fetch to
+// our own /api/chat from here — listConversations/listMessages read straight
+// from the DB.
 import type { Metadata } from "next";
 
 import { Chat } from "@/components/chat/chat";
-import { listConversas, listMensagens } from "@/lib/agent/conversa-queries";
+import {
+  listConversations,
+  listMessages,
+} from "@/lib/agent/conversation-queries";
 import { requireSession } from "@/lib/auth";
 
 export const metadata: Metadata = {
@@ -15,17 +18,16 @@ export const metadata: Metadata = {
 export default async function LixtoPage() {
   const session = await requireSession();
 
-  const [conversa] = await listConversas(session.usuario.id, 1);
-  const mensagens = conversa ? await listMensagens(conversa.id) : [];
+  const [conversation] = await listConversations(session.user.id, 1);
+  const messages = conversation ? await listMessages(conversation.id) : [];
 
-  const empresaNome =
-    session.empresa.nomeFantasia ?? session.empresa.razaoSocial;
+  const companyName = session.company.tradeName ?? session.company.legalName;
 
   return (
     <Chat
-      initialConversaId={conversa?.id ?? null}
-      initialMensagens={mensagens}
-      empresaNome={empresaNome}
+      initialConversationId={conversation?.id ?? null}
+      initialMessages={messages}
+      companyName={companyName}
     />
   );
 }

@@ -1,62 +1,64 @@
 "use client";
 
-// Conversation state + the fetch to POST /api/chat (ticket 69). One request
-// in, one JSON reply out — the run.ts runtime (ticket 68) has no streaming.
+// Conversation state + the fetch to POST /api/chat. One request in, one JSON
+// reply out — the run.ts runtime has no streaming.
 
 import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Composer } from "@/components/chat/composer";
 import { MessageList, type ChatMessage } from "@/components/chat/message-list";
-import { QuickFilters, type QuickFiltros } from "@/components/chat/quick-filters";
-import type { Mensagem } from "@/lib/agent/conversa-queries";
-import type { LicitacaoRef } from "@/lib/agent/types";
+import { QuickFilters, type QuickFilterValues } from "@/components/chat/quick-filters";
+import type { Message } from "@/lib/agent/conversation-queries";
+import type { ProcurementRef } from "@/lib/agent/types";
 
 type ChatResponse = {
-  conversaId: number;
-  resposta: string;
-  refs: LicitacaoRef[];
+  conversationId: number;
+  answer: string;
+  refs: ProcurementRef[];
 };
 
-type ErroResponse = { erro: string };
+type ErrorResponse = { error: string };
 
-const ERRO_GENERICO = "Não consegui responder agora. Tente de novo.";
+const GENERIC_ERROR = "Não consegui responder agora. Tente de novo.";
 
-function toChatMessages(mensagens: Mensagem[]): ChatMessage[] {
-  return mensagens
+function toChatMessages(rows: Message[]): ChatMessage[] {
+  return rows
     .filter((m) => m.role === "user" || m.role === "assistant")
     .map((m) => ({
       role: m.role as "user" | "assistant",
-      conteudo: m.conteudo ?? "",
+      content: m.content ?? "",
       refs: m.refs ?? undefined,
     }));
 }
 
 export function Chat({
-  initialConversaId,
-  initialMensagens,
-  empresaNome,
+  initialConversationId,
+  initialMessages,
+  companyName,
 }: {
-  initialConversaId: number | null;
-  initialMensagens: Mensagem[];
-  empresaNome: string;
+  initialConversationId: number | null;
+  initialMessages: Message[];
+  companyName: string;
 }) {
-  const [conversaId, setConversaId] = useState<number | null>(initialConversaId);
-  const [mensagens, setMensagens] = useState<ChatMessage[]>(() =>
-    toChatMessages(initialMensagens),
+  const [conversationId, setConversationId] = useState<number | null>(
+    initialConversationId,
   );
-  const [filtros, setFiltros] = useState<QuickFiltros>({});
+  const [messages, setMessages] = useState<ChatMessage[]>(() =>
+    toChatMessages(initialMessages),
+  );
+  const [filters, setFilters] = useState<QuickFilterValues>({});
   const [pending, setPending] = useState(false);
 
-  const enviar = useCallback(
-    async (texto: string) => {
-      setMensagens((prev) => [...prev, { role: "user", conteudo: texto }]);
+  const send = useCallback(
+    async (text: string) => {
+      setMessages((prev) => [...prev, { role: "user", content: text }]);
       setPending(true);
 
       try {
         const res = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ conversaId, texto, filtros }),
+          body: JSON.stringify({ conversationId, text, filters }),
         });
 
         if (res.status === 401) {
@@ -73,35 +75,35 @@ export function Chat({
           return;
         }
 
-        const data = (await res.json()) as ChatResponse | ErroResponse;
-        if (!res.ok || !("resposta" in data)) {
-          setMensagens((prev) => [
+        const data = (await res.json()) as ChatResponse | ErrorResponse;
+        if (!res.ok || !("answer" in data)) {
+          setMessages((prev) => [
             ...prev,
-            { role: "assistant", conteudo: ERRO_GENERICO },
+            { role: "assistant", content: GENERIC_ERROR },
           ]);
           return;
         }
 
-        setConversaId(data.conversaId);
-        setMensagens((prev) => [
+        setConversationId(data.conversationId);
+        setMessages((prev) => [
           ...prev,
-          { role: "assistant", conteudo: data.resposta, refs: data.refs },
+          { role: "assistant", content: data.answer, refs: data.refs },
         ]);
       } catch {
-        setMensagens((prev) => [
+        setMessages((prev) => [
           ...prev,
-          { role: "assistant", conteudo: ERRO_GENERICO },
+          { role: "assistant", content: GENERIC_ERROR },
         ]);
       } finally {
         setPending(false);
       }
     },
-    [conversaId, filtros],
+    [conversationId, filters],
   );
 
-  function novaConversa() {
-    setConversaId(null);
-    setMensagens([]);
+  function startNewThread() {
+    setConversationId(null);
+    setMessages([]);
   }
 
   return (
@@ -111,21 +113,24 @@ export function Chat({
           <h1 className="font-display text-[28px] leading-[34px] text-ink">
             Lixto
           </h1>
-          <p className="text-[13px] text-ink-muted">{empresaNome}</p>
+          <p className="text-[13px] text-ink-muted">{companyName}</p>
         </div>
-        <Button type="button" variant="secondary" size="sm" onClick={novaConversa}>
-          Nova conversa
-        </Button>
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          onClick={startNewThread}
+        >Nova conversa</Button>
       </div>
 
-      <QuickFilters filtros={filtros} onChange={setFiltros} />
+      <QuickFilters filters={filters} onChange={setFilters} />
 
-      <MessageList mensagens={mensagens} />
+      <MessageList messages={messages} />
 
       <Composer
         pending={pending}
-        showSuggestions={mensagens.length === 0}
-        onSend={enviar}
+        showSuggestions={messages.length === 0}
+        onSend={send}
       />
     </div>
   );

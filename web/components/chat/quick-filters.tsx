@@ -1,24 +1,22 @@
 "use client";
 
-// Chip row above the composer (ticket 69). Purely additive accelerators for
-// the natural-language query (PRODUCT.md: "quick controls are accelerators")
-// — sending with every chip cleared works exactly like sending with none.
+// Chip row above the composer. Purely additive accelerators for the
+// natural-language query (PRODUCT.md: "quick controls are accelerators") —
+// sending with every chip cleared works exactly like sending with none.
 
 import { Popover } from "@/components/ui/popover";
 import { X } from "@/components/ui/icons";
-import { UF_LIST } from "@/lib/tenant-types";
+import { STATUS_LABELS, type ProcurementStatus } from "@/lib/status";
+import { UF_LIST } from "@/lib/types";
 
-export type QuickFiltros = {
-  ufs?: string[];
+export type QuickFilterValues = {
+  states?: string[];
   statuses?: string[];
-  valorMin?: number;
-  valorMax?: number;
+  valueMin?: number;
+  valueMax?: number;
 };
 
-const STATUS_OPTIONS: { value: string; label: string }[] = [
-  { value: "aberta", label: "Aberta" },
-  { value: "vai_abrir", label: "Vai abrir" },
-];
+const STATUS_OPTIONS: ProcurementStatus[] = ["open", "upcoming"];
 
 function chipClass(active: boolean) {
   return `inline-flex h-7 shrink-0 items-center gap-1 rounded-[9999px] px-3 text-[13px] font-medium transition-colors ${
@@ -29,7 +27,7 @@ function chipClass(active: boolean) {
 }
 
 function statusLabel(value: string): string {
-  return STATUS_OPTIONS.find((o) => o.value === value)?.label ?? value;
+  return STATUS_LABELS[value as ProcurementStatus] ?? value;
 }
 
 function toNumberOrUndefined(raw: string): number | undefined {
@@ -39,63 +37,66 @@ function toNumberOrUndefined(raw: string): number | undefined {
 }
 
 export function QuickFilters({
-  filtros,
+  filters,
   onChange,
 }: {
-  filtros: QuickFiltros;
-  onChange: (next: QuickFiltros) => void;
+  filters: QuickFilterValues;
+  onChange: (next: QuickFilterValues) => void;
 }) {
-  const ufs = filtros.ufs ?? [];
-  const statuses = filtros.statuses ?? [];
-  const temValor = filtros.valorMin !== undefined || filtros.valorMax !== undefined;
+  const states = filters.states ?? [];
+  const statuses = filters.statuses ?? [];
+  const hasValue =
+    filters.valueMin !== undefined || filters.valueMax !== undefined;
 
-  function toggleUf(uf: string) {
-    const next = ufs.includes(uf) ? ufs.filter((v) => v !== uf) : [...ufs, uf];
-    onChange({ ...filtros, ufs: next.length ? next : undefined });
+  function toggleState(state: string) {
+    const next = states.includes(state)
+      ? states.filter((v) => v !== state)
+      : [...states, state];
+    onChange({ ...filters, states: next.length ? next : undefined });
   }
 
   function toggleStatus(status: string) {
     const next = statuses.includes(status)
       ? statuses.filter((v) => v !== status)
       : [...statuses, status];
-    onChange({ ...filtros, statuses: next.length ? next : undefined });
+    onChange({ ...filters, statuses: next.length ? next : undefined });
   }
 
   return (
     <div className="flex flex-wrap items-center gap-2">
       <Popover
         trigger={
-          <span className={chipClass(ufs.length > 0)}>
-            UF{ufs.length ? ` · ${ufs.length}` : ""}
+          <span className={chipClass(states.length > 0)}>
+            UF{states.length ? ` · ${states.length}` : ""}
           </span>
         }
       >
         <div className="flex max-h-48 w-40 flex-col gap-0.5 overflow-y-auto">
-          {UF_LIST.map((uf) => (
+          {UF_LIST.map((state) => (
             <label
-              key={uf}
+              key={state}
               className="flex cursor-pointer items-center gap-2 rounded-md px-1.5 py-1 text-[13px] text-ink hover:bg-surface-raised"
             >
               <input
                 type="checkbox"
-                checked={ufs.includes(uf)}
-                onChange={() => toggleUf(uf)}
+                checked={states.includes(state)}
+                onChange={() => toggleState(state)}
                 className="h-3.5 w-3.5 rounded-[4px] border-line text-accent accent-accent focus-visible:ring-[3px] focus-visible:ring-accent-soft"
               />
-              {uf}
+              {state}
             </label>
           ))}
         </div>
       </Popover>
 
-      {STATUS_OPTIONS.map((option) => (
+      {STATUS_OPTIONS.map((status) => (
         <button
-          key={option.value}
+          key={status}
           type="button"
-          onClick={() => toggleStatus(option.value)}
-          className={chipClass(statuses.includes(option.value))}
+          onClick={() => toggleStatus(status)}
+          className={chipClass(statuses.includes(status))}
         >
-          {option.label}
+          {STATUS_LABELS[status]}
         </button>
       ))}
 
@@ -104,9 +105,9 @@ export function QuickFilters({
           type="number"
           inputMode="numeric"
           placeholder="Mín. R$"
-          value={filtros.valorMin ?? ""}
+          value={filters.valueMin ?? ""}
           onChange={(e) =>
-            onChange({ ...filtros, valorMin: toNumberOrUndefined(e.target.value) })
+            onChange({ ...filters, valueMin: toNumberOrUndefined(e.target.value) })
           }
           className="h-7 w-24 rounded-[9999px] border border-line bg-surface px-3 text-[13px] text-ink outline-none placeholder:text-ink-faint focus-visible:border-accent focus-visible:ring-[3px] focus-visible:ring-accent-soft"
         />
@@ -115,30 +116,32 @@ export function QuickFilters({
           type="number"
           inputMode="numeric"
           placeholder="Máx. R$"
-          value={filtros.valorMax ?? ""}
+          value={filters.valueMax ?? ""}
           onChange={(e) =>
-            onChange({ ...filtros, valorMax: toNumberOrUndefined(e.target.value) })
+            onChange({ ...filters, valueMax: toNumberOrUndefined(e.target.value) })
           }
           className="h-7 w-24 rounded-[9999px] border border-line bg-surface px-3 text-[13px] text-ink outline-none placeholder:text-ink-faint focus-visible:border-accent focus-visible:ring-[3px] focus-visible:ring-accent-soft"
         />
       </div>
 
-      {ufs.length > 0 ? (
+      {states.length > 0 ? (
         <ActiveChip
-          label={`UF: ${ufs.join(", ")}`}
-          onClear={() => onChange({ ...filtros, ufs: undefined })}
+          label={`UF: ${states.join(", ")}`}
+          onClear={() => onChange({ ...filters, states: undefined })}
         />
       ) : null}
       {statuses.length > 0 ? (
         <ActiveChip
           label={`Status: ${statuses.map(statusLabel).join(", ")}`}
-          onClear={() => onChange({ ...filtros, statuses: undefined })}
+          onClear={() => onChange({ ...filters, statuses: undefined })}
         />
       ) : null}
-      {temValor ? (
+      {hasValue ? (
         <ActiveChip
-          label={`Valor: ${filtros.valorMin ?? "0"}–${filtros.valorMax ?? "∞"}`}
-          onClear={() => onChange({ ...filtros, valorMin: undefined, valorMax: undefined })}
+          label={`Valor: ${filters.valueMin ?? "0"}–${filters.valueMax ?? "∞"}`}
+          onClear={() =>
+            onChange({ ...filters, valueMin: undefined, valueMax: undefined })
+          }
         />
       ) : null}
     </div>

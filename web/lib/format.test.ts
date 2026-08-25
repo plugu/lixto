@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { formatCurrencyBRL, formatDateBR } from "./format";
-import { computeStatus } from "./status";
+import { computeProcurementStatus } from "./status";
 
 describe("formatCurrencyBRL", () => {
   it("formats a number as R$ with pt-BR separators", () => {
@@ -44,44 +44,44 @@ describe("formatDateBR", () => {
   });
 });
 
-describe("computeStatus", () => {
+describe("computeProcurementStatus", () => {
   const now = new Date("2026-06-15T12:00:00Z");
 
-  it("is aberta when now is within [abertura, encerramento)", () => {
-    const abertura = new Date("2026-06-01T00:00:00Z");
-    const encerramento = new Date("2026-07-01T00:00:00Z");
-    expect(computeStatus(abertura, encerramento, now)).toBe("aberta");
+  it("is open when now is within [opensAt, closesAt)", () => {
+    const opensAt = new Date("2026-06-01T00:00:00Z");
+    const closesAt = new Date("2026-07-01T00:00:00Z");
+    expect(computeProcurementStatus(opensAt, closesAt, now)).toBe("open");
   });
 
-  it("is aberta exactly at the abertura boundary (inclusive)", () => {
-    const encerramento = new Date("2026-07-01T00:00:00Z");
-    expect(computeStatus(now, encerramento, now)).toBe("aberta");
+  it("is open exactly at the opensAt boundary (inclusive)", () => {
+    const closesAt = new Date("2026-07-01T00:00:00Z");
+    expect(computeProcurementStatus(now, closesAt, now)).toBe("open");
   });
 
-  it("is fechada exactly at the encerramento boundary (exclusive)", () => {
-    const abertura = new Date("2026-06-01T00:00:00Z");
-    expect(computeStatus(abertura, now, now)).toBe("fechada");
+  it("is closed exactly at the closesAt boundary (exclusive)", () => {
+    const opensAt = new Date("2026-06-01T00:00:00Z");
+    expect(computeProcurementStatus(opensAt, now, now)).toBe("closed");
   });
 
-  it("is vai_abrir when abertura is in the future", () => {
-    const abertura = new Date("2026-07-01T00:00:00Z");
-    const encerramento = new Date("2026-08-01T00:00:00Z");
-    expect(computeStatus(abertura, encerramento, now)).toBe("vai_abrir");
+  it("is upcoming when opensAt is in the future", () => {
+    const opensAt = new Date("2026-07-01T00:00:00Z");
+    const closesAt = new Date("2026-08-01T00:00:00Z");
+    expect(computeProcurementStatus(opensAt, closesAt, now)).toBe("upcoming");
   });
 
-  it("is fechada when encerramento is in the past", () => {
-    const abertura = new Date("2026-01-01T00:00:00Z");
-    const encerramento = new Date("2026-02-01T00:00:00Z");
-    expect(computeStatus(abertura, encerramento, now)).toBe("fechada");
+  it("is closed when closesAt is in the past", () => {
+    const opensAt = new Date("2026-01-01T00:00:00Z");
+    const closesAt = new Date("2026-02-01T00:00:00Z");
+    expect(computeProcurementStatus(opensAt, closesAt, now)).toBe("closed");
   });
 
-  it("is fechada when encerramento is null", () => {
-    const abertura = new Date("2026-01-01T00:00:00Z");
-    expect(computeStatus(abertura, null, now)).toBe("fechada");
+  it("is closed when closesAt is null", () => {
+    const opensAt = new Date("2026-01-01T00:00:00Z");
+    expect(computeProcurementStatus(opensAt, null, now)).toBe("closed");
   });
 
-  it("is fechada when abertura is null", () => {
-    const encerramento = new Date("2026-07-01T00:00:00Z");
-    expect(computeStatus(null, encerramento, now)).toBe("fechada");
+  it("is closed when opensAt is null", () => {
+    const closesAt = new Date("2026-07-01T00:00:00Z");
+    expect(computeProcurementStatus(null, closesAt, now)).toBe("closed");
   });
 });

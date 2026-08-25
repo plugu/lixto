@@ -5,55 +5,55 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("./db", () => ({ pool: { query: vi.fn() } }));
 
 import { pool } from "./db";
-import { PORTAIS_ATIVOS } from "./portais";
-import type { PerfilResumo } from "./match-engine";
+import { ACTIVE_PORTALS } from "./portals";
+import type { ProfileSummary } from "./match-engine";
 import {
   buildCandidateQuery,
-  buildTermosTsQuery,
+  buildTermsTsQuery,
   fetchMatches,
   type MatchFilters,
 } from "./match-queries";
 
 const query = pool.query as unknown as ReturnType<typeof vi.fn>;
 
-type Perfil = PerfilResumo & { exclusoes_termos: string[] };
+type Profile = ProfileSummary & { exclusion_terms: string[] };
 
-function perfil(over: Partial<Perfil> = {}): Perfil {
+function profile(over: Partial<Profile> = {}): Profile {
   return {
-    termos: ["lapis"],
-    exclusoes_termos: [],
-    ufs: [],
-    valor_min: null,
-    valor_max: null,
-    porte: "ME",
+    terms: ["lapis"],
+    exclusion_terms: [],
+    states: [],
+    min_value: null,
+    max_value: null,
+    size: "ME",
     ...over,
   };
 }
 
-function candidato(over: Record<string, unknown> = {}) {
+function candidate(over: Record<string, unknown> = {}) {
   return {
-    numero_controle_pncp: "12345678000199-1-000001/2026",
-    objeto_compra: "Aquisição de lápis",
-    orgao_razao_social: "Prefeitura",
-    municipio_nome: "Rio de Janeiro",
-    uf: "RJ",
-    modalidade_nome: "Pregão",
-    valor_total_estimado: "1000.00",
-    data_abertura_proposta: new Date("2026-09-01T12:00:00Z"),
-    data_encerramento_proposta: new Date("2026-09-30T12:00:00Z"),
-    resumo: null,
-    riscos: null,
-    complexidade: null,
-    enriquecido: false,
-    cnae_hits_principal: [],
-    cnae_hits_secundario: [],
-    termo_hits: [],
-    texto_hit: false,
-    exclusao_hit: false,
-    me_epp_exclusivo: null,
-    exige_certificacao: null,
-    exige_atestado_tecnico: null,
-    similaridade: null,
+    source_id: "12345678000199-1-000001/2026",
+    description: "Aquisição de lápis",
+    agency_name: "Prefeitura",
+    city_name: "Rio de Janeiro",
+    state: "RJ",
+    modality_name: "Pregão",
+    estimated_value: "1000.00",
+    proposal_opens_at: new Date("2026-09-01T12:00:00Z"),
+    proposal_closes_at: new Date("2026-09-30T12:00:00Z"),
+    summary: null,
+    risks: null,
+    complexity: null,
+    enriched: false,
+    cnae_hits_primary: [],
+    cnae_hits_secondary: [],
+    term_hits: [],
+    text_hit: false,
+    exclusion_hit: false,
+    me_epp_exclusive: null,
+    requires_certification: null,
+    requires_technical_certificate: null,
+    similarity: null,
     ...over,
   };
 }
@@ -62,64 +62,74 @@ beforeEach(() => {
   query.mockReset();
 });
 
-describe("buildTermosTsQuery", () => {
+describe("buildTermsTsQuery", () => {
   it("builds an OR of AND-joined terms", () => {
-    expect(buildTermosTsQuery(["lapis", "lapis preto"])).toBe(
+    expect(buildTermsTsQuery(["lapis", "lapis preto"])).toBe(
       "(lapis) | (lapis & preto)",
     );
   });
 
   it("returns null for an empty list", () => {
-    expect(buildTermosTsQuery([])).toBe(null);
+    expect(buildTermsTsQuery([])).toBe(null);
   });
 
   it("sanitizes each term to [a-z0-9 ], so no operator can leak through", () => {
-    expect(buildTermosTsQuery(["lápis:*! | caneta", "papel-a4"])).toBe(
+    expect(buildTermsTsQuery(["lápis:*! | caneta", "papel-a4"])).toBe(
       "(l & pis & caneta) | (papel & a4)",
     );
   });
 
   it("drops terms left empty by sanitization", () => {
-    expect(buildTermosTsQuery(["!!!", "lapis"])).toBe("(lapis)");
-    expect(buildTermosTsQuery(["!!!", "  "])).toBe(null);
+    expect(buildTermsTsQuery(["!!!", "lapis"])).toBe("(lapis)");
+    expect(buildTermsTsQuery(["!!!", "  "])).toBe(null);
   });
 });
 
 describe("buildCandidateQuery", () => {
-  it("binds empresaId as $1 and never interpolates it", () => {
-    const q = buildCandidateQuery(42, {}, perfil(), 200);
+  it("binds companyId as $1 and never interpolates it", () => {
+    const q = buildCandidateQuery(42, {}, profile(), 200);
     expect(q.values[0]).toBe(42);
-    expect(q.text).toContain("FROM empresa_cnae WHERE empresa_id = $1");
+    expect(q.text).toContain("FROM company_cnaes WHERE company_id = $1");
     expect(q.text).not.toContain("42");
   });
 
   it("always applies the portal allowlist, bound as a parameter", () => {
-    const q = buildCandidateQuery(1, {}, perfil(), 200);
-    expect(q.text).toContain("l.usuario_nome = ANY(");
-    expect(q.values).toContainEqual(PORTAIS_ATIVOS);
+    const q = buildCandidateQuery(1, {}, profile(), 200);
+    expect(q.text).toContain("p.origin_system = ANY(");
+    expect(q.values).toContainEqual(ACTIVE_PORTALS);
   });
 
-  it("defaults to aberta OR vai_abrir and honours explicit statuses", () => {
-    const padrao = buildCandidateQuery(1, {}, perfil(), 200);
-    expect(padrao.text).toContain("l.data_abertura_proposta > now()");
-    expect(padrao.text).toContain(
-      "l.data_abertura_proposta <= now() AND now() < l.data_encerramento_proposta",
+  it("defaults to open OR upcoming and honours explicit statuses", () => {
+    const byDefault = buildCandidateQuery(1, {}, profile(), 200);
+    expect(byDefault.text).toContain("p.proposal_opens_at > now()");
+    expect(byDefault.text).toContain(
+      "p.proposal_opens_at <= now() AND now() < p.proposal_closes_at",
     );
-    expect(padrao.text).not.toContain("l.data_encerramento_proposta < now()");
+    expect(byDefault.text).not.toContain("p.proposal_closes_at < now()");
 
-    const fechada = buildCandidateQuery(1, { statuses: ["fechada"] }, perfil(), 200);
-    expect(fechada.text).toContain("l.data_encerramento_proposta < now()");
-    expect(fechada.text).not.toContain("l.data_abertura_proposta > now()");
+    const closed = buildCandidateQuery(1, { statuses: ["closed"] }, profile(), 200);
+    expect(closed.text).toContain("p.proposal_closes_at < now()");
+    expect(closed.text).not.toContain("p.proposal_opens_at > now()");
   });
 
-  it("binds the termos tsquery and the termos array", () => {
-    const q = buildCandidateQuery(1, {}, perfil({ termos: ["lapis", "lapis preto"] }), 200);
+  it("binds the terms tsquery and the terms array", () => {
+    const q = buildCandidateQuery(
+      1,
+      {},
+      profile({ terms: ["lapis", "lapis preto"] }),
+      200,
+    );
     expect(q.values[1]).toEqual(["lapis", "lapis preto"]);
     expect(q.values[2]).toBe("(lapis) | (lapis & preto)");
   });
 
-  it("binds null for empty termos and exclusões", () => {
-    const q = buildCandidateQuery(1, {}, perfil({ termos: [], exclusoes_termos: [] }), 200);
+  it("binds null for empty terms and exclusions", () => {
+    const q = buildCandidateQuery(
+      1,
+      {},
+      profile({ terms: [], exclusion_terms: [] }),
+      200,
+    );
     expect(q.values[1]).toEqual([]);
     expect(q.values[2]).toBe(null);
     expect(q.values[3]).toBe(null);
@@ -127,37 +137,41 @@ describe("buildCandidateQuery", () => {
     expect(q.text).toContain("IS NULL THEN false");
   });
 
-  it("includes numero_controle_pncp = ANY only when numeros is given", () => {
-    const sem = buildCandidateQuery(1, {}, perfil(), 200);
-    expect(sem.text).not.toContain("l.numero_controle_pncp = ANY(");
+  it("includes source_id = ANY only when sourceIds is given", () => {
+    const without = buildCandidateQuery(1, {}, profile(), 200);
+    expect(without.text).not.toContain("p.source_id = ANY(");
 
-    const com = buildCandidateQuery(1, { numeros: ["a", "b"] }, perfil(), 200);
-    expect(com.text).toContain("l.numero_controle_pncp = ANY(");
-    expect(com.values).toContainEqual(["a", "b"]);
+    const withIds = buildCandidateQuery(1, { sourceIds: ["a", "b"] }, profile(), 200);
+    expect(withIds.text).toContain("p.source_id = ANY(");
+    expect(withIds.values).toContainEqual(["a", "b"]);
   });
 
-  it("requires at least one signal, except when numeros is given", () => {
-    const sem = buildCandidateQuery(1, {}, perfil(), 200);
-    expect(sem.text).toContain("FROM licitacao_cnae lc JOIN cnaes c ON c.codigo = lc.codigo");
+  it("requires at least one signal, except when sourceIds is given", () => {
+    const without = buildCandidateQuery(1, {}, profile(), 200);
+    expect(without.text).toContain(
+      "FROM procurement_cnaes pc JOIN company_codes c ON c.cnae_code = pc.cnae_code",
+    );
 
-    const com = buildCandidateQuery(1, { numeros: ["a"] }, perfil(), 200);
+    const withIds = buildCandidateQuery(1, { sourceIds: ["a"] }, profile(), 200);
     // The facts still select CNAE hits; only the WHERE-side signal is dropped.
-    expect(com.text).not.toContain("SELECT 1 FROM licitacao_cnae lc JOIN cnaes c");
+    expect(withIds.text).not.toContain(
+      "SELECT 1 FROM procurement_cnaes pc JOIN company_codes c",
+    );
   });
 
   it("binds every optional filter as a parameter", () => {
     const filters: MatchFilters = {
       q: "lapis",
-      ufs: ["RJ"],
-      modalidadeIds: [6, 8],
-      valorMin: 1000,
-      valorMax: 500000,
+      states: ["RJ"],
+      modalityIds: [6, 8],
+      valueMin: 1000,
+      valueMax: 500000,
     };
-    const q = buildCandidateQuery(7, filters, perfil(), 200);
-    expect(q.text).toContain("l.uf = ANY(");
-    expect(q.text).toContain("l.modalidade_id = ANY(");
-    expect(q.text).toContain("l.valor_total_estimado >= $");
-    expect(q.text).toContain("l.valor_total_estimado <= $");
+    const q = buildCandidateQuery(7, filters, profile(), 200);
+    expect(q.text).toContain("p.state = ANY(");
+    expect(q.text).toContain("p.modality_id = ANY(");
+    expect(q.text).toContain("p.estimated_value >= $");
+    expect(q.text).toContain("p.estimated_value <= $");
     expect(q.text).toContain("websearch_to_tsquery('portuguese', f_unaccent($");
     expect(q.values).toContainEqual(["RJ"]);
     expect(q.values).toContainEqual([6, 8]);
@@ -168,167 +182,154 @@ describe("buildCandidateQuery", () => {
   });
 
   it("joins enrichment and binds the candidate limit", () => {
-    const q = buildCandidateQuery(1, {}, perfil(), 200);
-    expect(q.text).toContain("LEFT JOIN enriquecimento e");
-    expect(q.text).toContain(
-      "ON e.numero_controle_pncp = l.numero_controle_pncp AND e.status = 'done'",
-    );
-    expect(q.text).toContain(
-      "ORDER BY l.data_encerramento_proposta ASC NULLS LAST",
-    );
+    const q = buildCandidateQuery(1, {}, profile(), 200);
+    expect(q.text).toContain("LEFT JOIN procurement_enrichments e");
+    expect(q.text).toContain("ON e.procurement_id = p.id AND e.status = 'done'");
+    expect(q.text).toContain("ORDER BY p.proposal_closes_at ASC NULLS LAST");
     expect(q.text).toContain(`LIMIT $${q.values.length}`);
     expect(q.values[q.values.length - 1]).toBe(200);
   });
 
   it("numbers every placeholder it uses, with no gaps", () => {
-    const q = buildCandidateQuery(1, { q: "lapis", ufs: ["RJ"] }, perfil(), 200);
-    const usados = new Set(
-      [...q.text.matchAll(/\$(\d+)/g)].map((m) => Number(m[1])),
-    );
+    const q = buildCandidateQuery(1, { q: "lapis", states: ["RJ"] }, profile(), 200);
+    const used = new Set([...q.text.matchAll(/\$(\d+)/g)].map((m) => Number(m[1])));
     for (let i = 1; i <= q.values.length; i++) {
-      expect(usados.has(i)).toBe(true);
+      expect(used.has(i)).toBe(true);
     }
-    expect(Math.max(...usados)).toBe(q.values.length);
+    expect(Math.max(...used)).toBe(q.values.length);
   });
 
-  it("selects NULL::real as similaridade when there is no perfil embedding", () => {
-    const q = buildCandidateQuery(1, {}, perfil(), 200);
-    expect(q.text).toContain("NULL::real AS similaridade");
+  it("selects NULL::real as similarity when there is no profile embedding", () => {
+    const q = buildCandidateQuery(1, {}, profile(), 200);
+    expect(q.text).toContain("NULL::real AS similarity");
     expect(q.text).not.toContain("<=>");
-    expect(q.text).not.toContain("LEFT JOIN semantico");
-    expect(q.values.every((v) => typeof v !== "string" || !v.startsWith("["))).toBe(
-      true,
-    );
+    expect(q.text).not.toContain("LEFT JOIN semantic");
+    expect(
+      q.values.every((v) => typeof v !== "string" || !v.startsWith("[")),
+    ).toBe(true);
   });
 
   it("adds the pgvector CTE and binds the vector as text when given", () => {
-    const vetor = "[0.1,0.2,0.3]";
-    const q = buildCandidateQuery(1, {}, perfil(), 200, vetor);
+    const vector = "[0.1,0.2,0.3]";
+    const q = buildCandidateQuery(1, {}, profile(), 200, vector);
 
-    expect(q.text).toContain("semantico AS (");
+    expect(q.text).toContain("semantic AS (");
     expect(q.text).toContain("1 - (embedding <=> $");
     expect(q.text).toContain("::vector");
-    expect(q.text).toContain("LEFT JOIN semantico s");
-    expect(q.text).toContain("s.similaridade");
+    expect(q.text).toContain("LEFT JOIN semantic s");
+    expect(q.text).toContain("s.similarity");
+    expect(q.text).toContain("FROM procurement_embeddings");
     // Bound exactly once and never interpolated.
-    expect(q.values.filter((v) => v === vetor)).toHaveLength(1);
+    expect(q.values.filter((v) => v === vector)).toHaveLength(1);
     expect(q.text).not.toContain("0.1,0.2,0.3");
   });
 
-  it("accepts the similaridade as a standalone signal", () => {
-    const q = buildCandidateQuery(1, {}, perfil(), 200, "[0.1,0.2]");
-    expect(q.text).toContain("OR s.similaridade >= 0.40");
+  it("accepts the similarity as a standalone signal", () => {
+    const q = buildCandidateQuery(1, {}, profile(), 200, "[0.1,0.2]");
+    expect(q.text).toContain("OR s.similarity >= 0.40");
 
-    const sem = buildCandidateQuery(1, {}, perfil(), 200);
-    expect(sem.text).not.toContain("s.similaridade >=");
+    const without = buildCandidateQuery(1, {}, profile(), 200);
+    expect(without.text).not.toContain("s.similarity >=");
   });
 
   it("still numbers every placeholder with no gaps with the vector bound", () => {
     const q = buildCandidateQuery(
       1,
-      { q: "lapis", ufs: ["RJ"] },
-      perfil(),
+      { q: "lapis", states: ["RJ"] },
+      profile(),
       200,
       "[0.1,0.2]",
     );
-    const usados = new Set(
-      [...q.text.matchAll(/\$(\d+)/g)].map((m) => Number(m[1])),
-    );
+    const used = new Set([...q.text.matchAll(/\$(\d+)/g)].map((m) => Number(m[1])));
     for (let i = 1; i <= q.values.length; i++) {
-      expect(usados.has(i)).toBe(true);
+      expect(used.has(i)).toBe(true);
     }
-    expect(Math.max(...usados)).toBe(q.values.length);
+    expect(Math.max(...used)).toBe(q.values.length);
   });
 });
 
 describe("fetchMatches", () => {
-  /** Four statements, in order: getPerfil, the porte lookup,
-   * getPerfilEmbeddingText, then the candidate query (mock.calls[3]). */
-  function mockEmpresa(
-    perfilRow: Record<string, unknown> | null,
-    porte: string | null,
-    candidatos: Record<string, unknown>[],
+  /** Four statements, in order: getProfile, the size lookup,
+   * getProfileEmbeddingText, then the candidate query (mock.calls[3]). */
+  function mockCompany(
+    profileRow: Record<string, unknown> | null,
+    size: string | null,
+    candidates: Record<string, unknown>[],
     embedding: string | null = null,
   ) {
     query
-      .mockResolvedValueOnce({ rows: perfilRow ? [perfilRow] : [] })
-      .mockResolvedValueOnce({ rows: porte === null ? [] : [{ porte }] })
+      .mockResolvedValueOnce({ rows: profileRow ? [profileRow] : [] })
+      .mockResolvedValueOnce({ rows: size === null ? [] : [{ size }] })
       .mockResolvedValueOnce({ rows: [{ embedding }] })
-      .mockResolvedValueOnce({ rows: candidatos });
+      .mockResolvedValueOnce({ rows: candidates });
   }
 
-  const perfilRow = {
-    empresa_id: 1,
-    produtos: ["lápis"],
-    palavras_chave: [],
-    exclusoes: [],
-    termos: ["lapis"],
-    exclusoes_termos: [],
-    ufs: ["RJ"],
-    valor_min: null,
-    valor_max: null,
-    observacoes: null,
-    embedding_texto: null,
+  const profileRow = {
+    company_id: 1,
+    products: ["lápis"],
+    keywords: [],
+    exclusions: [],
+    terms: ["lapis"],
+    exclusion_terms: [],
+    states: ["RJ"],
+    min_value: null,
+    max_value: null,
+    notes: null,
+    embedding_text: null,
   };
 
-  it("scores rows, sorts by score desc and returns motivos", async () => {
-    mockEmpresa(perfilRow, "ME", [
-      candidato({ numero_controle_pncp: "fraco", texto_hit: true }),
-      candidato({
-        numero_controle_pncp: "forte",
-        cnae_hits_principal: ["4761003"],
-        termo_hits: ["lapis", "caneta"],
+  it("scores rows, sorts by score desc and returns reasons", async () => {
+    mockCompany(profileRow, "ME", [
+      candidate({ source_id: "weak", text_hit: true }),
+      candidate({
+        source_id: "strong",
+        cnae_hits_primary: ["4761003"],
+        term_hits: ["lapis", "caneta"],
       }),
     ]);
 
-    const rows = await fetchMatches(1, { q: "lapis", ufs: ["RJ"] });
+    const rows = await fetchMatches(1, { q: "lapis", states: ["RJ"] });
 
-    expect(rows.map((r) => r.numero_controle_pncp)).toEqual(["forte", "fraco"]);
+    expect(rows.map((r) => r.source_id)).toEqual(["strong", "weak"]);
     expect(rows[0].score).toBe(90);
-    expect(rows[0].motivos.map((m) => m.codigo)).toEqual([
-      "cnae_principal",
-      "termo_enriquecimento",
-      "uf_ok",
-      "valor_ok",
+    expect(rows[0].reasons.map((r) => r.code)).toEqual([
+      "cnae_primary",
+      "term_enrichment",
+      "state_ok",
+      "value_ok",
     ]);
     expect(rows[1].score).toBe(35);
   });
 
-  it("breaks score ties by data_encerramento_proposta ascending", async () => {
-    mockEmpresa(perfilRow, "ME", [
-      candidato({
-        numero_controle_pncp: "tarde",
-        texto_hit: true,
-        data_encerramento_proposta: new Date("2026-12-01T12:00:00Z"),
+  it("breaks score ties by proposal_closes_at ascending", async () => {
+    mockCompany(profileRow, "ME", [
+      candidate({
+        source_id: "late",
+        text_hit: true,
+        proposal_closes_at: new Date("2026-12-01T12:00:00Z"),
       }),
-      candidato({
-        numero_controle_pncp: "sem-prazo",
-        texto_hit: true,
-        data_encerramento_proposta: null,
+      candidate({
+        source_id: "no-deadline",
+        text_hit: true,
+        proposal_closes_at: null,
       }),
-      candidato({
-        numero_controle_pncp: "cedo",
-        texto_hit: true,
-        data_encerramento_proposta: new Date("2026-09-01T12:00:00Z"),
+      candidate({
+        source_id: "early",
+        text_hit: true,
+        proposal_closes_at: new Date("2026-09-01T12:00:00Z"),
       }),
     ]);
 
     const rows = await fetchMatches(1, {});
 
-    expect(rows.map((r) => r.numero_controle_pncp)).toEqual([
-      "cedo",
-      "tarde",
-      "sem-prazo",
-    ]);
+    expect(rows.map((r) => r.source_id)).toEqual(["early", "late", "no-deadline"]);
   });
 
   it("truncates to limit", async () => {
-    mockEmpresa(
-      perfilRow,
+    mockCompany(
+      profileRow,
       "ME",
-      [1, 2, 3, 4, 5].map((n) =>
-        candidato({ numero_controle_pncp: `n${n}`, texto_hit: true }),
-      ),
+      [1, 2, 3, 4, 5].map((n) => candidate({ source_id: `n${n}`, text_hit: true })),
     );
 
     const rows = await fetchMatches(1, {}, 2);
@@ -336,27 +337,27 @@ describe("fetchMatches", () => {
     expect(rows).toHaveLength(2);
   });
 
-  it("scores an ME/EPP-exclusive licitação 40 lower for a GRANDE empresa", async () => {
-    const linha = candidato({
-      cnae_hits_principal: ["4761003"],
-      termo_hits: ["lapis"],
-      me_epp_exclusivo: true,
+  it("scores an ME/EPP-exclusive procurement 40 lower for a LARGE company", async () => {
+    const row = candidate({
+      cnae_hits_primary: ["4761003"],
+      term_hits: ["lapis"],
+      me_epp_exclusive: true,
     });
 
-    mockEmpresa(perfilRow, "ME", [linha]);
-    const [comoMe] = await fetchMatches(1, {});
+    mockCompany(profileRow, "ME", [row]);
+    const [asMe] = await fetchMatches(1, {});
 
     query.mockReset();
-    mockEmpresa(perfilRow, "GRANDE", [linha]);
-    const [comoGrande] = await fetchMatches(1, {});
+    mockCompany(profileRow, "LARGE", [row]);
+    const [asLarge] = await fetchMatches(1, {});
 
-    expect(comoMe.score - comoGrande.score).toBe(40);
-    expect(comoGrande.motivos.map((m) => m.codigo)).toContain("me_epp_exclusivo");
-    expect(comoMe.motivos.map((m) => m.codigo)).not.toContain("me_epp_exclusivo");
+    expect(asMe.score - asLarge.score).toBe(40);
+    expect(asLarge.reasons.map((r) => r.code)).toContain("me_epp_exclusive");
+    expect(asMe.reasons.map((r) => r.code)).not.toContain("me_epp_exclusive");
   });
 
-  it("falls back to empty termos/ufs when the empresa has no perfil row", async () => {
-    mockEmpresa(null, "ME", [candidato({ cnae_hits_secundario: ["4789099"] })]);
+  it("falls back to empty terms/states when the company has no profile row", async () => {
+    mockCompany(null, "ME", [candidate({ cnae_hits_secondary: ["4789099"] })]);
 
     const rows = await fetchMatches(1, {});
 
@@ -364,25 +365,28 @@ describe("fetchMatches", () => {
     expect(values[0]).toBe(1);
     expect(values[1]).toEqual([]);
     expect(values[2]).toBe(null);
-    // CNAE-only matching still works: 25 + 10 (uf livre) + 10 (valor livre).
+    // CNAE-only matching still works: 25 + 10 (any state) + 10 (any value).
     expect(rows[0].score).toBe(45);
   });
 
   it("never interpolates filter values into the SQL text", async () => {
-    mockEmpresa(perfilRow, "ME", []);
+    mockCompany(profileRow, "ME", []);
 
-    await fetchMatches(1, { q: "lapis'; DROP TABLE licitacao; --", ufs: ["RJ"] });
+    await fetchMatches(1, {
+      q: "lapis'; DROP TABLE procurements; --",
+      states: ["RJ"],
+    });
 
     const [text, values] = query.mock.calls[3];
     expect(text).not.toContain("DROP TABLE");
-    expect(values).toContain("lapis'; DROP TABLE licitacao; --");
+    expect(values).toContain("lapis'; DROP TABLE procurements; --");
   });
 
-  it("passes the perfil embedding to the candidate query and scores it", async () => {
-    mockEmpresa(
-      perfilRow,
+  it("passes the profile embedding to the candidate query and scores it", async () => {
+    mockCompany(
+      profileRow,
       "ME",
-      [candidato({ termo_hits: ["lapis"], similaridade: "0.62" })],
+      [candidate({ term_hits: ["lapis"], similarity: "0.62" })],
       "[0.1,0.2,0.3]",
     );
 
@@ -391,22 +395,22 @@ describe("fetchMatches", () => {
     const [text, values] = query.mock.calls[3];
     expect(text).toContain("<=>");
     expect(values).toContain("[0.1,0.2,0.3]");
-    expect(rows[0].motivos.map((m) => m.codigo)).toContain("semantico_alto");
+    expect(rows[0].reasons.map((r) => r.code)).toContain("semantic_high");
     expect(
-      rows[0].motivos.find((m) => m.codigo === "semantico_alto")?.detalhe,
+      rows[0].reasons.find((r) => r.code === "semantic_high")?.detail,
     ).toBe("sim=0.62");
-    // 25 (1 termo) + 10 (uf) + 10 (valor) + 20 (semântico)
+    // 25 (1 term) + 10 (state) + 10 (value) + 20 (semantic)
     expect(rows[0].score).toBe(65);
   });
 
-  it("omits the vector CTE when the empresa has no embedding", async () => {
-    mockEmpresa(perfilRow, "ME", [candidato({ termo_hits: ["lapis"] })]);
+  it("omits the vector CTE when the company has no embedding", async () => {
+    mockCompany(profileRow, "ME", [candidate({ term_hits: ["lapis"] })]);
 
     const rows = await fetchMatches(1, {});
 
     const [text] = query.mock.calls[3];
     expect(text).not.toContain("<=>");
-    expect(rows[0].motivos.map((m) => m.codigo)).not.toContain("semantico");
+    expect(rows[0].reasons.map((r) => r.code)).not.toContain("semantic");
     expect(rows[0].score).toBe(45);
   });
 });

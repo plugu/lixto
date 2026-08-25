@@ -43,26 +43,26 @@ describe("lookupCNPJ", () => {
       expect.objectContaining({ signal: expect.anything() }),
     );
     expect(result).toEqual({
-      razaoSocial: "BANCO DO BRASIL SA",
-      nomeFantasia: "BB",
-      naturezaJuridica: "206-2 - Sociedade de Economia Mista",
-      porte: "MEDIO",
-      optanteSimples: false,
-      cep: "70040912",
-      logradouro: "SAUN QUADRA 5",
-      numero: "S/N",
-      complemento: "LOTE B TORRE I",
-      bairro: "ASA NORTE",
-      municipio: "BRASILIA",
-      uf: "DF",
-      telefone: "6134938000",
+      legalName: "BANCO DO BRASIL SA",
+      tradeName: "BB",
+      legalNature: "206-2 - Sociedade de Economia Mista",
+      size: "MEDIUM",
+      simplesOptant: false,
+      postalCode: "70040912",
+      street: "SAUN QUADRA 5",
+      streetNumber: "S/N",
+      addressLine2: "LOTE B TORRE I",
+      district: "ASA NORTE",
+      cityName: "BRASILIA",
+      state: "DF",
+      phone: "6134938000",
       email: "contato@bb.com.br",
       cnaes: [
-        { codigo: "6421200", descricao: "Bancos comerciais", principal: true },
+        { code: "6421200", description: "Bancos comerciais", isPrimary: true },
         {
-          codigo: "6422100",
-          descricao: "Bancos múltiplos, com carteira comercial",
-          principal: false,
+          code: "6422100",
+          description: "Bancos múltiplos, com carteira comercial",
+          isPrimary: false,
         },
       ],
     });
@@ -82,12 +82,12 @@ describe("lookupCNPJ", () => {
     expect(await lookupCNPJ("00000000000191", fetchImpl)).toBeNull();
   });
 
-  describe("porte mapping", () => {
+  describe("size mapping", () => {
     const cases: [Record<string, unknown>, string | null][] = [
       [{ porte: "MICRO EMPRESA" }, "ME"],
       [{ porte: "EMPRESA DE PEQUENO PORTE" }, "EPP"],
-      [{ porte: "DEMAIS" }, "MEDIO"],
-      [{ porte: "ALGO_DESCONHECIDO" }, null],
+      [{ porte: "DEMAIS" }, "MEDIUM"],
+      [{ porte: "DESCONHECIDO" }, null],
       [{ porte: "DEMAIS", opcao_pelo_mei: true }, "MEI"],
     ];
 
@@ -97,7 +97,7 @@ describe("lookupCNPJ", () => {
         .mockResolvedValue(jsonResponse({ ...FIXTURE, ...overrides }));
 
       const result = await lookupCNPJ("00000000000191", fetchImpl);
-      expect(result?.porte).toBe(expected);
+      expect(result?.size).toBe(expected);
     });
   });
 });

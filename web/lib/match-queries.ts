@@ -1,62 +1,65 @@
-// Candidate retrieval for the match engine (ticket 66). One statement gathers
-// the facts (CNAE overlap, enrichment-keyword intersection, FTS hits, the
-// enrichment flags); scoring and ordering happen in TS via
-// `scoreCandidate` — see match-engine.ts.
+// Candidate retrieval for the match engine on the lixto schema. One statement
+// gathers the facts (CNAE overlap via `procurement_cnaes` × `company_cnaes`,
+// enrichment-keyword intersection, FTS hits, the enrichment flags, the
+// pgvector similarity); scoring and ordering happen in TS via `scoreCandidate`
+// — see match-engine.ts.
 //
-// On demand, no `match` table: a profile edited a second ago is already
-// reflected. Every value from the outside world (empresaId, filters, the
-// tsquery strings) is bound as $n — never string-interpolated into SQL text.
+// On demand, nothing written to `matches`: a profile edited a second ago is
+// already reflected. Every value from the outside world (companyId, filters,
+// the tsquery strings) is bound as $n — never string-interpolated into SQL.
 
 import { pool } from "./db";
-import { scoreCandidate, type Motivo, type PerfilResumo } from "./match-engine";
+import { scoreCandidate, type Reason, type ProfileSummary } from "./match-engine";
+import { ACTIVE_PORTALS } from "./portals";
 import {
-  getPerfil,
-  getPerfilEmbeddingText,
+  getProfile,
+  getProfileEmbeddingText,
   type SqlQuery,
-} from "./perfil-queries";
-import { PORTAIS_ATIVOS } from "./portais";
+} from "./profile-queries";
+import type { ProcurementStatus } from "./status";
 
 export type MatchFilters = {
   q?: string;
-  ufs?: string[];
-  statuses?: ("aberta" | "vai_abrir" | "fechada")[];
-  modalidadeIds?: number[];
-  valorMin?: number;
-  valorMax?: number;
-  numeros?: string[];
+  states?: string[];
+  statuses?: ProcurementStatus[];
+  modalityIds?: number[];
+  valueMin?: number;
+  valueMax?: number;
+  /** "Score exactly these" mode: `procurements.source_id` values. */
+  sourceIds?: string[];
 };
 
 export type MatchRow = {
-  numero_controle_pncp: string;
-  objeto_compra: string | null;
-  orgao_razao_social: string | null;
-  municipio_nome: string | null;
-  uf: string | null;
-  modalidade_nome: string | null;
-  valor_total_estimado: string | null;
-  data_abertura_proposta: Date | null;
-  data_encerramento_proposta: Date | null;
-  resumo: string | null;
-  riscos: string[] | null;
-  complexidade: string | null;
-  enriquecido: boolean;
+  source_id: string;
+  description: string | null;
+  agency_name: string | null;
+  city_name: string | null;
+  state: string | null;
+  modality_name: string | null;
+  estimated_value: string | null;
+  proposal_opens_at: Date | null;
+  proposal_closes_at: Date | null;
+  summary: string | null;
+  risks: string[] | null;
+  complexity: string | null;
+  enriched: boolean;
   score: number;
-  motivos: Motivo[];
+  reasons: Reason[];
 };
 
 /** Row shape returned by `buildCandidateQuery`, before scoring. */
-export type CandidatoRow = Omit<MatchRow, "score" | "motivos"> & {
-  cnae_hits_principal: string[] | null;
-  cnae_hits_secundario: string[] | null;
-  termo_hits: string[] | null;
-  texto_hit: boolean | null;
-  exclusao_hit: boolean | null;
-  me_epp_exclusivo: boolean | null;
-  exige_certificacao: boolean | null;
-  exige_atestado_tecnico: boolean | null;
+export type CandidateRow = Omit<MatchRow, "score" | "reasons"> & {
+  cnae_hits_primary: string[] | null;
+  cnae_hits_secondary: string[] | null;
+  term_hits: string[] | null;
+  text_hit: boolean | null;
+  exclusion_hit: boolean | null;
+  me_epp_exclusive: boolean | null;
+  requires_certification: boolean | null;
+  requires_technical_certificate: boolean | null;
   /** pg returns numeric expressions as strings unless a type parser says
    * otherwise; normalized with Number() before scoring. */
-  similaridade: string | number | null;
+  similarity: string | number | null;
 };
 
 /** How many rows the SQL side hands to the scorer. Scoring is cheap; the DB
@@ -70,15 +73,12 @@ const SEMANTIC_TOP_K = 200;
  * as the weakest band in match-engine.ts. */
 const SEMANTIC_MIN = 0.4;
 
-// Copied from STATUS_PREDICATES in queries.ts (which this ticket must not
-// touch), aliased to `l` — same semantics as the v_abertas/v_futuras/
-// v_encerradas views in migrations/001_schema.sql.
-const STATUS_PREDICATES: Record<"aberta" | "vai_abrir" | "fechada", string> = {
-  aberta:
-    "l.data_abertura_proposta <= now() AND now() < l.data_encerramento_proposta",
-  vai_abrir: "l.data_abertura_proposta > now()",
-  fechada:
-    "(l.data_encerramento_proposta < now() OR l.data_encerramento_proposta IS NULL)",
+// Same predicates as `computeProcurementStatus` / procurement-queries.ts,
+// aliased to `p`.
+const STATUS_PREDICATES: Record<ProcurementStatus, string> = {
+  open: "p.proposal_opens_at <= now() AND now() < p.proposal_closes_at",
+  upcoming: "p.proposal_opens_at > now()",
+  closed: "(p.proposal_closes_at < now() OR p.proposal_closes_at IS NULL)",
 };
 
 /**
@@ -88,8 +88,8 @@ const STATUS_PREDICATES: Record<"aberta" | "vai_abrir" | "fechada", string> = {
  * reach the tsquery parser as an operator. Empty list → null (the caller
  * binds it and the predicate collapses to false).
  */
-export function buildTermosTsQuery(termos: string[]): string | null {
-  const partes = termos
+export function buildTermsTsQuery(terms: string[]): string | null {
+  const parts = terms
     .map((t) =>
       t
         .toLowerCase()
@@ -100,152 +100,149 @@ export function buildTermosTsQuery(termos: string[]): string | null {
     )
     .filter((tokens) => tokens.length > 0)
     .map((tokens) => `(${tokens.join(" & ")})`);
-  return partes.length === 0 ? null : partes.join(" | ");
+  return parts.length === 0 ? null : parts.join(" | ");
 }
 
 /**
- * The single candidate statement. `empresaId` is always $1. `perfil` comes in
+ * The single candidate statement. `companyId` is always $1. `profile` comes in
  * as an argument (already loaded by `fetchMatches`) rather than being read via
  * a CTE, so this stays pure and testable — the profile values it needs are all
  * bound as parameters.
  */
 export function buildCandidateQuery(
-  empresaId: number,
+  companyId: number,
   filters: MatchFilters,
-  perfil: PerfilResumo & { exclusoes_termos: string[] },
+  profile: ProfileSummary & { exclusion_terms: string[] },
   candidateLimit: number,
-  perfilEmbedding?: string | null,
+  profileEmbedding?: string | null,
 ): SqlQuery {
-  const values: unknown[] = [empresaId];
+  const values: unknown[] = [companyId];
   const bind = (value: unknown): string => {
     values.push(value);
     return `$${values.length}`;
   };
 
-  const termosParam = bind(perfil.termos);
-  const tqParam = bind(buildTermosTsQuery(perfil.termos));
-  const exclusaoTqParam = bind(buildTermosTsQuery(perfil.exclusoes_termos));
+  const termsParam = bind(profile.terms);
+  const tqParam = bind(buildTermsTsQuery(profile.terms));
+  const exclusionTqParam = bind(buildTermsTsQuery(profile.exclusion_terms));
 
   // A NULL tsquery would make the whole comparison NULL; the CASE keeps it a
   // plain false so the "at least one signal" predicate stays sargable.
   const ftsHit = (param: string) => `(CASE WHEN ${param}::text IS NULL THEN false ELSE (
-        to_tsvector('portuguese', f_unaccent(coalesce(l.objeto_compra, '')))
+        to_tsvector('portuguese', f_unaccent(coalesce(p.description, '')))
           @@ to_tsquery('portuguese', f_unaccent(${param}::text))
         OR EXISTS (
-          SELECT 1 FROM item i
-           WHERE i.numero_controle_pncp = l.numero_controle_pncp
-             AND to_tsvector('portuguese', f_unaccent(coalesce(i.descricao, '')))
+          SELECT 1 FROM procurement_items i
+           WHERE i.procurement_id = p.id
+             AND to_tsvector('portuguese', f_unaccent(coalesce(i.description, '')))
                  @@ to_tsquery('portuguese', f_unaccent(${param}::text))
         )
       ) END)`;
 
-  const textoHit = ftsHit(tqParam);
-  const exclusaoHit = ftsHit(exclusaoTqParam);
+  const textHit = ftsHit(tqParam);
+  const exclusionHit = ftsHit(exclusionTqParam);
 
-  const cnaeHitsPrincipal = `ARRAY(
-        SELECT lc.codigo FROM licitacao_cnae lc
-          JOIN cnaes c ON c.codigo = lc.codigo AND c.principal
-         WHERE lc.numero_controle_pncp = l.numero_controle_pncp
+  const cnaeHitsPrimary = `ARRAY(
+        SELECT pc.cnae_code FROM procurement_cnaes pc
+          JOIN company_codes c ON c.cnae_code = pc.cnae_code AND c.is_primary
+         WHERE pc.procurement_id = p.id
       )`;
-  const cnaeHitsSecundario = `ARRAY(
-        SELECT lc.codigo FROM licitacao_cnae lc
-          JOIN cnaes c ON c.codigo = lc.codigo AND NOT c.principal
-         WHERE lc.numero_controle_pncp = l.numero_controle_pncp
+  const cnaeHitsSecondary = `ARRAY(
+        SELECT pc.cnae_code FROM procurement_cnaes pc
+          JOIN company_codes c ON c.cnae_code = pc.cnae_code AND NOT c.is_primary
+         WHERE pc.procurement_id = p.id
       )`;
-  const enriquecimentoTermos = `(coalesce(e.palavras_chave, '{}'::text[]) || coalesce(e.conceitos, '{}'::text[]))`;
-  const termoHits = `ARRAY(
-        SELECT unnest(${enriquecimentoTermos})
+  const enrichmentTerms = `(coalesce(e.keywords, '{}'::text[]) || coalesce(e.concepts, '{}'::text[]))`;
+  const termHits = `ARRAY(
+        SELECT unnest(${enrichmentTerms})
         INTERSECT
-        SELECT unnest(${termosParam}::text[])
+        SELECT unnest(${termsParam}::text[])
       )`;
 
-  // Semantic top-K: an extra candidate source, so a licitação for "cadernos e
-  // apontadores" reaches an empresa selling "material escolar" with zero
+  // Semantic top-K: an extra candidate source, so a procurement for "cadernos
+  // e apontadores" reaches a company selling "material escolar" with zero
   // keyword overlap. The vector is bound as text and cast — node-pg has no
-  // vector type — and the CTE is skipped entirely when the perfil has no
+  // vector type — and the CTE is skipped entirely when the profile has no
   // embedding yet.
-  const semanticoCte = perfilEmbedding
+  const semanticCte = profileEmbedding
     ? (() => {
-        const p = bind(perfilEmbedding);
+        const v = bind(profileEmbedding);
         return `,
-    semantico AS (
-      SELECT numero_controle_pncp,
-             1 - (embedding <=> ${p}::vector) AS similaridade
-        FROM enriquecimento
-       WHERE embedding IS NOT NULL
-       ORDER BY embedding <=> ${p}::vector
+    semantic AS (
+      SELECT procurement_id,
+             1 - (embedding <=> ${v}::vector) AS similarity
+        FROM procurement_embeddings
+       ORDER BY embedding <=> ${v}::vector
        LIMIT ${SEMANTIC_TOP_K}
     )`;
       })()
     : "";
-  // `ON` rather than `USING`: `l` and `e` both expose numero_controle_pncp,
-  // and a USING clause on top of that is ambiguous for Postgres.
-  const semanticoJoin = perfilEmbedding
-    ? `\n    LEFT JOIN semantico s ON s.numero_controle_pncp = l.numero_controle_pncp`
+  const semanticJoin = profileEmbedding
+    ? `\n    LEFT JOIN semantic s ON s.procurement_id = p.id`
     : "";
-  const similaridadeSelect = perfilEmbedding
-    ? "s.similaridade"
-    : "NULL::real AS similaridade";
+  const similaritySelect = profileEmbedding
+    ? "s.similarity"
+    : "NULL::real AS similarity";
 
   const conditions: string[] = [];
 
-  // Platform-wide top-7 portal allowlist (ticket 10): always applied.
-  conditions.push(`l.usuario_nome = ANY(${bind(PORTAIS_ATIVOS)})`);
+  // Platform-wide top-7 portal allowlist: always applied.
+  conditions.push(`p.origin_system = ANY(${bind(ACTIVE_PORTALS)})`);
 
   const statuses =
     filters.statuses && filters.statuses.length > 0
       ? filters.statuses
-      : (["aberta", "vai_abrir"] as const);
+      : (["open", "upcoming"] as const);
   conditions.push(
     `(${statuses.map((s) => `(${STATUS_PREDICATES[s]})`).join(" OR ")})`,
   );
 
-  if (filters.ufs && filters.ufs.length > 0) {
-    conditions.push(`l.uf = ANY(${bind(filters.ufs)})`);
+  if (filters.states && filters.states.length > 0) {
+    conditions.push(`p.state = ANY(${bind(filters.states)})`);
   }
-  if (filters.modalidadeIds && filters.modalidadeIds.length > 0) {
-    conditions.push(`l.modalidade_id = ANY(${bind(filters.modalidadeIds)})`);
+  if (filters.modalityIds && filters.modalityIds.length > 0) {
+    conditions.push(`p.modality_id = ANY(${bind(filters.modalityIds)})`);
   }
-  if (filters.valorMin !== undefined) {
-    conditions.push(`l.valor_total_estimado >= ${bind(filters.valorMin)}`);
+  if (filters.valueMin !== undefined) {
+    conditions.push(`p.estimated_value >= ${bind(filters.valueMin)}`);
   }
-  if (filters.valorMax !== undefined) {
-    conditions.push(`l.valor_total_estimado <= ${bind(filters.valorMax)}`);
+  if (filters.valueMax !== undefined) {
+    conditions.push(`p.estimated_value <= ${bind(filters.valueMax)}`);
   }
 
-  const numeros = filters.numeros ?? [];
-  const temNumeros = numeros.length > 0;
-  if (temNumeros) {
-    conditions.push(`l.numero_controle_pncp = ANY(${bind(numeros)})`);
+  const sourceIds = filters.sourceIds ?? [];
+  const hasSourceIds = sourceIds.length > 0;
+  if (hasSourceIds) {
+    conditions.push(`p.source_id = ANY(${bind(sourceIds)})`);
   }
 
   if (filters.q) {
-    // Same expression as queries.ts, so the GIN indexes (migration 005) apply.
+    // Same expression as procurement-queries.ts, so the GIN indexes apply.
     const q = bind(filters.q);
     conditions.push(
-      `(to_tsvector('portuguese', f_unaccent(coalesce(l.objeto_compra, '')))` +
+      `(to_tsvector('portuguese', f_unaccent(coalesce(p.description, '')))` +
         ` @@ websearch_to_tsquery('portuguese', f_unaccent(${q}))` +
-        ` OR EXISTS (SELECT 1 FROM item i WHERE i.numero_controle_pncp = l.numero_controle_pncp` +
-        ` AND to_tsvector('portuguese', f_unaccent(coalesce(i.descricao, '')))` +
+        ` OR EXISTS (SELECT 1 FROM procurement_items i WHERE i.procurement_id = p.id` +
+        ` AND to_tsvector('portuguese', f_unaccent(coalesce(i.description, '')))` +
         ` @@ websearch_to_tsquery('portuguese', f_unaccent(${q}))))`,
     );
   }
 
   // At least one signal — otherwise the whole open universe would come back.
-  // Skipped when the caller asked for specific numeros (score-these-rows mode).
-  if (!temNumeros) {
+  // Skipped when the caller asked for specific sourceIds (score-these-rows).
+  if (!hasSourceIds) {
     conditions.push(`(
         EXISTS (
-          SELECT 1 FROM licitacao_cnae lc JOIN cnaes c ON c.codigo = lc.codigo
-           WHERE lc.numero_controle_pncp = l.numero_controle_pncp
+          SELECT 1 FROM procurement_cnaes pc JOIN company_codes c ON c.cnae_code = pc.cnae_code
+           WHERE pc.procurement_id = p.id
         )
         OR EXISTS (
-          SELECT 1 FROM unnest(${enriquecimentoTermos}) AS k
-           WHERE k = ANY(${termosParam}::text[])
+          SELECT 1 FROM unnest(${enrichmentTerms}) AS k
+           WHERE k = ANY(${termsParam}::text[])
         )
-        OR ${textoHit}${
-          perfilEmbedding
-            ? `\n        OR s.similaridade >= ${SEMANTIC_MIN.toFixed(2)}`
+        OR ${textHit}${
+          profileEmbedding
+            ? `\n        OR s.similarity >= ${SEMANTIC_MIN.toFixed(2)}`
             : ""
         }
       )`);
@@ -254,146 +251,147 @@ export function buildCandidateQuery(
   const limitParam = bind(candidateLimit);
 
   const text = `
-    WITH cnaes AS (
-      SELECT codigo, principal FROM empresa_cnae WHERE empresa_id = $1
-    )${semanticoCte}
+    WITH company_codes AS (
+      SELECT cnae_code, is_primary FROM company_cnaes WHERE company_id = $1
+    )${semanticCte}
     SELECT
-      l.numero_controle_pncp,
-      l.objeto_compra,
-      l.orgao_razao_social,
-      l.municipio_nome,
-      l.uf,
-      l.modalidade_nome,
-      l.valor_total_estimado,
-      l.data_abertura_proposta,
-      l.data_encerramento_proposta,
-      e.resumo,
-      e.riscos,
-      e.complexidade,
-      (e.numero_controle_pncp IS NOT NULL) AS enriquecido,
-      e.me_epp_exclusivo,
-      e.exige_certificacao,
-      e.exige_atestado_tecnico,
-      ${cnaeHitsPrincipal} AS cnae_hits_principal,
-      ${cnaeHitsSecundario} AS cnae_hits_secundario,
-      ${termoHits} AS termo_hits,
-      ${textoHit} AS texto_hit,
-      ${exclusaoHit} AS exclusao_hit,
-      ${similaridadeSelect}
-    FROM licitacao l
-    LEFT JOIN enriquecimento e
-      ON e.numero_controle_pncp = l.numero_controle_pncp AND e.status = 'done'${semanticoJoin}
+      p.source_id,
+      p.description,
+      a.name AS agency_name,
+      p.city_name,
+      p.state,
+      p.modality_name,
+      p.estimated_value,
+      p.proposal_opens_at,
+      p.proposal_closes_at,
+      e.summary,
+      e.risks,
+      e.complexity,
+      (e.procurement_id IS NOT NULL) AS enriched,
+      e.me_epp_exclusive,
+      e.requires_certification,
+      e.requires_technical_certificate,
+      ${cnaeHitsPrimary} AS cnae_hits_primary,
+      ${cnaeHitsSecondary} AS cnae_hits_secondary,
+      ${termHits} AS term_hits,
+      ${textHit} AS text_hit,
+      ${exclusionHit} AS exclusion_hit,
+      ${similaritySelect}
+    FROM procurements p
+    JOIN agencies a ON a.tax_id = p.agency_tax_id
+    LEFT JOIN procurement_enrichments e
+      ON e.procurement_id = p.id AND e.status = 'done'${semanticJoin}
     WHERE ${conditions.join("\n      AND ")}
-    ORDER BY l.data_encerramento_proposta ASC NULLS LAST
+    ORDER BY p.proposal_closes_at ASC NULLS LAST
     LIMIT ${limitParam}
   `;
 
   return { text, values };
 }
 
-/** The empresa side of the match: profile (may be absent) + porte + the
- * perfil vector. Three statements, in this order: getPerfil, the porte
- * lookup, then `getPerfilEmbeddingText` — kept as its own query so callers
- * that only mock `getPerfil` (tools.test.ts, run.test.ts) are unaffected. */
-async function loadPerfilResumo(empresaId: number): Promise<
-  PerfilResumo & {
-    exclusoes_termos: string[];
+/** The company side of the match: profile (may be absent) + size + the
+ * profile vector. Three statements, in this order: getProfile, the size
+ * lookup, then `getProfileEmbeddingText` — kept as its own query so callers
+ * that only mock `getProfile` (tools.test.ts, run.test.ts) are unaffected. */
+async function loadProfileSummary(companyId: number): Promise<
+  ProfileSummary & {
+    exclusion_terms: string[];
     embedding: string | null;
   }
 > {
-  const [perfil, porteResult, embedding] = await Promise.all([
-    getPerfil(empresaId),
-    pool.query<{ porte: string | null }>(
-      `SELECT porte FROM empresa WHERE id = $1`,
-      [empresaId],
+  const [profile, sizeResult, embedding] = await Promise.all([
+    getProfile(companyId),
+    pool.query<{ size: string | null }>(
+      `SELECT size FROM companies WHERE id = $1`,
+      [companyId],
     ),
-    getPerfilEmbeddingText(empresaId),
+    getProfileEmbeddingText(companyId),
   ]);
-  // No empresa_perfil row → empty terms/ufs, open bounds. CNAE-only matching
-  // still works, which is what a freshly-cadastrada empresa gets.
+  // No company_profiles row → empty terms/states, open bounds. CNAE-only
+  // matching still works, which is what a freshly signed-up company gets.
   return {
-    termos: perfil?.termos ?? [],
-    exclusoes_termos: perfil?.exclusoes_termos ?? [],
-    ufs: perfil?.ufs ?? [],
-    valor_min: perfil?.valor_min ?? null,
-    valor_max: perfil?.valor_max ?? null,
-    porte: porteResult.rows[0]?.porte ?? null,
+    terms: profile?.terms ?? [],
+    exclusion_terms: profile?.exclusion_terms ?? [],
+    states: profile?.states ?? [],
+    min_value: profile?.min_value ?? null,
+    max_value: profile?.max_value ?? null,
+    size: sizeResult.rows[0]?.size ?? null,
     embedding,
   };
 }
 
 /** pg hands numeric expressions back as strings; anything unparseable (or
  * absent) means "no semantic signal". */
-function toSimilaridade(raw: string | number | null | undefined): number | null {
+function toSimilarity(raw: string | number | null | undefined): number | null {
   if (raw === null || raw === undefined) return null;
   const n = Number(raw);
   return Number.isFinite(n) ? n : null;
 }
 
-function tempo(data: Date | null): number {
-  return data ? data.getTime() : Number.POSITIVE_INFINITY;
+function time(date: Date | null): number {
+  return date ? date.getTime() : Number.POSITIVE_INFINITY;
 }
 
 /**
- * Scored matches for one empresa. `empresaId` must always come from the
- * session — the tenant rule for this cycle.
+ * Scored matches for one company. `companyId` must always come from the
+ * session — the tenant golden rule.
  */
 export async function fetchMatches(
-  empresaId: number,
+  companyId: number,
   filters: MatchFilters,
   limit = 20,
 ): Promise<MatchRow[]> {
-  const perfil = await loadPerfilResumo(empresaId);
+  const profile = await loadProfileSummary(companyId);
   const query = buildCandidateQuery(
-    empresaId,
+    companyId,
     filters,
-    perfil,
+    profile,
     CANDIDATE_LIMIT,
-    perfil.embedding,
+    profile.embedding,
   );
-  const { rows } = await pool.query<CandidatoRow>(query.text, query.values);
+  const { rows } = await pool.query<CandidateRow>(query.text, query.values);
 
   return rows
     .map((row) => {
-      const { score, motivos } = scoreCandidate(
+      const { score, reasons } = scoreCandidate(
         {
-          numero_controle_pncp: row.numero_controle_pncp,
-          uf: row.uf,
-          valor_total_estimado: row.valor_total_estimado,
-          cnae_hits_principal: row.cnae_hits_principal ?? [],
-          cnae_hits_secundario: row.cnae_hits_secundario ?? [],
-          termo_hits: row.termo_hits ?? [],
-          texto_hit: row.texto_hit === true,
-          exclusao_hit: row.exclusao_hit === true,
-          me_epp_exclusivo: row.me_epp_exclusivo,
-          exige_certificacao: row.exige_certificacao,
-          exige_atestado_tecnico: row.exige_atestado_tecnico,
-          similaridade: toSimilaridade(row.similaridade),
+          source_id: row.source_id,
+          state: row.state,
+          estimated_value: row.estimated_value,
+          cnae_hits_primary: row.cnae_hits_primary ?? [],
+          cnae_hits_secondary: row.cnae_hits_secondary ?? [],
+          term_hits: row.term_hits ?? [],
+          text_hit: row.text_hit === true,
+          exclusion_hit: row.exclusion_hit === true,
+          me_epp_exclusive: row.me_epp_exclusive,
+          requires_certification: row.requires_certification,
+          requires_technical_certificate: row.requires_technical_certificate,
+          similarity: toSimilarity(row.similarity),
         },
-        perfil,
+        profile,
       );
       return {
-        numero_controle_pncp: row.numero_controle_pncp,
-        objeto_compra: row.objeto_compra,
-        orgao_razao_social: row.orgao_razao_social,
-        municipio_nome: row.municipio_nome,
-        uf: row.uf,
-        modalidade_nome: row.modalidade_nome,
-        valor_total_estimado: row.valor_total_estimado,
-        data_abertura_proposta: row.data_abertura_proposta,
-        data_encerramento_proposta: row.data_encerramento_proposta,
-        resumo: row.resumo,
-        riscos: row.riscos,
-        complexidade: row.complexidade,
-        enriquecido: row.enriquecido,
+        source_id: row.source_id,
+        description: row.description,
+        agency_name: row.agency_name,
+        city_name: row.city_name,
+        state: row.state,
+        modality_name: row.modality_name,
+        estimated_value: row.estimated_value,
+        proposal_opens_at: row.proposal_opens_at,
+        proposal_closes_at: row.proposal_closes_at,
+        summary: row.summary,
+        risks: row.risks,
+        complexity: row.complexity,
+        enriched: row.enriched,
         score,
-        motivos,
+        reasons,
       };
     })
     .sort(
       (a, b) =>
         b.score - a.score ||
-        tempo(a.data_encerramento_proposta) - tempo(b.data_encerramento_proposta),
+        time(a.proposal_closes_at) - time(b.proposal_closes_at),
     )
     .slice(0, limit);
 }

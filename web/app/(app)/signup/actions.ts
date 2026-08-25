@@ -12,10 +12,6 @@ import {
 import { lookupCNPJ } from "@/lib/cnpj-lookup";
 import { createCompanyWithAdmin } from "@/lib/signup-queries";
 import { COMPANY_SIZES, UF_LIST, type CompanySize } from "@/lib/types";
-// COMPAT (ticket 80): lib/cnpj-lookup.ts is not owned by this ticket and
-// still speaks the legacy `Porte` union — mapped to CompanySize right here,
-// at the boundary. Ticket 82 ports cnpj-lookup itself.
-import type { Porte } from "@/lib/tenant-types";
 
 export type SignupState = {
   erro: string | null;
@@ -39,16 +35,10 @@ export type CompanyLookup = {
   cnaes: { code: string; description: string; isPrimary: boolean }[];
 };
 
-const SIZE_BY_PORTE: Record<Porte, CompanySize> = {
-  MEI: "MEI",
-  ME: "ME",
-  EPP: "EPP",
-  MEDIO: "MEDIUM",
-  GRANDE: "LARGE",
-};
-
 /** Server-action wrapper around `lookupCNPJ` — the client form calls this
- * directly (no API route: `proxy.ts` blocks `/api/*` without a cookie). */
+ * directly (no API route: `proxy.ts` blocks `/api/*` without a cookie).
+ * `lookupCNPJ` already speaks the schema's field names, so this is a pass
+ * through plus the CNPJ validation. */
 export async function lookupAction(
   taxId: string,
 ): Promise<CompanyLookup | null> {
@@ -56,24 +46,24 @@ export async function lookupAction(
   const found = await lookupCNPJ(onlyDigits(taxId));
   if (!found) return null;
   return {
-    legalName: found.razaoSocial,
-    tradeName: found.nomeFantasia,
-    legalNature: found.naturezaJuridica,
-    size: found.porte ? SIZE_BY_PORTE[found.porte] : null,
-    simplesOptant: found.optanteSimples,
-    postalCode: found.cep,
-    street: found.logradouro,
-    streetNumber: found.numero,
-    addressLine2: found.complemento,
-    district: found.bairro,
-    cityName: found.municipio,
-    state: found.uf,
-    phone: found.telefone,
+    legalName: found.legalName,
+    tradeName: found.tradeName,
+    legalNature: found.legalNature,
+    size: found.size,
+    simplesOptant: found.simplesOptant,
+    postalCode: found.postalCode,
+    street: found.street,
+    streetNumber: found.streetNumber,
+    addressLine2: found.addressLine2,
+    district: found.district,
+    cityName: found.cityName,
+    state: found.state,
+    phone: found.phone,
     email: found.email,
     cnaes: found.cnaes.map((c) => ({
-      code: c.codigo,
-      description: c.descricao,
-      isPrimary: c.principal,
+      code: c.code,
+      description: c.description,
+      isPrimary: c.isPrimary,
     })),
   };
 }

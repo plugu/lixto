@@ -1,74 +1,76 @@
-// POST /api/chat — one turn of the agent conversation (ticket 68).
-// GET  /api/chat?conversaId=  — one thread; GET /api/chat — the thread list.
+// POST /api/chat — one turn of the agent conversation.
+// GET  /api/chat?conversationId=  — one thread; GET /api/chat — the list.
 //
-// Everything is scoped to the session's usuario/empresa: the body may carry a
-// `conversaId`, never an `empresaId` (docs/TENANT.md). "@/" aliases are fine
-// here — app/ files are compiled by Next, not by the config-less vitest run.
+// Everything is scoped to the session's user/company: the body may carry a
+// `conversationId`, never a `companyId` (docs/TENANT.md). "@/" aliases are
+// fine here — app/ files are compiled by Next, not by the config-less vitest
+// run.
 
 import type { NextRequest } from "next/server";
 
 import { getSession } from "@/lib/auth";
 import {
-  getConversa,
-  listConversas,
-  listMensagens,
-} from "@/lib/agent/conversa-queries";
-import { ConversaNotFound, runChat, type RunFiltros } from "@/lib/agent/run";
+  getConversation,
+  listConversations,
+  listMessages,
+} from "@/lib/agent/conversation-queries";
+import { ConversationNotFound, runChat, type RunFilters } from "@/lib/agent/run";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const MAX_TEXTO = 2000;
+const MAX_TEXT = 2000;
 
 type PostBody = {
-  conversaId?: number | null;
-  texto?: unknown;
-  filtros?: RunFiltros;
+  conversationId?: number | null;
+  text?: unknown;
+  filters?: RunFilters;
 };
 
 export async function POST(request: NextRequest) {
   const session = await getSession();
   if (!session) {
-    return Response.json({ erro: "não autenticado" }, { status: 401 });
+    return Response.json({ error: "não autenticado" }, { status: 401 });
   }
 
   let body: PostBody;
   try {
     body = (await request.json()) as PostBody;
   } catch {
-    return Response.json({ erro: "corpo inválido" }, { status: 400 });
+    return Response.json({ error: "corpo inválido" }, { status: 400 });
   }
 
-  const texto = typeof body.texto === "string" ? body.texto.trim() : "";
-  if (!texto || texto.length > MAX_TEXTO) {
+  const text = typeof body.text === "string" ? body.text.trim() : "";
+  if (!text || text.length > MAX_TEXT) {
     return Response.json(
-      { erro: `texto obrigatório, até ${MAX_TEXTO} caracteres` },
+      { error: `texto obrigatório, até ${MAX_TEXT} caracteres` },
       { status: 400 },
     );
   }
 
-  const conversaId =
-    typeof body.conversaId === "number" && Number.isFinite(body.conversaId)
-      ? body.conversaId
+  const conversationId =
+    typeof body.conversationId === "number" &&
+    Number.isFinite(body.conversationId)
+      ? body.conversationId
       : null;
 
   try {
     const out = await runChat(
-      { conversaId, texto, filtros: body.filtros },
+      { conversationId, text, filters: body.filters },
       session,
     );
     return Response.json({
-      conversaId: out.conversaId,
-      resposta: out.resposta,
+      conversationId: out.conversationId,
+      answer: out.answer,
       refs: out.refs,
     });
-  } catch (error) {
-    if (error instanceof ConversaNotFound) {
-      return Response.json({ erro: "conversa não encontrada" }, { status: 404 });
+  } catch (err) {
+    if (err instanceof ConversationNotFound) {
+      return Response.json({ error: "conversa não encontrada" }, { status: 404 });
     }
-    console.error("[api/chat] falha no runtime do agente", error);
+    console.error("[api/chat] agent runtime failed", err);
     return Response.json(
-      { erro: "falha ao falar com o modelo" },
+      { error: "falha ao falar com o modelo" },
       { status: 502 },
     );
   }
@@ -77,25 +79,25 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   const session = await getSession();
   if (!session) {
-    return Response.json({ erro: "não autenticado" }, { status: 401 });
+    return Response.json({ error: "não autenticado" }, { status: 401 });
   }
 
-  const raw = request.nextUrl.searchParams.get("conversaId");
+  const raw = request.nextUrl.searchParams.get("conversationId");
   if (!raw) {
     return Response.json({
-      conversas: await listConversas(session.usuario.id),
+      conversations: await listConversations(session.user.id),
     });
   }
 
   const id = Number(raw);
-  const conversa = Number.isFinite(id)
-    ? await getConversa(id, session.usuario.id)
+  const conversation = Number.isFinite(id)
+    ? await getConversation(id, session.user.id)
     : null;
-  if (!conversa) {
-    return Response.json({ erro: "conversa não encontrada" }, { status: 404 });
+  if (!conversation) {
+    return Response.json({ error: "conversa não encontrada" }, { status: 404 });
   }
   return Response.json({
-    conversa,
-    mensagens: await listMensagens(conversa.id),
+    conversation,
+    messages: await listMessages(conversation.id),
   });
 }
