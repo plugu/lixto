@@ -11,5 +11,5 @@ RUN useradd --create-home --shell /usr/sbin/nologin appuser && chown -R appuser:
 USER appuser
 ENV PATH="/app/.venv/bin:$PATH"
 # Apply pending SQL migrations on every deploy (idempotent), then idle so
-# Dokploy schedules can exec `plic sync` inside this container.
-CMD ["sh", "-c", "plic db init && exec sleep infinity"]
+# Dokploy schedules can exec `lixto sync` inside this container.
+CMD ["sh", "-c", "lixto db init && exec sleep infinity"]

@@ -1,7 +1,7 @@
 [project]
-name = "plic"
+name = "lixto"
 version = "0.1.0"
-description = "PNCP ingestion agent — mirrors Brazilian public tenders (licitações) into local Postgres"
+description = "Lixto — AI procurement agent for Brazilian public tenders (PNCP)"
 requires-python = ">=3.12"
 dependencies = [
     "typer>=0.12",
@@ -12,6 +12,8 @@ dependencies = [
 ]
 
 [project.scripts]
+# `plic` stays mounted until the legacy package is deleted (ticket 85).
+lixto = "lixto.cli:main"
 plic = "plic.cli:app"
 
 [build-system]
@@ -19,7 +21,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/plic"]
+packages = ["src/plic", "src/lixto"]
 
 [dependency-groups]
 dev = [
@@ -33,3 +35,7 @@ target-version = "py312"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# Without these, pytest would import `tests/lixto/` as the top-level package
+# `lixto` and shadow the installed one; together they name it `tests.lixto`.
+addopts = "--import-mode=importlib"
+consider_namespace_packages = true

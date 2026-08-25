@@ -5,13 +5,13 @@ services:
   db:
     image: pgvector/pgvector:pg16-trixie
     environment:
-      POSTGRES_USER: plic
-      POSTGRES_PASSWORD: plic
-      POSTGRES_DB: plic
+      POSTGRES_USER: lixto
+      POSTGRES_PASSWORD: lixto
+      POSTGRES_DB: lixto
     ports:
       - "5433:5432"
     volumes:
-      - plic_pgdata:/var/lib/postgresql/data
+      - lixto_pgdata:/var/lib/postgresql/data
 
 volumes:
-  plic_pgdata:
+  lixto_pgdata:
