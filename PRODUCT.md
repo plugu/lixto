@@ -1,28 +1,33 @@
 ---
-mode: mvp
+mode: production
 routing_profile: cloud
 parallel_default: parallel
 ---
 
-# Lixto — semantic layer: pgvector embeddings (cycle 17)
+# Lixto core — new data model, English, built from zero (cycle 18)
 
 ## What / why
-Cycle 16 shipped global enrichment, the per-empresa profile, an on-demand match engine and the Lixto chat — with semantic similarity deliberately deferred because production Postgres lacked pgvector. That blocker is gone: `pg-shared` now runs `pgvector/pgvector:pg18-trixie` (pgvector 0.8.6, same glibc as before). This cycle completes the "pgvector semantic search" box of the pipeline:
+Lixto pivoted from "licitação platform" to "AI procurement agent", but its data model is still the platform's: Portuguese names, PNCP-shaped flattened tables, redundant classification pipelines (Ollama setor/CNAE next to LLM enrichment), a legacy triage/deep `analise` pipeline next to the new match engine, and no agent-core entities (opportunity lifecycle, persisted matches, runs, actions, feedback). Carrying that forward is the technical debt we want to avoid now, while the codebase is two cycles old.
 
-1. **Embed at enrichment.** Every `enriquecimento` row gets a vector of its canonical text (resumo + conceitos + palavras_chave + categorias), produced once by the worker through the same `LlmClient` abstraction (`PLIC_LLM_MODEL_EMBED`, default `text-embedding-3-small`, 1536 dims). Backfill command for rows enriched before this cycle.
-2. **Embed the empresa profile.** Saving `/empresa/perfil` also stores an embedding of the profile text, so the company side of the match has a vector too.
-3. **Semantic signal in the match engine.** Cosine similarity between profile and licitação vectors becomes one more deterministic fact (`semantico`) with a fixed weight and a motivo, and a semantic top-K becomes an additional candidate source — so a licitação for "cadernos e apontadores" surfaces for a company selling "material escolar" even with zero keyword overlap.
+This cycle builds the Lixto core **from zero**: a new Postgres schema `lixto` (same `pg-shared` database, pgvector already present), English identifiers following the vision's entity names (`docs/VISION.md` §7 + agent core), populated exclusively by a new PNCP sync — **no data is copied from the legacy `public` schema**, including tenants (users re-sign up). The Python package and CLI become `lixto`; the web app, tools and chat are ported to the new schema; legacy tables and code are deleted at the end of the cycle.
 
-Everything else (tools, chat, UI) stays as is; cards simply show the new motivo chip.
+Two PNCP domains are added because the agent needs them and the schema should be born with them: **Annual Procurement Plans (PCA)** — early signal of what an organ will buy before any edital exists (feeds proactive mode) — and **Contracts + amendments** — supplier history for competitor intelligence and for the customer's own track record (basis for technical-capacity certificates).
+
+**Rename everything to Lixto** as part of the same cutover: GitHub repo `plataforma-licitante` → `lixto`; local checkout dir; Dokploy project/apps (`web` → `lixto-web`, `cli` → `lixto-cli`), deploy webhooks/secrets and schedules; Python package `plic` → `lixto`, CLI `plic` → `lixto`; Docker images/Dockerfiles; env var prefix `PLIC_` → `LIXTO_`; uploads volume; app title/brand strings still saying "Licitante". Because no data is migrated, the database itself is also new: `lixto` (owner role `lixto`) on `pg-shared`, using its default `public` schema — supersedes the earlier "schema `lixto` inside the old DB" choice; `plataforma-licitante_db` is dropped once the cutover is verified.
+
+Guiding rules: process once, reuse globally; raw source payloads retained for reprocessing; deterministic first, LLM only where code can't; provider-abstracted LLM; the model never writes SQL; `source` abstraction on every ingested entity so a second portal is a new adapter, not a new schema.
 
 ## Primary user story
-As an empresa user, when I ask Lixto "quais licitações combinam com minha empresa?", opportunities that are semantically close to what I sell appear with an "aderência semântica" reason even when the edital never uses my exact keywords.
+As a Lixto developer, I work against one coherent English data model that reads like the product vision — `procurement`, `procurement_item`, `procurement_document`, `enrichment`, `company`, `company_profile`, `opportunity`, `match`, `recommendation`, `agent_run`, `agent_action`, `procurement_plan`, `contract` — with no legacy tables, no duplicated classification, and PCA/contract data available for the agent; as an empresa user, after the cutover I sign up again and Lixto works exactly as before (search, profile, match, chat) on freshly synced data.
 
 ## Out of scope
-- Semantic free-text search in `search_procurements` (query embedding) — next cycle
-- Reranking with an LLM; hybrid-score tuning beyond the fixed weights
-- Re-enriching existing rows (only the embedding is backfilled)
-- Any UI beyond the motivo chip label
+- Copying or transforming any legacy data (PNCP or tenants) — the new schema starts empty and fills from PNCP
+- Proactive digest/notifications, prepare/execute, learning-loop *logic* (the tables exist; the behaviours are later cycles)
+- Atas de registro de preço, instrumentos de cobrança, órgão 360° profile, CNPJ enrichment of competitors — later domains
+- Ollama classification pipelines (setor, two-stage CNAE) — deleted, not ported; CNAE comes from enrichment `cnae_candidates`
+- Legacy triage/deep agents, `company_profile.md`, launchd scheduler — deleted
+- Query-time semantic search, streaming chat, new UI screens for PCA/contracts (data only; chat tools may expose them)
+- Second portal adapter (only the `source` abstraction ships)
 
 ## Success demo
-Done when `plic enrich run` / `plic enrich embed` fill `enriquecimento.embedding`, saving the profile fills `empresa_perfil.embedding`, and `fetchMatches` returns rows carrying a `semantico` motivo with the cosine score in `detalhe` — with `pytest`, `vitest` and `next build` green.
+Done when, on the fresh `lixto` database, `lixto backfill` + `lixto sync incremental` + `lixto sync pca` + `lixto sync contracts` populate procurements/items/documents/plans/contracts from PNCP, `lixto enrich run` fills `enrichment` (+embeddings), a user signs up, fills the profile, asks Lixto "quais licitações combinam com minha empresa?" on `/lixto` and gets scored cards — served from the renamed repo/Dokploy apps at their Lixto names, with no legacy tables, `plic` code or `PLIC_` env left, and ruff/pytest/tsc/vitest/build green.
