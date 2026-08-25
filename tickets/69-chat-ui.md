@@ -1,6 +1,6 @@
 ---
 id: 69
-status: todo
+status: doing
 model: sonnet
 depends_on: [68]
 max_attempts: 3
@@ -26,7 +26,7 @@ Read `PRODUCT.md` (section: conversational-first UX, quick controls are accelera
 
 ### `web/components/chat/*` (client, `"use client"` where state lives)
 
-- `chat.tsx` — state: `conversaId`, `mensagens: {role, conteudo, refs?}[]` (only `user`/`assistant` rows are displayed; `tool` rows are hidden), `filtros`, `pending`. `enviar(texto)`: optimistic user bubble → `fetch("/api/chat", { method: "POST", body: JSON.stringify({ conversaId, texto, filtros }) })` → append assistant `{ conteudo: resposta, refs }`; 401 → `window.location.href = "/login"`; other errors → inline error bubble "Não consegui responder agora. Tente de novo." "Nova conversa" button resets `conversaId` to null and clears the list.
+- `chat.tsx` — state: `conversaId`, `mensagens: {role, conteudo, refs?}[]` (only `user`/`assistant` rows are displayed; `tool` rows are hidden), `filtros`, `pending`. `enviar(texto)`: optimistic user bubble → `fetch("/api/chat", { method: "POST", body: JSON.stringify({ conversaId, texto, filtros }) })` → append assistant `{ conteudo: resposta, refs }`; 401 or a non-JSON/redirected response (proxy.ts redirects cookieless requests to /login, so an expired session may arrive as HTML) → `window.location.href = "/login"`; other errors → inline error bubble "Não consegui responder agora. Tente de novo." "Nova conversa" button resets `conversaId` to null and clears the list.
 - `message-list.tsx` — user bubbles right-aligned (`bg-accent-soft`), assistant left (`bg-surface border-line`), markdown-lite rendering: paragraphs and `\n` line breaks, numbered lines kept (no markdown lib). Under an assistant message with `refs`, a stacked list of `LicitacaoRefCard`. Auto-scroll to bottom on new message. `aria-live="polite"` on the list.
 - `licitacao-ref-card.tsx` — `Link` to `/licitacao/${encodeURIComponent(numero)}`: index badge (`#1`), objeto (2-line clamp), órgão · município/UF · modalidade, `StatusBadge`, valor (`formatCurrencyBRL`), encerramento (`formatDateBR`), and when `score` present a `Badge` `Aderência 82` (note: max achievable score is 90 — never render a /100 scale) (tone `ok` ≥ 70, `warn` 40–69, `neutral` < 40) followed by up to 4 motivo chips: label by `codigo` (`cnae_principal` → "CNAE principal", `termo_enriquecimento` → "termos", `uf_fora` → "fora da UF", `me_epp_exclusivo` → "exclusivo ME/EPP", `exclusao` → "exclusão", `valor_fora` → "fora da faixa", others sensibly), negative `peso` chips in `danger`/`warn` tone, `title` attribute = `detalhe`.
 - `composer.tsx` — textarea (Enter sends, Shift+Enter newline), send `Button` (disabled while `pending`), sample prompts shown when the list is empty (`EmptyState` with 4 clickable suggestions: "Liste licitações abertas com lápis como item", "Quais licitações combinam com minha empresa?", "Só no Rio de Janeiro, acima de R$ 100 mil", "Analise a segunda").
