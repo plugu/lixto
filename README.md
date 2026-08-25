@@ -68,6 +68,19 @@ The dashboard now supports multi-tenant company profiles. See [`docs/TENANT.md`]
 - `PLIC_DATABASE_URL` — PostgreSQL connection (default: `postgresql://plic:plic@localhost:5433/plic`).
 - `UPLOADS_DIR` — Document storage path (default: `./uploads`; production: `/app/uploads` volume).
 
+## LLM Configuration (Cycle 16)
+
+The enrichment worker and chat interface use a tiered LLM strategy: cheap models for text/structured analysis, doc tier for PDFs, strong tier reserved for complex reasoning. All environment variables are read by the `cli` container (Python); `web` also reads `PLIC_CHAT_MODEL`.
+
+**Environment variables:**
+- `PLIC_LLM_BASE_URL` — LLM provider base URL (e.g., an OpenAI-compatible gateway; defaults to OpenAI if unset).
+- `PLIC_LLM_API_KEY` — API key for the provider. Falls back to `OPENAI_API_KEY` if unset.
+- `PLIC_LLM_MODEL_CHEAP` — Cheap text model for enrichment classification, triage, etc. (default: `gpt-5-mini`). Read by `cli` and `web`.
+- `PLIC_LLM_MODEL_DOC` — Doc tier for PDF input via Responses API (default: `gpt-5.1`, OpenAI only). Read by `cli`.
+- `PLIC_LLM_MODEL_STRONG` — Strong model for deep reasoning (default: `gpt-5.1`). Read by `cli`.
+- `PLIC_LLM_MODEL_FALLBACK` — Optional; if set, buys one retry on this model when the primary tier fails. Read by `cli`.
+- `PLIC_CHAT_MODEL` — Chat model for the Lixto agent (default: `gpt-5-mini`). Read by `web`.
+
 ## CLI Commands
 
 ### Database
@@ -78,6 +91,9 @@ The dashboard now supports multi-tenant company profiles. See [`docs/TENANT.md`]
 - `plic sync detalhes [--limit N]` — Fetch items and edital/anexo metadata for licitações missing them.
 - `plic sync incremental [--since YYYY-MM-DD] [--max-detalhes N]` — Incremental sync from each modalidade's watermark (scheduled in production, see below).
 - `plic sync resultados [--limit N]` — Fetch homologated results (winner + unit price) for itens queued by the dashboard.
+
+### Enrichment
+- `plic enrich run [--limit N] [--days N] [--retry-errors]` — Produce one canonical enrichment per open licitação (globally, reused by all empresas). Routes each row to the cheapest LLM tier: text → cheap, PDF → doc, structured only → cheap. Resumable; only rows with no prior enrichment are processed (set `--retry-errors` to reprocess failures).
 
 #### Demand-Driven Results Queue
 
@@ -131,6 +147,7 @@ Schedules live in Dokploy → project `plataforma-licitante` → environment
 | name | cron | command | enabled |
 |---|---|---|---|
 | `sync-incremental` | `0 6,13,20 * * *` | `plic sync incremental --max-detalhes 2000` | yes |
+| `enrich-run` | `30 7,14,21 * * *` | `plic enrich run --days 30 --limit 300` | yes |
 | `sync-resultados` | `0 3 * * *` | `plic sync resultados --limit 2000` | yes |
 | `db-init` | `0 0 31 2 *` | `plic db init` | no (manual) |
 | `cnae-classify-30d` | `0 0 31 2 *` | `plic cnae seed && plic cnae classify --days 30` | no (manual) |
@@ -143,6 +160,23 @@ an Ollama host reachable over Tailscale.
 Migrations are also applied automatically on every deploy — the container's
 command is `plic db init && exec sleep infinity`. The `db-init` schedule exists
 to apply them without a redeploy.
+
+The `enrich-run` schedule must be created in Dokploy on the VPS (operator step)
+and requires the `cli` container to have all `PLIC_LLM_*` environment variables
+set in the production environment. It runs 30 min after each `sync-incremental`,
+ensuring fresh enrichments are available to the web layer.
+
+## Intelligence Layer (Cycle 16)
+
+The web interface now includes an AI agent (Lixto) that combines global enrichment, per-empresa profile matching, and conversational search. See [`docs/LIXTO.md`](docs/LIXTO.md) for the full architecture.
+
+**Key endpoints and pages:**
+- `/lixto` — Conversational chat interface. Natural language queries become tool calls; results show matched licitações with scores and reasons.
+- `/empresa/perfil` — Match profile configuration. Set produtos, palavras-chave, exclusões, UFs, and value range. Profiles are used by the match engine to score each licitação.
+- `POST /api/chat` — One turn of the agent conversation (accepts JSON with `texto`, optional `conversaId`, optional filters).
+- `GET /api/chat` — Fetch one thread (`?conversaId=N`) or list all threads for the logged-in user.
+
+Web requires `PLIC_CHAT_MODEL` and inherits `PLIC_LLM_BASE_URL` and `PLIC_LLM_API_KEY` from the environment.
 
 ## Example Queries
 
