@@ -6,13 +6,7 @@ import { DocumentUploadForm } from "@/components/document-upload-form";
 import { CompanyDocumentsTable } from "@/components/company-documents-table";
 import { requireSession } from "@/lib/auth";
 import { listDocuments } from "@/lib/document-queries";
-
-// The "Match" tab (/company/profile) is added by ticket 82.
-const COMPANY_NAV = [
-  { href: "/company", label: "Perfil" },
-  { href: "/company/users", label: "Usuários" },
-  { href: "/company/documents", label: "Documentos" },
-];
+import { COMPANY_NAV } from "@/lib/types";
 
 export default async function DocumentsPage() {
   const session = await requireSession();

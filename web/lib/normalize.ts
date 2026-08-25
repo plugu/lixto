@@ -1,7 +1,7 @@
-// Shared term normalization for the match engine (cycle 16). Must produce the
-// same output as Python `normalize_term` (ticket 63) for ASCII/Latin input —
-// lowercase, accents stripped, single-spaced. Used both for `empresa_perfil`
-// terms (ticket 65) and enrichment keywords (ticket 63).
+// Shared term normalization for the match engine. Must produce the same output
+// as the Python `normalize_term` for ASCII/Latin input — lowercase, accents
+// stripped, single-spaced. Used both for `company_profiles.terms` and for the
+// enrichment keywords written by the CLI.
 
 /** Lowercase, strip diacritics, collapse whitespace, trim, cap at 40 chars. */
 export function normalizeTerm(s: string): string {

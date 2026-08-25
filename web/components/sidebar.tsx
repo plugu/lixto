@@ -13,6 +13,7 @@ import {
   List,
   LogOut,
   Sidebar as SidebarIcon,
+  Tag,
   Users,
 } from "@/components/ui/icons";
 
@@ -71,9 +72,9 @@ export const NAV_ITEMS = [
   { href: "/procurements", label: "Licitações", icon: List },
 ] as const;
 
-// The "Match" entry (/company/profile) is added by ticket 82.
 export const COMPANY_ITEMS = [
   { href: "/company", label: "Minha empresa", icon: Building },
+  { href: "/company/profile", label: "Match", icon: Tag },
 ] as const;
 
 export const COMPANY_ADMIN_ITEMS = [

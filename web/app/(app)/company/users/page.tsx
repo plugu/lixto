@@ -5,13 +5,7 @@ import { InviteForm } from "@/components/invite-form";
 import { UsersTable } from "@/components/users-table";
 import { requireAdmin } from "@/lib/auth";
 import { listUsers } from "@/lib/user-queries";
-
-// The "Match" tab (/company/profile) is added by ticket 82.
-const COMPANY_NAV = [
-  { href: "/company", label: "Perfil" },
-  { href: "/company/users", label: "Usuários" },
-  { href: "/company/documents", label: "Documentos" },
-];
+import { COMPANY_NAV } from "@/lib/types";
 
 export default async function UsersPage() {
   const session = await requireAdmin();

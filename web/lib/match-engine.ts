@@ -1,61 +1,63 @@
-// Deterministic match scoring (ticket 66): enriched licitação facts × empresa
-// profile → a 0–100 score plus machine-readable reasons. Pure, no I/O, no LLM.
+// Deterministic match scoring: enriched procurement facts × company profile →
+// a 0–100 score plus machine-readable reasons. Pure, no I/O, no LLM.
 //
-// The weights below are the product decision for cycle 16 and are fixed: the
-// SQL side (match-queries.ts) only gathers facts, every judgement happens here
-// so it is unit-testable and reproducible. On demand, never persisted — a
-// just-edited profile is reflected on the next request.
+// The weights below are the product decision and are fixed: the SQL side
+// (match-queries.ts) only gathers facts, every judgement happens here so it is
+// unit-testable and reproducible. On demand, never persisted — a just-edited
+// profile is reflected on the next request.
 
-export type MotivoCodigo =
-  | "cnae_principal"
-  | "cnae_secundario"
-  | "termo_enriquecimento"
-  | "termo_texto"
-  | "uf_ok"
-  | "uf_fora"
-  | "valor_ok"
-  | "valor_fora"
-  | "valor_desconhecido"
-  | "me_epp_exclusivo"
-  | "exige_certificacao"
-  | "exige_atestado"
-  | "exclusao"
-  | "semantico_alto"
-  | "semantico"
-  | "sem_perfil";
+export type ReasonCode =
+  | "cnae_primary"
+  | "cnae_secondary"
+  | "term_enrichment"
+  | "term_text"
+  | "state_ok"
+  | "state_out"
+  | "value_ok"
+  | "value_out"
+  | "value_unknown"
+  | "me_epp_exclusive"
+  | "requires_certification"
+  | "requires_technical_certificate"
+  | "exclusion"
+  | "semantic_high"
+  | "semantic"
+  | "no_profile";
 
-export type Motivo = { codigo: MotivoCodigo; peso: number; detalhe: string };
+export type Reason = { code: ReasonCode; weight: number; detail: string };
 
-export type CandidatoFatos = {
-  numero_controle_pncp: string;
-  uf: string | null;
-  valor_total_estimado: string | null;
-  cnae_hits_principal: string[];
-  cnae_hits_secundario: string[];
-  /** perfil.termos ∩ (enriquecimento.palavras_chave ∪ conceitos) */
-  termo_hits: string[];
-  /** FTS hit of the perfil terms on objeto_compra / item.descricao */
-  texto_hit: boolean;
-  /** FTS hit of the perfil exclusões on objeto_compra / item.descricao */
-  exclusao_hit: boolean;
-  me_epp_exclusivo: boolean | null;
-  exige_certificacao: boolean | null;
-  exige_atestado_tecnico: boolean | null;
-  /** Cosine similarity (0..1) between the perfil vector and the enrichment
-   * vector; null when either side has no embedding (ticket 72). */
-  similaridade: number | null;
+export type CandidateFacts = {
+  /** Public identifier (`procurements.source_id`). */
+  source_id: string;
+  state: string | null;
+  estimated_value: string | null;
+  cnae_hits_primary: string[];
+  cnae_hits_secondary: string[];
+  /** profile.terms ∩ (enrichment.keywords ∪ concepts) */
+  term_hits: string[];
+  /** FTS hit of the profile terms on the description / item descriptions */
+  text_hit: boolean;
+  /** FTS hit of the profile exclusions on the description / item descriptions */
+  exclusion_hit: boolean;
+  me_epp_exclusive: boolean | null;
+  requires_certification: boolean | null;
+  requires_technical_certificate: boolean | null;
+  /** Cosine similarity (0..1) between the profile vector and the procurement
+   * vector; null when either side has no embedding. */
+  similarity: number | null;
 };
 
-export type PerfilResumo = {
-  termos: string[];
-  ufs: string[];
-  valor_min: string | null;
-  valor_max: string | null;
-  porte: string | null;
+export type ProfileSummary = {
+  terms: string[];
+  states: string[];
+  min_value: string | null;
+  max_value: string | null;
+  /** `companies.size` — MEI/ME/EPP qualify for ME/EPP-only procurements. */
+  size: string | null;
 };
 
-/** Portes that qualify for a licitação reserved to ME/EPP (LC 123/2006). */
-const PORTES_ME_EPP = new Set(["MEI", "ME", "EPP"]);
+/** Sizes that qualify for a procurement reserved to ME/EPP (LC 123/2006). */
+const ME_EPP_SIZES = new Set(["MEI", "ME", "EPP"]);
 
 function clamp(score: number): number {
   return Math.max(0, Math.min(100, score));
@@ -63,111 +65,115 @@ function clamp(score: number): number {
 
 /**
  * Scores one candidate against one profile. Every applied rule line becomes a
- * `Motivo` carrying its own `peso`, so the UI can explain the number without
+ * `Reason` carrying its own `weight`, so the UI can explain the number without
  * re-deriving it. The sum is clamped to 0..100 (max raw is 110 since the
- * semantic band was added) but the motivos keep their raw weights on purpose
+ * semantic band was added) but the reasons keep their raw weights on purpose
  * (a −40 ME/EPP penalty stays visible even at score 0).
  */
 export function scoreCandidate(
-  f: CandidatoFatos,
-  p: PerfilResumo,
-): { score: number; motivos: Motivo[] } {
-  const temCnae =
-    f.cnae_hits_principal.length > 0 || f.cnae_hits_secundario.length > 0;
+  f: CandidateFacts,
+  p: ProfileSummary,
+): { score: number; reasons: Reason[] } {
+  const hasCnae =
+    f.cnae_hits_primary.length > 0 || f.cnae_hits_secondary.length > 0;
 
-  // Nothing to match on: an empresa with no terms, no CNAE overlap and no
+  // Nothing to match on: a company with no terms, no CNAE overlap and no
   // semantic signal gets a single honest reason instead of a score built out
-  // of UF/valor noise. A similaridade alone is enough to keep scoring.
-  if (p.termos.length === 0 && !temCnae && f.similaridade === null) {
+  // of state/value noise. A similarity alone is enough to keep scoring.
+  if (p.terms.length === 0 && !hasCnae && f.similarity === null) {
     return {
       score: 0,
-      motivos: [
+      reasons: [
         {
-          codigo: "sem_perfil",
-          peso: 0,
-          detalhe: "Perfil sem termos e sem CNAE em comum com a licitação",
+          code: "no_profile",
+          weight: 0,
+          detail: "Sem termos e sem CNAE em comum",
         },
       ],
     };
   }
 
-  const motivos: Motivo[] = [];
+  const reasons: Reason[] = [];
   let score = 0;
 
-  const add = (codigo: MotivoCodigo, peso: number, detalhe: string) => {
-    motivos.push({ codigo, peso, detalhe });
-    score += peso;
+  const add = (code: ReasonCode, weight: number, detail: string) => {
+    reasons.push({ code, weight, detail });
+    score += weight;
   };
 
-  // CNAE: principal beats secundário, never both.
-  if (f.cnae_hits_principal.length > 0) {
-    add("cnae_principal", 35, f.cnae_hits_principal.join(", "));
-  } else if (f.cnae_hits_secundario.length > 0) {
-    add("cnae_secundario", 25, f.cnae_hits_secundario.join(", "));
+  // CNAE: primary beats secondary, never both.
+  if (f.cnae_hits_primary.length > 0) {
+    add("cnae_primary", 35, f.cnae_hits_primary.join(", "));
+  } else if (f.cnae_hits_secondary.length > 0) {
+    add("cnae_secondary", 25, f.cnae_hits_secondary.join(", "));
   }
 
   // Terms: enrichment keywords first, raw full-text as the weaker fallback.
-  if (f.termo_hits.length >= 2) {
-    add("termo_enriquecimento", 35, f.termo_hits.join(", "));
-  } else if (f.termo_hits.length === 1) {
-    add("termo_enriquecimento", 25, f.termo_hits.join(", "));
-  } else if (f.texto_hit) {
-    add("termo_texto", 15, "Termos do perfil encontrados no objeto ou nos itens");
+  if (f.term_hits.length >= 2) {
+    add("term_enrichment", 35, f.term_hits.join(", "));
+  } else if (f.term_hits.length === 1) {
+    add("term_enrichment", 25, f.term_hits.join(", "));
+  } else if (f.text_hit) {
+    add("term_text", 15, "Termos encontrados no objeto ou nos itens");
   }
 
-  // UF: an empty list in the profile means "todas".
-  if (p.ufs.length === 0 || (f.uf !== null && p.ufs.includes(f.uf))) {
-    add("uf_ok", 10, f.uf ?? "UF não informada");
+  // State: an empty list in the profile means "todas".
+  if (p.states.length === 0 || (f.state !== null && p.states.includes(f.state))) {
+    add("state_ok", 10, f.state ?? "UF não informada");
   } else {
-    add("uf_fora", -20, f.uf ?? "UF não informada");
+    add("state_out", -20, f.state ?? "UF não informada");
   }
 
-  // Valor: numeric strings ("184000.00") compared with Number().
-  if (f.valor_total_estimado === null) {
-    add("valor_desconhecido", 5, "Valor estimado não informado");
+  // Value: numeric strings ("184000.00") compared with Number().
+  if (f.estimated_value === null) {
+    add("value_unknown", 5, "Valor estimado não informado");
   } else {
-    const valor = Number(f.valor_total_estimado);
-    const min = p.valor_min === null ? null : Number(p.valor_min);
-    const max = p.valor_max === null ? null : Number(p.valor_max);
-    const dentro = (min === null || valor >= min) && (max === null || valor <= max);
-    if (dentro) {
-      add("valor_ok", 10, f.valor_total_estimado);
+    const value = Number(f.estimated_value);
+    const min = p.min_value === null ? null : Number(p.min_value);
+    const max = p.max_value === null ? null : Number(p.max_value);
+    const inside = (min === null || value >= min) && (max === null || value <= max);
+    if (inside) {
+      add("value_ok", 10, f.estimated_value);
     } else {
-      add("valor_fora", -15, f.valor_total_estimado);
+      add("value_out", -15, f.estimated_value);
     }
   }
 
-  if (f.me_epp_exclusivo === true && !PORTES_ME_EPP.has(p.porte ?? "")) {
+  if (f.me_epp_exclusive === true && !ME_EPP_SIZES.has(p.size ?? "")) {
     add(
-      "me_epp_exclusivo",
+      "me_epp_exclusive",
       -40,
-      `Exclusiva para ME/EPP; porte da empresa: ${p.porte ?? "não informado"}`,
+      `Exclusiva para ME/EPP; porte: ${p.size ?? "não informado"}`,
     );
   }
 
-  if (f.exige_certificacao === true) {
-    add("exige_certificacao", -5, "Exige certificação");
+  if (f.requires_certification === true) {
+    add("requires_certification", -5, "Exige certificação");
   }
 
-  if (f.exige_atestado_tecnico === true) {
-    add("exige_atestado", -5, "Exige atestado de capacidade técnica");
+  if (f.requires_technical_certificate === true) {
+    add(
+      "requires_technical_certificate",
+      -5,
+      "Exige atestado de capacidade técnica",
+    );
   }
 
-  if (f.exclusao_hit) {
-    add("exclusao", -50, "Termo de exclusão do perfil encontrado");
+  if (f.exclusion_hit) {
+    add("exclusion", -50, "Termo de exclusão encontrado");
   }
 
-  // Semantic proximity between the perfil vector and the enrichment vector
-  // (ticket 72). Fixed bands, deliberately worth less than a CNAE or keyword
-  // hit: it is a recall booster, not a substitute for a hard signal.
-  if (f.similaridade !== null) {
-    const detalhe = `sim=${f.similaridade.toFixed(2)}`;
-    if (f.similaridade >= 0.55) {
-      add("semantico_alto", 20, detalhe);
-    } else if (f.similaridade >= 0.4) {
-      add("semantico", 10, detalhe);
+  // Semantic proximity between the profile vector and the procurement vector.
+  // Fixed bands, deliberately worth less than a CNAE or keyword hit: it is a
+  // recall booster, not a substitute for a hard signal.
+  if (f.similarity !== null) {
+    const detail = `sim=${f.similarity.toFixed(2)}`;
+    if (f.similarity >= 0.55) {
+      add("semantic_high", 20, detail);
+    } else if (f.similarity >= 0.4) {
+      add("semantic", 10, detail);
     }
   }
 
-  return { score: clamp(score), motivos };
+  return { score: clamp(score), reasons };
 }

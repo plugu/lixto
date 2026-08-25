@@ -5,13 +5,7 @@ import { Section } from "@/components/ui/section";
 import { CompanyForm } from "@/components/company-form";
 import { requireSession } from "@/lib/auth";
 import { getCompany, getCompanyCnaes } from "@/lib/company-queries";
-
-// The "Match" tab (/company/profile) is added by ticket 82.
-const COMPANY_NAV = [
-  { href: "/company", label: "Perfil" },
-  { href: "/company/users", label: "Usuários" },
-  { href: "/company/documents", label: "Documentos" },
-];
+import { COMPANY_NAV } from "@/lib/types";
 
 export default async function CompanyPage() {
   const session = await requireSession();

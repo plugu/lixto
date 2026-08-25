@@ -3,28 +3,29 @@
 // network dependency. Any failure (404, timeout, network error, bad shape)
 // resolves to null — the signup form falls back to manual entry.
 
-import type { Porte } from "./tenant-types";
+import type { CompanySize } from "./types";
 
 export type CnpjCnae = {
-  codigo: string;
-  descricao: string;
-  principal: boolean;
+  code: string;
+  description: string;
+  isPrimary: boolean;
 };
 
 export type CnpjLookup = {
-  razaoSocial: string;
-  nomeFantasia: string | null;
-  naturezaJuridica: string | null;
-  porte: Porte | null;
-  optanteSimples: boolean;
-  cep: string | null;
-  logradouro: string | null;
-  numero: string | null;
-  complemento: string | null;
-  bairro: string | null;
-  municipio: string | null;
-  uf: string | null;
-  telefone: string | null;
+  legalName: string;
+  tradeName: string | null;
+  legalNature: string | null;
+  /** Already the schema's `companies.size` union — no mapping at the caller. */
+  size: CompanySize | null;
+  simplesOptant: boolean;
+  postalCode: string | null;
+  street: string | null;
+  streetNumber: string | null;
+  addressLine2: string | null;
+  district: string | null;
+  cityName: string | null;
+  state: string | null;
+  phone: string | null;
   email: string | null;
   cnaes: CnpjCnae[];
 };
@@ -57,7 +58,10 @@ type BrasilApiCnpjResponse = {
   cnaes_secundarios?: BrasilApiCnaeSecundario[] | null;
 };
 
-function mapPorte(data: BrasilApiCnpjResponse): Porte | null {
+/** BrasilAPI's `porte` string → `companies.size`. BrasilAPI has no "LARGE"
+ * bucket (everything above EPP is "DEMAIS"), so MEDIUM is as precise as the
+ * source gets; the user can correct it on the signup form. */
+function mapSize(data: BrasilApiCnpjResponse): CompanySize | null {
   if (data.opcao_pelo_mei === true) return "MEI";
   switch (data.porte) {
     case "MICRO EMPRESA":
@@ -65,47 +69,47 @@ function mapPorte(data: BrasilApiCnpjResponse): Porte | null {
     case "EMPRESA DE PEQUENO PORTE":
       return "EPP";
     case "DEMAIS":
-      return "MEDIO";
+      return "MEDIUM";
     default:
       return null;
   }
 }
 
-function padCnaeCodigo(codigo: number | string): string {
-  return String(codigo).padStart(7, "0");
+function padCnaeCode(code: number | string): string {
+  return String(code).padStart(7, "0");
 }
 
 function mapResponse(data: BrasilApiCnpjResponse): CnpjLookup {
   const cnaes: CnpjCnae[] = [];
   if (data.cnae_fiscal != null && data.cnae_fiscal_descricao) {
     cnaes.push({
-      codigo: padCnaeCodigo(data.cnae_fiscal),
-      descricao: data.cnae_fiscal_descricao,
-      principal: true,
+      code: padCnaeCode(data.cnae_fiscal),
+      description: data.cnae_fiscal_descricao,
+      isPrimary: true,
     });
   }
-  for (const secundario of data.cnaes_secundarios ?? []) {
+  for (const secondary of data.cnaes_secundarios ?? []) {
     cnaes.push({
-      codigo: padCnaeCodigo(secundario.codigo),
-      descricao: secundario.descricao,
-      principal: false,
+      code: padCnaeCode(secondary.codigo),
+      description: secondary.descricao,
+      isPrimary: false,
     });
   }
 
   return {
-    razaoSocial: data.razao_social,
-    nomeFantasia: data.nome_fantasia ?? null,
-    naturezaJuridica: data.natureza_juridica ?? null,
-    porte: mapPorte(data),
-    optanteSimples: data.opcao_pelo_simples === true,
-    cep: data.cep != null ? String(data.cep) : null,
-    logradouro: data.logradouro ?? null,
-    numero: data.numero ?? null,
-    complemento: data.complemento ?? null,
-    bairro: data.bairro ?? null,
-    municipio: data.municipio ?? null,
-    uf: data.uf ?? null,
-    telefone: data.ddd_telefone_1 ?? null,
+    legalName: data.razao_social,
+    tradeName: data.nome_fantasia ?? null,
+    legalNature: data.natureza_juridica ?? null,
+    size: mapSize(data),
+    simplesOptant: data.opcao_pelo_simples === true,
+    postalCode: data.cep != null ? String(data.cep) : null,
+    street: data.logradouro ?? null,
+    streetNumber: data.numero ?? null,
+    addressLine2: data.complemento ?? null,
+    district: data.bairro ?? null,
+    cityName: data.municipio ?? null,
+    state: data.uf ?? null,
+    phone: data.ddd_telefone_1 ?? null,
     email: data.email ?? null,
     cnaes,
   };
