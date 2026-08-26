@@ -1,11 +1,11 @@
 # STATE — rewrite after every ticket completes; never append. ≤30 lines total.
 
 ## Now
-- Cycle 19 running (mvp, plan approved 1/2). Wave 1 in worktrees: 90 (batch match, opus) ∥ 92 (CLI triggers, sonnet).
+- Cycle 19 (proactive agent mode) code complete: tickets 90–95 done, 1 attempt each. Main green (pytest 289, vitest 394, build). Deploying to prod; schedules match-run/recommend-run created disabled; LIXTO_INTERNAL_TOKEN set on both apps. Awaiting final diff review (2/2).
 
 ## Next
-- Operator: rename local checkout `~/dev/plataforma-licitante` → `~/dev/lixto` (memory dir pre-copied). Set `LIXTO_LLM_API_KEY` on lixto-web + lixto-cli when ready. Decide when to enable schedules (all disabled). Decommission legacy project + `plataforma-licitante_db` (separate approval).
-- Cycle 19: /forge:idea proactive agent mode — batch match on new procurements → opportunities/matches → daily digest (docs/VISION.md §12). Prereq before enabling plans-sync: per-page resumable watermark (PCA ≈ 200k rows / 3 days).
+- Operator: set LIXTO_LLM_API_KEY; enable ingestion schedules when ready (sync-incremental → enrich-run → match-run → recommend-run). Rename local dir to ~/dev/lixto. Decommission legacy (separate approval).
+- Cycle 20 candidates: email/push digest; prepare/execute + approval; learning from feedback; query-time semantic search; plans/contracts in matching; per-page watermark for plans sync.
 
 ## Decisions
 - Cycle 19: single scoring implementation — batch match + recommendations run inside the web app behind token-guarded `/api/internal/*` routes; CLI (`lixto match run`, `lixto recommend run`) and Dokploy schedules just trigger them. Thresholds 40 (matched) / 70 (attention); GO/NO-GO cap 5/company/day; digest in-app only.
