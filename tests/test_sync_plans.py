@@ -208,6 +208,70 @@ def test_upsert_plan_skips_agency_upsert_when_tax_id_missing():
     assert not any("INSERT INTO agencies" in sql for sql in executed_sql)
 
 
+def test_row_from_plan_dto_zero_pads_a_short_cnpj():
+    # PNCP occasionally loses a leading zero upstream; the plan row must still
+    # match the CHAR(14) `agencies.tax_id` key the other syncs write.
+    row = plans_module.row_from_plan_dto(_plan_dto(orgaoEntidadeCnpj="360305000104"))
+
+    assert row["agency_tax_id"] == "00360305000104"
+
+
+def test_upsert_plan_agency_upsert_coalesces_name_and_never_writes_null():
+    cursor = _mock_cursor()
+
+    plans_module.upsert_plan(cursor, _plan_dto(orgaoEntidadeRazaoSocial=None))
+
+    agency_sql, agency_params = next(
+        c.args for c in cursor.execute.call_args_list if "INSERT INTO agencies" in c.args[0]
+    )
+    # `agencies.name` is NOT NULL: fall back to the tax id rather than crash,
+    # and COALESCE on update rather than null over a name another sync stored.
+    assert agency_params["name"] == "00000000000191"
+    assert "name = COALESCE(EXCLUDED.name, agencies.name)" in agency_sql
+
+
+@pytest.mark.parametrize(
+    ("overrides", "reason"),
+    [
+        ({"orgaoEntidadeCnpj": None}, "agency_tax_id NOT NULL"),
+        ({"anoPca": None}, "year NOT NULL"),
+    ],
+)
+def test_upsert_plan_skips_dto_that_would_violate_not_null(overrides, reason):
+    cursor = _mock_cursor()
+    counters = RunCounters()
+
+    plan_id = plans_module.upsert_plan(cursor, _plan_dto(**overrides), counters=counters)
+
+    assert plan_id is None, reason
+    executed_sql = [c.args[0] for c in cursor.execute.call_args_list]
+    assert not any("INSERT INTO procurement_plans" in sql for sql in executed_sql)
+    assert not any("INSERT INTO procurement_plan_items" in sql for sql in executed_sql)
+    # the raw DTO is still retained, so a later fix can reprocess it
+    assert any("INSERT INTO source_payloads" in sql for sql in executed_sql)
+    assert counters["plans_skipped_incomplete"] == 1
+
+
+def test_sync_plans_counts_incomplete_dtos_without_aborting(monkeypatch):
+    conn, cursor = _mock_conn()
+    cursor.fetchone.side_effect = [("2026-08-19T00:00:00",), (7,)]
+    fake_client = MagicMock()
+    fake_client.fetch_plans_update_page.return_value = _page(
+        [
+            _plan_dto(idPcaPncp="bad", orgaoEntidadeCnpj=None),
+            _plan_dto(idPcaPncp="good", dataAtualizacaoGlobalPCA="2026-08-19T08:00:00"),
+        ]
+    )
+    counters = RunCounters()
+
+    result = plans_module.sync_plans(
+        conn, until=date(2026, 8, 19), client=fake_client, counters=counters
+    )
+
+    assert result["plans_seen"] == 2
+    assert counters["plans_skipped_incomplete"] == 1
+
+
 # --- watermark helpers ---------------------------------------------------
 
 

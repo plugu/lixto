@@ -33,6 +33,10 @@ logger = logging.getLogger(__name__)
 ITEMS_ENTITY_TYPE = "procurement_items"
 DOCUMENTS_ENTITY_TYPE = "procurement_documents"
 
+# The pending queue is unbounded (millions of rows on a fresh mirror), so it
+# is read in slices instead of one `fetchall()`.
+BATCH_SIZE = 500
+
 # `materialOuServico` is a single letter; anything else (absent, 'O', …) is
 # left NULL rather than guessed — the column has a CHECK constraint.
 _KIND_BY_MATERIAL_OR_SERVICE = {"M": "material", "S": "service"}
@@ -173,13 +177,13 @@ def upsert_document(cursor: psycopg.Cursor, procurement_id: int, dto: dict[str, 
 
 
 def _select_pending(
-    conn: psycopg.Connection, *, limit: int | None
+    conn: psycopg.Connection, *, limit: int, offset: int = 0
 ) -> list[tuple[int, str, str, int, int]]:
-    sql = _SELECT_PENDING_SQL
-    params: dict[str, Any] = {}
-    if limit is not None:
-        sql += " LIMIT %(limit)s"
-        params["limit"] = limit
+    sql = _SELECT_PENDING_SQL + " LIMIT %(limit)s"
+    params: dict[str, Any] = {"limit": limit}
+    if offset:
+        sql += " OFFSET %(offset)s"
+        params["offset"] = offset
     with conn.cursor() as cur:
         cur.execute(sql, params)
         return cur.fetchall()
@@ -194,6 +198,13 @@ def sync_details(
 ) -> int:
     """Fetch items + documents for procurements missing either sync stamp.
 
+    The queue is drained in batches of `BATCH_SIZE`, never with one
+    unbounded `fetchall()`: the backlog is routinely millions of rows and
+    materializing it would blow the process's memory before the first fetch.
+    Each batch re-runs the same SELECT — processed rows have left the queue
+    by then — offset past the rows this run saw but could not stamp (fetch
+    failures), which the ordering would otherwise hand back forever.
+
     Returns the number of procurements successfully processed (stamped).
     """
     # One client covers both PNCP APIs (the detail endpoints are absolute
@@ -202,57 +213,70 @@ def sync_details(
     owns_client = client is None
     client = client or PncpClient()
     processed = 0
+    left_on_queue = 0
+    remaining = limit
     try:
-        for procurement_id, source_id, agency_tax_id, year, sequence in _select_pending(
-            conn, limit=limit
-        ):
-            if year is None or sequence is None:
-                # The detail endpoints are keyed by cnpj/ano/sequencial; with
-                # either missing there is nothing to fetch, ever. Stamp it so
-                # the queue doesn't hand us the same row forever.
-                logger.warning("%s has no year/sequence, stamping as synced", source_id)
+        while remaining is None or remaining > 0:
+            batch_size = BATCH_SIZE if remaining is None else min(BATCH_SIZE, remaining)
+            rows = _select_pending(conn, limit=batch_size, offset=left_on_queue)
+            if not rows:
+                break
+
+            for procurement_id, source_id, agency_tax_id, year, sequence in rows:
+                if year is None or sequence is None:
+                    # The detail endpoints are keyed by cnpj/ano/sequencial;
+                    # with either missing there is nothing to fetch, ever.
+                    # Stamp it so the queue doesn't hand us the same row
+                    # forever.
+                    logger.warning("%s has no year/sequence, stamping as synced", source_id)
+                    with conn.cursor() as cur:
+                        cur.execute(_STAMP_SQL, (procurement_id,))
+                    conn.commit()
+                    continue
+
+                try:
+                    items = client.fetch_items(
+                        agency_tax_id=agency_tax_id.strip(), year=year, sequence=sequence
+                    )
+                    documents = client.fetch_documents(
+                        agency_tax_id=agency_tax_id.strip(), year=year, sequence=sequence
+                    )
+                except PncpApiError:
+                    logger.exception("failed to fetch details for %s, skipping", source_id)
+                    left_on_queue += 1
+                    continue
+
                 with conn.cursor() as cur:
+                    for dto in items:
+                        upsert_item(cur, procurement_id, dto)
+                    for dto in documents:
+                        upsert_document(cur, procurement_id, dto)
+                    upsert_source_payload(
+                        cur,
+                        entity_type=ITEMS_ENTITY_TYPE,
+                        external_id=source_id,
+                        payload=items,
+                    )
+                    upsert_source_payload(
+                        cur,
+                        entity_type=DOCUMENTS_ENTITY_TYPE,
+                        external_id=source_id,
+                        payload=documents,
+                    )
                     cur.execute(_STAMP_SQL, (procurement_id,))
                 conn.commit()
-                continue
 
-            try:
-                items = client.fetch_items(
-                    agency_tax_id=agency_tax_id.strip(), year=year, sequence=sequence
-                )
-                documents = client.fetch_documents(
-                    agency_tax_id=agency_tax_id.strip(), year=year, sequence=sequence
-                )
-            except PncpApiError:
-                logger.exception("failed to fetch details for %s, skipping", source_id)
-                continue
+                processed += 1
+                if counters is not None:
+                    counters.inc("details_processed")
+                    counters.inc("items", len(items))
+                    counters.inc("documents", len(documents))
+                logger.info("%s: %d item(s), %d document(s)", source_id, len(items), len(documents))
 
-            with conn.cursor() as cur:
-                for dto in items:
-                    upsert_item(cur, procurement_id, dto)
-                for dto in documents:
-                    upsert_document(cur, procurement_id, dto)
-                upsert_source_payload(
-                    cur,
-                    entity_type=ITEMS_ENTITY_TYPE,
-                    external_id=source_id,
-                    payload=items,
-                )
-                upsert_source_payload(
-                    cur,
-                    entity_type=DOCUMENTS_ENTITY_TYPE,
-                    external_id=source_id,
-                    payload=documents,
-                )
-                cur.execute(_STAMP_SQL, (procurement_id,))
-            conn.commit()
-
-            processed += 1
-            if counters is not None:
-                counters.inc("details_processed")
-                counters.inc("items", len(items))
-                counters.inc("documents", len(documents))
-            logger.info("%s: %d item(s), %d document(s)", source_id, len(items), len(documents))
+            if remaining is not None:
+                remaining -= len(rows)
+            if len(rows) < batch_size:
+                break
     finally:
         if owns_client:
             client.close()

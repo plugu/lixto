@@ -195,11 +195,19 @@ def test_upsert_procurement_writes_buyer_then_procurement_then_payload():
 def test_upsert_procurement_sql_is_freshness_guarded_and_resets_detail_stamps():
     assert "ON CONFLICT (source, source_id) DO UPDATE" in _UPSERT_SQL
     assert (
-        "WHERE EXCLUDED.source_global_updated_at > procurements.source_global_updated_at"
+        "WHERE procurements.source_global_updated_at IS NULL\n"
+        "   OR EXCLUDED.source_global_updated_at > procurements.source_global_updated_at"
         in _UPSERT_SQL
     )
     assert "items_synced_at = NULL" in _UPSERT_SQL
     assert "documents_synced_at = NULL" in _UPSERT_SQL
+
+
+def test_upsert_procurement_guard_is_null_safe_on_the_stored_row():
+    # `NULL > x` is NULL, i.e. false: without the IS NULL arm a procurement
+    # stored without `dataAtualizacaoGlobal` could never be updated again.
+    guard = _UPSERT_SQL.split("WHERE ", 1)[1]
+    assert "procurements.source_global_updated_at IS NULL" in guard
 
 
 def test_upsert_procurement_returns_none_and_skips_when_agency_missing():

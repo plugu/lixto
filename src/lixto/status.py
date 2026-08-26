@@ -19,6 +19,12 @@ COUNTED_TABLES: tuple[str, ...] = (
     "procurements",
     "procurement_items",
     "procurement_documents",
+    "procurement_results",
+    "procurement_enrichments",
+    "procurement_plans",
+    "procurement_plan_items",
+    "contracts",
+    "contract_amendments",
     "source_payloads",
     "agent_runs",
 )

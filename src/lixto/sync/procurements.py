@@ -5,11 +5,14 @@ atualizacao` (incremental) carries the same DTO, so both callers share
 `upsert_procurement` here:
 
 1. `agencies` + `agency_units` first (FK, `lixto.sync` helpers),
-2. the `procurements` row, guarded by
-   `WHERE EXCLUDED.source_global_updated_at > procurements.source_global_updated_at`
+2. the `procurements` row, guarded by `WHERE
+   procurements.source_global_updated_at IS NULL OR
+   EXCLUDED.source_global_updated_at > procurements.source_global_updated_at`
    so a re-fetch of an unchanged procurement is a genuine no-op and a real
    update resets `items_synced_at`/`documents_synced_at` (details get
-   re-fetched),
+   re-fetched). The `IS NULL` arm matters: PNCP does send rows without
+   `dataAtualizacaoGlobal`, and a plain `>` is NULL — hence never true — so
+   such a row could never be updated again once stored,
 3. the complete DTO into `source_payloads` (`entity_type='procurement'`),
    keyed by `source_id` — hot rows stay lean, reprocessing stays possible.
 
@@ -99,7 +102,8 @@ ON CONFLICT (source, source_id) DO UPDATE SET
     items_synced_at = NULL,
     documents_synced_at = NULL,
     updated_at = now()
-WHERE EXCLUDED.source_global_updated_at > procurements.source_global_updated_at
+WHERE procurements.source_global_updated_at IS NULL
+   OR EXCLUDED.source_global_updated_at > procurements.source_global_updated_at
 RETURNING id
 """
 

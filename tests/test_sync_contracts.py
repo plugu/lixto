@@ -15,7 +15,9 @@ from unittest.mock import MagicMock
 from psycopg.types.json import Json
 
 from lixto.pncp_client import PncpApiError
+from lixto.runs import RunCounters
 from lixto.sync.contracts import (
+    _UPSERT_CONTRACT_SQL,
     CHUNK_DAYS,
     _iter_date_chunks,
     _resolve_window_start,
@@ -24,8 +26,6 @@ from lixto.sync.contracts import (
     row_from_contract_dto,
     sync_amendments,
     sync_contracts,
-    upsert_agency,
-    upsert_agency_unit,
     upsert_contract,
 )
 
@@ -208,28 +208,86 @@ def test_resolve_procurement_id_returns_none_when_absent():
 # ------------------------------------------------------------------ upserts
 
 
-def test_upsert_agency_writes_row_and_returns_tax_id():
+def test_contract_upsert_resets_amendments_synced_at_on_a_real_update():
+    # A contract PNCP actually changed may have gained/changed /termos, so
+    # the stamp must be cleared inside the freshness-guarded DO UPDATE.
+    assert "amendments_synced_at = NULL" in _UPSERT_CONTRACT_SQL
+    set_clause, where_clause = _UPSERT_CONTRACT_SQL.split("WHERE contracts.")
+    assert "amendments_synced_at = NULL" in set_clause
+    assert "source_global_updated_at" in where_clause
+
+
+def test_upsert_contract_uses_shared_buyer_upserts_with_normalized_tax_id():
     cursor = MagicMock()
+    cursor.fetchone.return_value = None
+    # PNCP occasionally drops a CNPJ's leading zero (int round-trip); the
+    # shared helper zero-pads it back to the CHAR(14) key form.
+    dto = _contract_dto(
+        orgaoEntidade={"cnpj": "360305000104", "razaoSocial": "Caixa", "poderId": "E"}
+    )
 
-    tax_id = upsert_agency(cursor, {"cnpj": "00000000000191", "razaoSocial": "X", "poderId": "E"})
+    assert upsert_contract(cursor, dto) is True
 
-    assert tax_id == "00000000000191"
-    cursor.execute.assert_called_once()
+    agency_params = cursor.execute.call_args_list[0].args[1]
+    assert agency_params["tax_id"] == "00360305000104"
+    contract_params = next(
+        c.args[1] for c in cursor.execute.call_args_list if "INSERT INTO contracts" in c.args[0]
+    )
+    assert contract_params["agency_tax_id"] == "00360305000104"
 
 
-def test_upsert_agency_no_op_when_no_cnpj():
+def test_upsert_contract_agency_upsert_never_nulls_a_stored_name():
     cursor = MagicMock()
+    cursor.fetchone.return_value = None
 
-    assert upsert_agency(cursor, {}) is None
-    cursor.execute.assert_not_called()
+    upsert_contract(cursor, _contract_dto(orgaoEntidade={"cnpj": "00000000000191"}))
+
+    agency_sql, agency_params = cursor.execute.call_args_list[0].args
+    # NOT NULL column: a nameless DTO falls back to the tax id, and the
+    # update COALESCEs so a later nameless fetch can't erase a good name.
+    assert agency_params["name"] == "00000000000191"
+    assert "name = COALESCE(EXCLUDED.name, agencies.name)" in agency_sql
 
 
-def test_upsert_agency_unit_no_op_when_no_code():
+def test_upsert_contract_skips_dto_without_agency_cnpj():
     cursor = MagicMock()
+    counters = RunCounters()
 
-    upsert_agency_unit(cursor, "00000000000191", {})
+    assert upsert_contract(cursor, _contract_dto(orgaoEntidade={}), counters=counters) is False
 
-    cursor.execute.assert_not_called()
+    # Nothing at all is written: `contracts.agency_tax_id` is NOT NULL, so the
+    # INSERT would abort the whole run.
+    sqls = [c.args[0] for c in cursor.execute.call_args_list]
+    assert not any("INSERT INTO contracts" in s for s in sqls)
+    assert not any("INSERT INTO source_payloads" in s for s in sqls)
+    assert counters["contracts_skipped_incomplete"] == 1
+
+
+def test_sync_contracts_skips_incomplete_dto_without_aborting_the_run():
+    conn, _cursor = _mock_conn(watermark_row=None, bootstrap_row=None)
+
+    client = MagicMock()
+    bad = _contract_dto(orgaoEntidade=None, dataAtualizacaoGlobal="2026-01-11T13:00:00")
+    good = _contract_dto(
+        numeroControlePNCP="00000000000191-2-000019/2026",
+        dataAtualizacaoGlobal="2026-01-11T12:00:00",
+    )
+    client.fetch_contracts_page.return_value = {
+        "data": [bad, good],
+        "paginasRestantes": 0,
+        "numeroPagina": 1,
+    }
+    counters = RunCounters()
+
+    result = sync_contracts(
+        conn, since=date(2026, 1, 11), until=date(2026, 1, 11), client=client, counters=counters
+    )
+
+    assert result["rows_seen"] == 1
+    assert counters["contracts_skipped_incomplete"] == 1
+    assert counters["contracts"] == 1
+    # the skipped DTO still moves the watermark — it was genuinely seen
+    assert result["watermark"] == "2026-01-11T13:00:00"
 
 
 def test_upsert_contract_writes_agency_unit_contract_and_payload_in_order():
@@ -533,3 +591,21 @@ def test_sync_amendments_uses_agency_year_sequence_from_the_row():
     client.fetch_contract_amendments.assert_called_once_with(
         agency_tax_id="11111111000191", year=2025, sequence=3
     )
+
+
+def test_sync_amendments_stamps_contracts_without_year_or_sequence():
+    # `contracts.year`/`.sequence` are nullable; interpolating None into the
+    # /termos URL would fetch a literal ".../None/None/termos".
+    conn, cursor = _mock_amendments_conn(
+        [_pending_row(contract_id=4, source_id="s-4", year=None, seq=None)]
+    )
+    client = MagicMock()
+    counters = RunCounters()
+
+    result = sync_amendments(conn, client=client, counters=counters)
+
+    assert result == {"processed": 0, "amendments": 0}
+    client.fetch_contract_amendments.assert_not_called()
+    # stamped anyway, or the pending queue hands the row back every run
+    assert "UPDATE contracts SET amendments_synced_at" in cursor.execute.call_args.args[0]
+    assert counters["contracts_skipped_no_year_sequence"] == 1
