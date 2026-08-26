@@ -1,7 +1,7 @@
 # STATE — rewrite after every ticket completes; never append. ≤30 lines total.
 
 ## Now
-- Cycle 18 (Lixto core from zero) complete: tickets 74–89 done, reviewer pass done, infra cutover done. Prod: Dokploy project `lixto` (lixto-web `QKzjW7QHbZrY6rYeVUBfm`, lixto-cli `VT5kg8t3WKXuH9J7lbCaZ`), DB `lixto` on pg-shared (35 tables, cnae_codes seeded, no other data), domains lixto.com.br + www + lixto.site.plugu.solutions. Legacy project still up at plataforma-licitante.site.plugu.solutions (autoDeploy off). Awaiting final approval 3/3.
+- Cycle 18 accepted (3/3). Cycle 19 (proactive agent mode, mvp) — PRODUCT.md written; next /forge:plan.
 
 ## Next
 - Operator: rename local checkout `~/dev/plataforma-licitante` → `~/dev/lixto` (memory dir pre-copied). Set `LIXTO_LLM_API_KEY` on lixto-web + lixto-cli when ready. Decide when to enable schedules (all disabled). Decommission legacy project + `plataforma-licitante_db` (separate approval).
