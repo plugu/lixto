@@ -1,7 +1,7 @@
 # STATE — rewrite after every ticket completes; never append. ≤30 lines total.
 
 ## Now
-- Cycle 19 (proactive agent mode) code complete: tickets 90–95 done, 1 attempt each. Main green (pytest 289, vitest 394, build). Deploying to prod; schedules match-run/recommend-run created disabled; LIXTO_INTERNAL_TOKEN set on both apps. Awaiting final diff review (2/2).
+- Cycle 19 (proactive agent mode) complete and deployed: tickets 90–95 (1 attempt each), main green (pytest 289, vitest 394), prod smoke OK (schedule → internal route → agent_runs; digest pages 200). Schedules match-run/recommend-run exist, disabled. Awaiting final review (2/2).
 
 ## Next
 - Operator: set LIXTO_LLM_API_KEY; enable ingestion schedules when ready (sync-incremental → enrich-run → match-run → recommend-run). Rename local dir to ~/dev/lixto. Decommission legacy (separate approval).
