@@ -656,6 +656,8 @@ CREATE INDEX idx_messages_conversation ON messages (conversation_id, id);
 
 ## Consequences
 
+- **Extensions need a superuser step in prod**: the `pgvector/pgvector` image does not mark `vector` as trusted, so `CREATE EXTENSION vector` fails for the `lixto` role. Provisioning must run `CREATE EXTENSION IF NOT EXISTS vector, unaccent, pg_trgm` in the `lixto` database as `shared` (superuser) before the first `lixto db init`; the migration's `IF NOT EXISTS` then no-ops. Local dev is unaffected (compose user is superuser).
+
 - Hot tables carry no raw JSON; reprocessing reads `source_payloads`. Storage for 8M items drops by roughly half versus the legacy `raw` column per row.
 - Facet tables (`procurement_categories`, `_requirements`, `_cnaes`, `_embeddings`) make "all procurements requiring X" and vector search index-backed instead of JSONB scans.
 - `procurement_id BIGINT` surrogate keys replace the 24-char `numero_controle_pncp` in every child table (smaller indexes, faster joins); `source_id` remains the public identifier used in URLs (`/procurement/[sourceId]`).

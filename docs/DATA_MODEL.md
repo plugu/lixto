@@ -1,5 +1,7 @@
 # Lixto Data Model
 
+> Prod note: `vector` is not a trusted extension in `pgvector/pgvector:pg18-trixie`; a superuser must create `vector`/`unaccent`/`pg_trgm` in the database before `lixto db init`.
+
 Complete table reference for the `lixto` database schema (cycle 18). All tables have `created_at TIMESTAMPTZ NOT NULL DEFAULT now()`; mutable tables also have `updated_at`. Money is `NUMERIC(18,2)`; quantities `NUMERIC(18,4)`; percentages `NUMERIC(7,4)`. Enumerations are `TEXT + CHECK` (no PG enums).
 
 ## Reference Tables
