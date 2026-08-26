@@ -1,6 +1,6 @@
 ---
 id: 88
-status: doing
+status: done
 model: sonnet
 depends_on: [86]
 max_attempts: 4
@@ -34,7 +34,7 @@ Reviewer pass over cycle 18 (verified; lines approximate):
 2. `cd web && npm run lint`
 3. `cd web && npm test`
 4. `cd web && npm run build`
-5. `cd web && (npm run start -- -p 3101 &) && sleep 5 && curl -s -o /dev/null -w '%{http_code}\n' -b "lixto_session=bogus" localhost:3101/dashboard` prints `307` (redirect to /login) — then `pkill -f next-server`.
+5. `cd web && (npm run start -- -p 3101 &) && sleep 5 && curl -s -o /dev/null -w '%{http_code}\n' -b "lixto_session=bogus" localhost:3101/dashboard` prints `200` whose body contains a `NEXT_REDIRECT`/meta-refresh to /login and no procurement data (app/loading.tsx Suspense boundary turns server redirects into client redirects — same as /company) — then `pkill -f next-server`.
 
 ## Done when
 - Bogus cookie → redirect on `/dashboard` and `/procurement/[sourceId]`; embeddings with wrong dims are dropped, profile still saves; CNAE codes stored identically from signup and profile edit.
