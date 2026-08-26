@@ -90,15 +90,15 @@ Opens at `http://localhost:3000`. Routes:
 | `LIXTO_DATABASE_URL` | PostgreSQL | `postgresql://lixto:lixto@localhost:5433/lixto` |
 | `LIXTO_LLM_BASE_URL` | LLM provider base URL (OpenAI-compatible) | `https://api.openai.com/v1` |
 | `LIXTO_LLM_API_KEY` | API key (fallback: `OPENAI_API_KEY`) | — |
-| `LIXTO_LLM_MODEL_CHEAP` | Text classification model | `gpt-4o-mini` |
-| `LIXTO_LLM_MODEL_DOC` | PDF parsing model (Responses API) | `gpt-4o` |
-| `LIXTO_LLM_MODEL_STRONG` | Deep reasoning model | `gpt-4o` |
+| `LIXTO_LLM_MODEL_CHEAP` | Text classification model | `gpt-5-mini` |
+| `LIXTO_LLM_MODEL_DOC` | PDF parsing model (Responses API) | `gpt-5.1` |
+| `LIXTO_LLM_MODEL_STRONG` | Deep reasoning model | `gpt-5.1` |
 | `LIXTO_LLM_MODEL_FALLBACK` | Retry tier (optional) | — |
 | `LIXTO_LLM_MODEL_EMBED` | Embedding model (1536 dims) | `text-embedding-3-small` |
-| `LIXTO_CHAT_MODEL` | Chat agent model | `gpt-4o-mini` |
+| `LIXTO_CHAT_MODEL` | Chat agent model | `gpt-5-mini` |
 | `LIXTO_IBGE_CNAE_URL` | CNAE seed source | `https://concla.ibge.gov.br/export/tabelas/ascii/subclasses.txt` |
-| `LIXTO_MIN_REQUEST_INTERVAL` | Seconds between PNCP requests | `0.5` |
-| `UPLOADS_DIR` | Document storage path | `./web/uploads` (dev), `/app/uploads` (prod) |
+| `LIXTO_MIN_REQUEST_INTERVAL` | Seconds between PNCP requests | `0.25` |
+| `UPLOADS_DIR` | Document storage path | `./uploads` (dev), `/app/uploads` (prod) |
 
 ## CLI Commands
 
