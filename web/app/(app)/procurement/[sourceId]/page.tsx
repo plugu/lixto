@@ -5,6 +5,7 @@ import { ItemsTable } from "@/components/items-table";
 import { StatusBadge } from "@/components/status-badge";
 import { LinkButton } from "@/components/ui/button";
 import { Card, CollapsibleCard } from "@/components/ui/card";
+import { requireSession } from "@/lib/auth";
 import { fetchEnrichment } from "@/lib/enrichment-queries";
 import { formatCurrencyBRL, formatDateBR } from "@/lib/format";
 import { enqueueMissingResults, fetchPriceBenchmark } from "@/lib/price-queries";
@@ -33,6 +34,8 @@ function buildPncpUrl(detail: ProcurementDetail): string | null {
 export default async function ProcurementDetailPage(
   props: PageProps<"/procurement/[sourceId]">,
 ) {
+  await requireSession();
+
   const { sourceId } = await props.params;
   const detail = await fetchProcurementDetail(decodeSourceId(sourceId));
 

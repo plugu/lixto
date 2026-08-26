@@ -5,6 +5,7 @@
 // Relative imports on purpose: vitest runs without a config file, so the
 // tsconfig "@/" alias is not resolvable in signup-queries.test.ts.
 import { onlyDigits } from "./br-validators";
+import { normalizeCnaeCode } from "./company-queries";
 import { pool } from "./db";
 import type { CompanySize } from "./types";
 
@@ -102,7 +103,7 @@ export function buildInsertCnaes(
   const rows = cnaes.map((cnae, i) => {
     const base = 1 + i * 3;
     values.push(
-      onlyDigits(cnae.code).padStart(7, "0"),
+      normalizeCnaeCode(cnae.code),
       cnae.description,
       cnae.isPrimary,
     );

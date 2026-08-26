@@ -99,6 +99,22 @@ function parseCnaes(formData: FormData): CnaeForm[] {
     .filter((c) => c.code && c.description);
 }
 
+/** Drops repeated CNAEs (same digits, regardless of formatting) before
+ * insert — the DB has a UNIQUE (company_id, cnae_code) constraint and a
+ * duplicate would otherwise surface as a raw 23505. Keeps the first
+ * occurrence of each code. */
+function dedupeCnaes(cnaes: CnaeForm[]): CnaeForm[] {
+  const seen = new Set<string>();
+  const result: CnaeForm[] = [];
+  for (const c of cnaes) {
+    const digits = onlyDigits(c.code);
+    if (seen.has(digits)) continue;
+    seen.add(digits);
+    result.push(c);
+  }
+  return result;
+}
+
 export async function signupAction(
   _prev: SignupState,
   formData: FormData,
@@ -129,7 +145,7 @@ export async function signupAction(
   const phone = str(formData, "phone");
   const jobTitle = str(formData, "jobTitle");
 
-  const cnaes = parseCnaes(formData);
+  const cnaes = dedupeCnaes(parseCnaes(formData));
 
   if (!isValidCNPJ(taxId)) return { error: "CNPJ inválido." };
   if (!legalName) return { error: "Informe a razão social." };
@@ -186,8 +202,15 @@ export async function signupAction(
       },
     });
   } catch (err) {
-    const code = (err as { code?: string } | null)?.code;
-    if (code === "23505") {
+    const pgErr = err as { code?: string; constraint?: string } | null;
+    if (pgErr?.code === "23505") {
+      // company_cnaes has UNIQUE (company_id, cnae_code) — Postgres' default
+      // naming convention gives it this name. Dedup above should already
+      // prevent this, but a normalized-code collision (different formatting,
+      // same digits after normalizeCnaeCode's padding) can still slip through.
+      if (pgErr.constraint === "company_cnaes_company_id_cnae_code_key") {
+        return { error: "CNAE duplicado." };
+      }
       return { error: "CNPJ ou e-mail já cadastrado." };
     }
     throw err;

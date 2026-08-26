@@ -74,6 +74,12 @@ export async function embedText(
       console.warn("[embed] response carried no embedding");
       return null;
     }
+    if (vector.length !== EMBED_DIMS) {
+      console.warn(
+        `[embed] unexpected embedding dimensions: expected ${EMBED_DIMS}, got ${vector.length}`,
+      );
+      return null;
+    }
     return { vector: vector as number[], model };
   } catch (err) {
     console.warn("[embed] failed to generate the embedding:", err);

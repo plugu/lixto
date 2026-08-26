@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildInsertCnaes,
   buildUpdateCompany,
+  normalizeCnaeCode,
   validateCnaes,
   type CnaeInput,
   type CompanyInput,
@@ -93,6 +94,33 @@ describe("buildInsertCnaes", () => {
       "Consultoria em TI",
       false,
     ]);
+  });
+});
+
+describe("normalizeCnaeCode", () => {
+  it("strips formatting and left-pads to 7 digits", () => {
+    expect(normalizeCnaeCode("620-1/5")) // 5 digits after stripping
+      .toBe("0062015");
+  });
+
+  it("leaves an already 7-digit code untouched", () => {
+    expect(normalizeCnaeCode("6201501")).toBe("6201501");
+  });
+
+  it("matches the padding signup-queries.ts writes for the same code", () => {
+    // Reviewer finding 11: a code re-saved via company-queries must land in
+    // the DB identically to the one written at signup, or it never joins
+    // procurement_cnaes again.
+    expect(normalizeCnaeCode("62015/01")).toBe("6201501");
+  });
+});
+
+describe("buildInsertCnaes pads short codes", () => {
+  it("left-pads a code shorter than 7 digits", () => {
+    const { values } = buildInsertCnaes(1, [
+      { code: "620150", description: "Software", isPrimary: true },
+    ]);
+    expect(values[1]).toBe("0620150");
   });
 });
 
