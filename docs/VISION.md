@@ -2,7 +2,7 @@
 
 > Original vision document, ingested into forge on 2026-08-25. Kept verbatim as the
 > long-term direction; see **Appendix — Implementation status** at the end for what
-> is built (cycles 16–17) and what is still open. `docs/LIXTO.md` documents the
+> is built (cycles 16–18) and what is still open. `docs/ARCHITECTURE.md` documents the
 > shipped architecture; `STATE.md` tracks the current cycle.
 
 ## 1. Product vision

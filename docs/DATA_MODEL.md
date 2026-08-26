@@ -228,7 +228,19 @@ Messages within a conversation.
 - **Purpose**: Chat transcript. Refs (procurement cards shown in UI) are denormalized here for display.
 
 ### `opportunities`, `matches`, `recommendations`, `agent_actions`, `opportunity_feedback`
-Placeholder tables (exist in schema, not written in cycle 18). See `docs/ARCHITECTURE.md` Agent Core section for purpose. Written by cycle 19+.
+Placeholder tables (exist in schema, not written in cycle 18; written by cycle 19+ — see `docs/ARCHITECTURE.md` Agent Core):
+
+### `matches`
+Persisted score history per company × procurement. Key `id`; index `(company_id, procurement_id, computed_at DESC)`. Columns: `score`, `reasons JSONB [{code, weight, detail}]`, `engine_version`, `computed_at`.
+
+### `recommendations`
+GO / NO-GO artifacts per opportunity. Key `id`; index `(opportunity_id, created_at DESC)`. `verdict` ∈ `go|no_go|borderline`, `rationale`, `model`, `confidence`.
+
+### `agent_actions`
+Prepare/execute actions with human approval. Key `id`; index `(opportunity_id)`. `kind`, `payload JSONB`, `requires_approval`, `status` ∈ `proposed|approved|rejected|executed|failed`, `approved_by`, `approved_at`, `executed_at`, `result`, `error`.
+
+### `opportunity_feedback`
+Learning loop. Key `id`; index `(opportunity_id)`. `kind` ∈ `accepted|rejected|participated|won|lost|disqualified`, `reason`, `price`, `margin_pct`.
 
 ## Legacy → New Naming Map
 
