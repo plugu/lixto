@@ -1,7 +1,7 @@
 # STATE — rewrite after every ticket completes; never append. ≤30 lines total.
 
 ## Now
-- Cycle 19 (proactive agent mode, mvp): PRODUCT.md + tickets 90–95 written; awaiting plan approval (1/2).
+- Cycle 19 running (mvp, plan approved 1/2). Wave 1 in worktrees: 90 (batch match, opus) ∥ 92 (CLI triggers, sonnet).
 
 ## Next
 - Operator: rename local checkout `~/dev/plataforma-licitante` → `~/dev/lixto` (memory dir pre-copied). Set `LIXTO_LLM_API_KEY` on lixto-web + lixto-cli when ready. Decide when to enable schedules (all disabled). Decommission legacy project + `plataforma-licitante_db` (separate approval).
