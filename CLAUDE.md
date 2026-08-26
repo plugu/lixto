@@ -61,7 +61,7 @@ Key facts:
   - `plans-sync` — `0 4 * * *` (disabled)
   - `contracts-sync` — `0 5 * * *` (disabled)
   - `enrich-run` — `30 7,14,21 * * *`
-  - `enrich-embed` — manual only (`0 0 31 2 *`)
+  - `enrich-embed` — `45 7,14,21 * * *` (15 min after `enrich-run`; created disabled until ingestion is enabled)
   - `db-init` — manual only (`0 0 31 2 *`)
 
 **Note on schedules**: Date `0 0 31 2 *` never fires (Feb 31st). Use for "manual only" jobs.

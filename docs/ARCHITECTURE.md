@@ -89,13 +89,21 @@ Provider is abstracted (`LIXTO_LLM_BASE_URL`, OpenAI-compatible interface); swit
 - `companies.size` — MEI/ME/EPP/MEDIUM/LARGE
 - `company_documents.kind` — certifications etc.
 
+## Query-time semantic search
+
+When a search carries free text (q parameter), the query builder embeds it via `embedQuery` and retrieves candidates from two branches:
+1. **Keyword branch**: Full-text search on procurement description and items (same as keyword-only queries).
+2. **Semantic branch**: Top-K vector similarity (cosine ≥ 0.4 minimum; K=200 candidates) from `procurement_embeddings`.
+
+Structured filters (UF, modalidade, faixa de valor, situação) apply as hard `WHERE` clauses on both branches. Results are ranked via reciprocal-rank fusion (k=60 damping constant) — deterministic, no LLM. If embedding the query fails (missing key, provider error), search falls back to keyword-only. Facet counts remain keyword-only to avoid duplicate rows per filter. Each row carries `match_kind` ('keyword', 'semantic', or 'both') so the chat and UI can explain why it surfaced ("encontrei por similaridade" for semantic-only hits).
+
 ## Tools (Safe, Structured)
 
 Located: `web/lib/agent/tools.ts`. Model calls tools by name + JSON args; every tool validates and calls a query builder (no LLM-generated SQL).
 
 | Tool | Args | Returns | Purpose |
 |---|---|---|---|
-| `search_procurements` | `q`, `states`, `statuses`, `modalityIds`, `valueMin`, `valueMax`, `limit` | Procurement refs (top 20) | Unauthenticated: search PNCP data |
+| `search_procurements` | `q`, `states`, `statuses`, `modalityIds`, `valueMin`, `valueMax`, `limit` | Procurement refs (top 20) + `match_kind` | Unauthenticated: hybrid search (keyword ∪ semantic) |
 | `search_my_matches` | Same as above | Procurement refs + scores + reasons | Authenticated: procurements scored for this company |
 | `get_procurement` | `sourceId` (PNCP control number) | Full dossier (detail + items + documents + enrichment) | Fetch one procurement with context |
 | `calculate_match` | `sourceIds` (array, max 10) | Scores for each | Score multiple procurements for this company |
@@ -234,7 +242,6 @@ See `docs/PNCP_API.md` for DTO field mappings.
 - **Deep analysis**: on-demand Tier-3 model analysis per procurement (model uses enrichment + company context + documents)
 - **Prepare/Execute**: human-approved submission artifacts (cycle 19+)
 - **Learning loop**: feedback capture, outcome tracking (cycle 19+)
-- **Query-time semantic search**: embed the user's natural language question (currently only profile × procurement vectors)
 - **Streaming chat**: currently single JSON reply per turn
 - **HTML parsing**: PNCP attaches PDFs; revisit if other portals added
 - **Richer profiles**: supplier list, delivery capacity, financial constraints, preferred portals, historical participation

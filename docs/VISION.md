@@ -741,6 +741,7 @@ AI procurement operator.**
 | Contracts + amendments (supplier history, competitive intelligence) (§14) | `contracts`, `contract_amendments`, `/v1/contratos/atualizacao` + `/termos` sync (cycle 18) |
 | Agent run tracking (§7, §11) | `agent_runs` table, every sync/enrich/chat operation logged |
 | Proactive agent mode (§12): batch match, bounded GO/NO-GO, digest, feedback capture | `lixto match run` → `matches`/`opportunities` tables (score ≥40), `lixto recommend run` → `recommendations` (score ≥70, cap 5/company/day), `/lixto` digest, `/opportunities` list, feedback to `opportunity_feedback` (cycle 19) |
+| Query-time semantic search (§7): embed user's free text, hybrid FTS ∪ cosine retrieval, reciprocal-rank fusion | Free-text search via `search_procurements` tool and `/procurements` page; constants (`SEARCH_SEMANTIC_TOP_K=200`, `SEARCH_SEMANTIC_MIN=0.4`, `RRF_K=60`) in `web/lib/procurement-queries.ts`; `lixto enrich embed` backfills missing vectors (cycle 20) |
 
 ### Not built (open items)
 
@@ -752,7 +753,6 @@ AI procurement operator.**
 | Additional tools: `search_items`, `get_documents`, `compare_procurements`, `check_company_eligibility`, `list_missing_documents`, `prepare_participation` (§11) | not built | 5 of 12 listed tools exist |
 | Learning from feedback: ranking improvements based on acceptance/dismissal patterns (§14) | not built | feedback captured in `opportunity_feedback`; model retraining not yet implemented |
 | On-demand deep analysis with a Tier-3 model (§6, MVP 12) | not built | `analyze_procurement` uses enrichment cached at ingest time |
-| Query-time semantic search (embed user's free text) | not built | vectors used only profile × procurement |
 | Per-page watermark for plans sync; plans/contracts in matching (§8) | not built | plans table exists; semantic matching not yet integrated |
 | Richer profile fields: suppliers, delivery capacity, margins, financial constraints, preferred portals, historical participation (§8) | partial | only base fields implemented |
 | Streaming chat responses | not built | single JSON reply per turn |
@@ -765,6 +765,16 @@ AI procurement operator.**
 - In-app digest: `/lixto` shows summary + attention cards; `/opportunities` lists by state; `/dashboard` links to digest
 - Feedback capture: `opportunity_feedback` table; users can dismiss with reason or mark interest
 
+### Cycle 20 — Query-time semantic search (built)
+
+**Completed**:
+- Hybrid retrieval: free-text search embeds via `embedQuery`; candidates = FTS ∪ top-200 cosine (≥0.4)
+- Reciprocal-rank fusion (k=60) for deterministic blended ranking
+- Structured filters (UF, modalidade, valor, situação) apply as hard WHERE on both branches; facets keyword-only
+- Null embedding fallback: on key/provider error, degrades to keyword-only search
+- Rows carry `match_kind` ('keyword'/'semantic'/'both') so chat/UI can explain hits
+- Backfill schedule: `enrich-embed` runs 15 min after `enrich-run` (45 7,14,21 * * *) to heal ingestion-time failures
+
 ### Cycle 20+ roadmap
 
 **High priority** (needed for production feedback loop):
@@ -774,7 +784,6 @@ AI procurement operator.**
 - Enable prod ingestion schedules (user decision in Dokploy)
 
 **Medium priority**:
-- Query-time semantic search (embed user's free-text questions)
 - Additional chat tools (`search_items`, `get_documents`, `compare_procurements`, `prepare_participation`)
 - Streaming chat responses for long-running analyses
 - Plans/contracts in opportunity matching (currently enrichment only)

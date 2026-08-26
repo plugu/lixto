@@ -122,7 +122,7 @@ Opens at `http://localhost:3000`. Routes:
 
 ### Enrichment
 - `lixto enrich run [--limit N] [--days N] [--retry-errors]` — Produce one canonical enrichment per open procurement (routes to cheap/doc tier automatically).
-- `lixto enrich embed [--limit N]` — Backfill pgvector embeddings for enriched procurements.
+- `lixto enrich embed [--limit N]` — Backfill pgvector embeddings for semantic search; both chat and `/procurements` search support free-text semantic matching (in addition to keyword search).
 
 ### Proactive Agent Loop
 - `lixto match run [--company-id N] [--since YYYY-MM-DD]` — Score procurements enriched since the last run against every company profile/CNAEs, persist `matches` and upsert `opportunities` (POST `/api/internal/match/run` on the web app).
@@ -159,7 +159,7 @@ Dokploy project `lixto`, app `lixto-cli`, timezone `America/Sao_Paulo`:
 | enrich-run | `30 7,14,21 * * *` | `lixto enrich run --days 30 --limit 300` | Enabled |
 | match-run | `0 8,15,22 * * *` | `lixto match run` | Disabled (user decision) |
 | recommend-run | `15 8 * * *` | `lixto recommend run` | Disabled (user decision) |
-| enrich-embed | `0 0 31 2 *` | `lixto enrich embed` | Disabled (manual) |
+| enrich-embed | `45 7,14,21 * * *` | `lixto enrich embed` | Disabled (created disabled until ingestion enabled) |
 | db-init | `0 0 31 2 *` | `lixto db init` | Disabled (manual) |
 
 Dates `0 0 31 2 *` (Feb 31st) never fire; use for manual-only schedules.
