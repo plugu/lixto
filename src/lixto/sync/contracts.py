@@ -7,11 +7,15 @@ Two independent phases, each wrapped by the caller in its own
 - `sync_contracts`: pages `/v1/contratos/atualizacao` (filtered on
   `dataAtualizacaoGlobal`, same envelope shape as `/v1/contratos`) from a
   single watermark (`sync_state` key `incremental:contracts`) to today,
-  upserting `agencies`/`agency_units` first (contracts FK-reference the
-  agency), then the contract itself guarded by `source_global_updated_at`
+  upserting `agencies`/`agency_units` first through the shared
+  `lixto.sync.upsert_buyer_from_dto` (contracts FK-reference the agency; a
+  DTO whose `orgaoEntidade.cnpj` is unusable is logged, counted and skipped
+  rather than aborting the run on `agency_tax_id NOT NULL`), then the
+  contract itself guarded by `source_global_updated_at`
   (a same-or-older incoming row is a no-op, mirroring the incremental
-  procurement sync), resolving `procurement_id` with
-  a `SELECT id FROM procurements WHERE source='pncp' AND source_id =
+  procurement sync; a real update clears `amendments_synced_at` so the
+  changed contract's `/termos` are re-fetched), resolving `procurement_id`
+  with a `SELECT id FROM procurements WHERE source='pncp' AND source_id =
   numeroControlePncpCompra` (NULL when the procurement hasn't been synced —
   a contract may arrive on PNCP before, or independently of, the
   procurement it stems from), and writing the raw DTO to `source_payloads`
@@ -34,9 +38,11 @@ Two independent phases, each wrapped by the caller in its own
   `source_payloads` (`entity_type='contract_amendments'`,
   `external_id=<contract source_id>`), and stamps `amendments_synced_at`
   even when the array came back empty (a valid, distinguishable "checked,
-  has none" from "never checked"). Commits per contract so a crash only
-  loses the in-flight one; one contract failing after retries is logged and
-  skipped, not fatal to the run.
+  has none" from "never checked"). A contract with a NULL `year`/`sequence`
+  is stamped without fetching — the endpoint is keyed by them, so there is
+  nothing to ask for, ever. Commits per contract so a crash only loses the
+  in-flight one; one contract failing after retries is logged and skipped,
+  not fatal to the run.
 
 mvp-adjacent shortcut kept from the legacy sync (docs/adr/001, D-none):
 straight-line per-window/per-contract loops, no parallelism.
@@ -54,6 +60,7 @@ from psycopg.types.json import Json
 
 from lixto.pncp_client import PncpApiError, PncpClient
 from lixto.runs import RunCounters
+from lixto.sync import upsert_buyer_from_dto
 
 logger = logging.getLogger(__name__)
 
@@ -61,27 +68,6 @@ WATERMARK_KEY = "incremental:contracts"
 CHUNK_DAYS = 7
 
 # ---------------------------------------------------------------- upserts
-
-_UPSERT_AGENCY_SQL = """
-INSERT INTO agencies (tax_id, name, power_code, sphere_code)
-VALUES (%(tax_id)s, %(name)s, %(power_code)s, %(sphere_code)s)
-ON CONFLICT (tax_id) DO UPDATE SET
-    name = EXCLUDED.name,
-    power_code = EXCLUDED.power_code,
-    sphere_code = EXCLUDED.sphere_code,
-    updated_at = now()
-"""
-
-_UPSERT_AGENCY_UNIT_SQL = """
-INSERT INTO agency_units (agency_tax_id, code, name, state, city_name, ibge_code)
-VALUES (%(agency_tax_id)s, %(code)s, %(name)s, %(state)s, %(city_name)s, %(ibge_code)s)
-ON CONFLICT (agency_tax_id, code) DO UPDATE SET
-    name = EXCLUDED.name,
-    state = EXCLUDED.state,
-    city_name = EXCLUDED.city_name,
-    ibge_code = EXCLUDED.ibge_code,
-    updated_at = now()
-"""
 
 _UPSERT_CONTRACT_SQL = """
 INSERT INTO contracts (
@@ -143,6 +129,11 @@ ON CONFLICT (source, source_id) DO UPDATE SET
     from_price_registry = EXCLUDED.from_price_registry,
     parliamentary_amendment = EXCLUDED.parliamentary_amendment,
     origin_system = EXCLUDED.origin_system,
+    -- A real update means PNCP changed the contract, so its /termos array may
+    -- have changed too: clear the stamp and let `sync_amendments` re-fetch
+    -- (mirrors `procurements.items_synced_at`). Gated by the WHERE below, so
+    -- a no-op re-fetch never re-queues the amendments.
+    amendments_synced_at = NULL,
     updated_at = now()
 WHERE contracts.source_global_updated_at IS NULL
    OR EXCLUDED.source_global_updated_at IS NULL
@@ -285,42 +276,6 @@ def row_from_amendment_dto(contract_id: int, dto: dict[str, Any]) -> dict[str, A
 # ---------------------------------------------------------------- writers
 
 
-def upsert_agency(cursor: psycopg.Cursor, orgao: dict[str, Any]) -> str | None:
-    """Upsert one `orgaoEntidade`. Returns its `cnpj`, or None if absent."""
-    tax_id = orgao.get("cnpj")
-    if not tax_id:
-        return None
-    cursor.execute(
-        _UPSERT_AGENCY_SQL,
-        {
-            "tax_id": tax_id,
-            "name": orgao.get("razaoSocial"),
-            "power_code": orgao.get("poderId"),
-            "sphere_code": orgao.get("esferaId"),
-        },
-    )
-    return tax_id
-
-
-def upsert_agency_unit(cursor: psycopg.Cursor, agency_tax_id: str, unidade: dict[str, Any]) -> None:
-    """Upsert one `unidadeOrgao`. No-op when it has no `codigoUnidade`
-    (the agency_units primary key requires one)."""
-    code = unidade.get("codigoUnidade")
-    if not code:
-        return
-    cursor.execute(
-        _UPSERT_AGENCY_UNIT_SQL,
-        {
-            "agency_tax_id": agency_tax_id,
-            "code": code,
-            "name": unidade.get("nomeUnidade"),
-            "state": unidade.get("ufSigla"),
-            "city_name": unidade.get("municipioNome"),
-            "ibge_code": unidade.get("codigoIbge"),
-        },
-    )
-
-
 def resolve_procurement_id(cursor: psycopg.Cursor, procurement_source_id: str | None) -> int | None:
     """`SELECT id FROM procurements WHERE source='pncp' AND source_id =
     procurement_source_id` — NULL (no query at all) when
@@ -336,16 +291,35 @@ def resolve_procurement_id(cursor: psycopg.Cursor, procurement_source_id: str | 
     return row[0] if row else None
 
 
-def upsert_contract(cursor: psycopg.Cursor, dto: dict[str, Any]) -> None:
+def upsert_contract(
+    cursor: psycopg.Cursor, dto: dict[str, Any], *, counters: RunCounters | None = None
+) -> bool:
     """Upsert the agency, its unit, the contract row (freshness-guarded on
     `source_global_updated_at`, `procurement_id` resolved fresh every time),
     and the raw payload — in that order, since the contract row
-    FK-references the agency."""
-    agency_tax_id = upsert_agency(cursor, dto.get("orgaoEntidade") or {})
-    if agency_tax_id:
-        upsert_agency_unit(cursor, agency_tax_id, dto.get("unidadeOrgao") or {})
+    FK-references the agency.
+
+    Returns `False` (nothing written) when the DTO carries no usable
+    `orgaoEntidade.cnpj`: `contracts.agency_tax_id` is NOT NULL, so inserting
+    it would raise and abort the whole run on the first bad page. The skip is
+    logged and counted (`contracts_skipped_incomplete`), exactly as
+    `upsert_procurement` does.
+    """
+    agency_tax_id, unit_code = upsert_buyer_from_dto(cursor, dto)
+    if agency_tax_id is None:
+        logger.warning(
+            "contract %s has no usable orgaoEntidade.cnpj, skipping",
+            dto.get("numeroControlePNCP"),
+        )
+        if counters is not None:
+            counters.inc("contracts_skipped_incomplete")
+        return False
 
     row = row_from_contract_dto(dto)
+    # Both come back normalized (CNPJ zero-padded to the CHAR(14) key form)
+    # from the shared buyer upsert — the raw DTO values would not join.
+    row["agency_tax_id"] = agency_tax_id
+    row["unit_code"] = unit_code
     row["procurement_id"] = resolve_procurement_id(cursor, row["procurement_source_id"])
     cursor.execute(_UPSERT_CONTRACT_SQL, row)
     cursor.execute(
@@ -357,6 +331,7 @@ def upsert_contract(cursor: psycopg.Cursor, dto: dict[str, Any]) -> None:
             "payload": Json(dto),
         },
     )
+    return True
 
 
 # ---------------------------------------------------------------- watermark
@@ -474,9 +449,12 @@ def sync_contracts(
                 if data:
                     with conn.cursor() as cur:
                         for dto in data:
-                            upsert_contract(cur, dto)
-                            rows_seen += 1
-                            counters.inc("contracts")
+                            if upsert_contract(cur, dto, counters=counters):
+                                rows_seen += 1
+                                counters.inc("contracts")
+                            # Even a skipped DTO was seen: it must still move
+                            # the watermark, or the run would re-fetch its
+                            # window forever.
                             dto_watermark = dto.get("dataAtualizacaoGlobal")
                             if dto_watermark and (seen_max is None or dto_watermark > seen_max):
                                 seen_max = dto_watermark
@@ -537,6 +515,19 @@ def sync_amendments(
     total_amendments = 0
     try:
         for contract_id, source_id, agency_tax_id, year, sequence in pending:
+            if year is None or sequence is None:
+                # `/termos` is keyed by cnpj/ano/sequencial (both nullable on
+                # `contracts`); with either missing the URL would carry the
+                # literal "None". There is nothing to fetch, ever, so stamp it
+                # — same as `sync_details` — or the queue hands it back every
+                # run.
+                logger.warning("contract %s has no year/sequence, stamping as synced", source_id)
+                with conn.cursor() as cur:
+                    cur.execute(_STAMP_AMENDMENTS_SYNCED_SQL, (contract_id,))
+                conn.commit()
+                counters.inc("contracts_skipped_no_year_sequence")
+                continue
+
             try:
                 amendments = client.fetch_contract_amendments(
                     agency_tax_id=agency_tax_id,

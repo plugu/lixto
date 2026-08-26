@@ -42,6 +42,9 @@ logger = logging.getLogger(__name__)
 
 RESULTS_ENTITY_TYPE = "procurement_results"
 
+# The demand queue is read in slices, never with one unbounded `fetchall()`.
+BATCH_SIZE = 500
+
 _SELECT_PENDING_SQL = """
 SELECT i.procurement_id, i.item_number, p.source_id, p.agency_tax_id, p.year, p.sequence
 FROM procurement_items i
@@ -138,13 +141,13 @@ def upsert_result(
 
 
 def _select_pending(
-    conn: psycopg.Connection, *, limit: int | None
+    conn: psycopg.Connection, *, limit: int, offset: int = 0
 ) -> list[tuple[int, int, str, str, int | None, int | None]]:
-    sql = _SELECT_PENDING_SQL
-    params: dict[str, Any] = {}
-    if limit is not None:
-        sql += " LIMIT %(limit)s"
-        params["limit"] = limit
+    sql = _SELECT_PENDING_SQL + " LIMIT %(limit)s"
+    params: dict[str, Any] = {"limit": limit}
+    if offset:
+        sql += " OFFSET %(offset)s"
+        params["offset"] = offset
     with conn.cursor() as cur:
         cur.execute(sql, params)
         return cur.fetchall()
@@ -168,59 +171,78 @@ def sync_results(
     failing after the client's retries is logged and skipped (left on the
     queue for a future run), not fatal.
 
+    The queue is read in batches of `BATCH_SIZE` rather than one unbounded
+    `fetchall()`; each batch is offset past the items this run left on the
+    queue (fetch failures), which the ordering would otherwise re-serve.
+
     Returns the count of items successfully processed (stamped).
     """
     owns_client = client is None
     client = client or PncpClient()
     processed = 0
+    left_on_queue = 0
+    remaining = limit
     try:
-        rows = _select_pending(conn, limit=limit)
+        while remaining is None or remaining > 0:
+            batch_size = BATCH_SIZE if remaining is None else min(BATCH_SIZE, remaining)
+            rows = _select_pending(conn, limit=batch_size, offset=left_on_queue)
+            if not rows:
+                break
 
-        for procurement_id, item_number, source_id, agency_tax_id, year, sequence in rows:
-            if year is None or sequence is None:
-                # The results endpoint is keyed by cnpj/ano/sequencial; with
-                # either missing there is nothing to fetch, ever. Stamp it so
-                # the queue doesn't hand us the same row forever.
-                logger.warning(
-                    "%s has no year/sequence, stamping item %s as synced", source_id, item_number
-                )
+            for procurement_id, item_number, source_id, agency_tax_id, year, sequence in rows:
+                if year is None or sequence is None:
+                    # The results endpoint is keyed by cnpj/ano/sequencial;
+                    # with either missing there is nothing to fetch, ever.
+                    # Stamp it so the queue doesn't hand us the same row
+                    # forever.
+                    logger.warning(
+                        "%s has no year/sequence, stamping item %s as synced",
+                        source_id,
+                        item_number,
+                    )
+                    with conn.cursor() as cur:
+                        cur.execute(_STAMP_SQL, (procurement_id, item_number))
+                    conn.commit()
+                    continue
+
+                try:
+                    results = client.fetch_item_results(
+                        agency_tax_id=agency_tax_id.strip(),
+                        year=year,
+                        sequence=sequence,
+                        item_number=item_number,
+                    )
+                except PncpApiError:
+                    logger.exception(
+                        "failed to fetch results for %s item %s, skipping",
+                        source_id,
+                        item_number,
+                    )
+                    left_on_queue += 1
+                    continue
+
                 with conn.cursor() as cur:
+                    for dto in results:
+                        upsert_result(cur, procurement_id, item_number, dto)
+                    upsert_source_payload(
+                        cur,
+                        entity_type=RESULTS_ENTITY_TYPE,
+                        external_id=f"{source_id}#{item_number}",
+                        payload=results,
+                    )
                     cur.execute(_STAMP_SQL, (procurement_id, item_number))
                 conn.commit()
-                continue
 
-            try:
-                results = client.fetch_item_results(
-                    agency_tax_id=agency_tax_id.strip(),
-                    year=year,
-                    sequence=sequence,
-                    item_number=item_number,
-                )
-            except PncpApiError:
-                logger.exception(
-                    "failed to fetch results for %s item %s, skipping",
-                    source_id,
-                    item_number,
-                )
-                continue
+                processed += 1
+                if counters is not None:
+                    counters.inc("results_processed")
+                    counters.inc("results", len(results))
+                logger.info("%s item %s: %d result(s)", source_id, item_number, len(results))
 
-            with conn.cursor() as cur:
-                for dto in results:
-                    upsert_result(cur, procurement_id, item_number, dto)
-                upsert_source_payload(
-                    cur,
-                    entity_type=RESULTS_ENTITY_TYPE,
-                    external_id=f"{source_id}#{item_number}",
-                    payload=results,
-                )
-                cur.execute(_STAMP_SQL, (procurement_id, item_number))
-            conn.commit()
-
-            processed += 1
-            if counters is not None:
-                counters.inc("results_processed")
-                counters.inc("results", len(results))
-            logger.info("%s item %s: %d result(s)", source_id, item_number, len(results))
+            if remaining is not None:
+                remaining -= len(rows)
+            if len(rows) < batch_size:
+                break
     finally:
         if owns_client:
             client.close()

@@ -5,10 +5,15 @@ returns `PlanoContratacaoComItensDoUsuarioDTO` rows with their items embedded
 — one fetch gets a whole plan, no separate items endpoint like procurements.
 
 For each DTO:
-- the buying `agencies` row is upserted first (tax_id/name only — the PCA
-  DTO carries no poderId/esferaId, unlike the compras `orgaoEntidade`, so
-  those columns are left alone rather than nulled over data another sync
-  already put there);
+- the buying `agencies` row is upserted first, through the shared
+  `lixto.sync.upsert_agency` (tax_id/name only — the PCA DTO carries no
+  poderId/esferaId, unlike the compras `orgaoEntidade`, so those columns are
+  left alone rather than nulled over data another sync already put there;
+  the shared helper also zero-pads the CNPJ to the `CHAR(14)` key form and
+  never writes a NULL over a stored name);
+- a DTO without a usable CNPJ or without `anoPca` is skipped — both columns
+  are NOT NULL on `procurement_plans`, so writing it would abort the whole
+  run on the first bad page;
 - the whole DTO is written to `source_payloads` (`entity_type =
   'procurement_plan'`) unconditionally, so a plan is always reprocessable
   even when the freshness guard below skips the hot row;
@@ -33,7 +38,6 @@ from __future__ import annotations
 
 import json
 import logging
-import re
 import time
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
@@ -43,6 +47,8 @@ from psycopg.types.json import Json
 
 from lixto.pncp_client import PncpClient
 from lixto.runs import RunCounters
+from lixto.sync import normalize_tax_id
+from lixto.sync import upsert_agency as upsert_agency_row
 
 logger = logging.getLogger(__name__)
 
@@ -59,14 +65,6 @@ DEFAULT_CHUNK_DAYS = 7
 _PAGE_FETCH_MAX_ATTEMPTS = 8
 _PAGE_FETCH_RETRY_BASE_SECONDS = 3.0
 _PAGE_FETCH_RETRY_MAX_DELAY_SECONDS = 60.0
-
-_UPSERT_AGENCY_SQL = """
-INSERT INTO agencies (tax_id, name)
-VALUES (%(tax_id)s, %(name)s)
-ON CONFLICT (tax_id) DO UPDATE SET
-    name = EXCLUDED.name,
-    updated_at = now()
-"""
 
 _UPSERT_SOURCE_PAYLOAD_SQL = """
 INSERT INTO source_payloads (source, entity_type, external_id, payload)
@@ -119,13 +117,6 @@ INSERT INTO procurement_plan_items (
 """
 
 
-def _clean_tax_id(value: str | None) -> str | None:
-    if not value:
-        return None
-    digits = re.sub(r"\D", "", value)
-    return digits or None
-
-
 def watermark_key() -> str:
     return "incremental:plans"
 
@@ -136,7 +127,7 @@ def row_from_plan_dto(dto: dict[str, Any]) -> dict[str, Any]:
     items = dto.get("itens") or []
     return {
         "source_id": dto["idPcaPncp"],
-        "agency_tax_id": _clean_tax_id(dto.get("orgaoEntidadeCnpj")),
+        "agency_tax_id": normalize_tax_id(dto.get("orgaoEntidadeCnpj")),
         "unit_code": dto.get("codigoUnidade"),
         "unit_name": dto.get("nomeUnidade"),
         "year": dto.get("anoPca"),
@@ -174,14 +165,20 @@ def row_from_plan_item_dto(plan_id: int, dto: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def upsert_agency(cursor: psycopg.Cursor, dto: dict[str, Any]) -> None:
-    """Upsert the buying agency (tax_id/name only) before the plan itself."""
-    tax_id = _clean_tax_id(dto.get("orgaoEntidadeCnpj"))
-    if tax_id is None:
-        return
-    cursor.execute(
-        _UPSERT_AGENCY_SQL,
-        {"tax_id": tax_id, "name": dto.get("orgaoEntidadeRazaoSocial")},
+def upsert_agency(cursor: psycopg.Cursor, dto: dict[str, Any]) -> str | None:
+    """Upsert the buying agency before the plan itself; returns its tax id.
+
+    The PCA DTO is flat (`orgaoEntidadeCnpj`/`orgaoEntidadeRazaoSocial`)
+    rather than nested like `orgaoEntidade`, so this maps those two fields
+    onto the shared `lixto.sync.upsert_agency` — which normalizes the CNPJ to
+    the `CHAR(14)` key form, falls back to the tax id when `razaoSocial` is
+    absent (`agencies.name` is NOT NULL) and COALESCEs on update so a
+    nameless PCA never nulls a name another sync already stored.
+    """
+    return upsert_agency_row(
+        cursor,
+        tax_id=dto.get("orgaoEntidadeCnpj"),
+        name=dto.get("orgaoEntidadeRazaoSocial"),
     )
 
 
@@ -200,18 +197,39 @@ def replace_plan_items(cursor: psycopg.Cursor, plan_id: int, items: list[dict[st
         cursor.execute(_INSERT_PLAN_ITEM_SQL, row_from_plan_item_dto(plan_id, item_dto))
 
 
-def upsert_plan(cursor: psycopg.Cursor, dto: dict[str, Any]) -> int | None:
+def upsert_plan(
+    cursor: psycopg.Cursor, dto: dict[str, Any], *, counters: RunCounters | None = None
+) -> int | None:
     """Upsert one plan DTO: agency, source_payload, then the plan row
     (freshness-guarded) and, only if it changed, its items.
 
     Returns the plan id when the row was inserted/updated, or `None` when the
     freshness guard skipped it (an equal-or-newer row is already stored) — in
-    which case items are left untouched.
+    which case items are left untouched — or when the DTO is unstorable.
+
+    "Unstorable" means no usable `orgaoEntidadeCnpj` or no `anoPca`:
+    `procurement_plans.agency_tax_id` and `.year` are both NOT NULL, so
+    inserting such a row raises and aborts the whole run on the first bad
+    page. It is logged, counted (`plans_skipped_incomplete`) and dropped —
+    the raw DTO is still retained in `source_payloads` above, so a later fix
+    can reprocess it without re-fetching.
     """
     upsert_agency(cursor, dto)
     write_source_payload(cursor, dto)
 
-    cursor.execute(_UPSERT_PLAN_SQL, row_from_plan_dto(dto))
+    row = row_from_plan_dto(dto)
+    if row["agency_tax_id"] is None or row["year"] is None:
+        logger.warning(
+            "plan %s has no usable orgaoEntidadeCnpj/anoPca (%r/%r), skipping",
+            row["source_id"],
+            dto.get("orgaoEntidadeCnpj"),
+            dto.get("anoPca"),
+        )
+        if counters is not None:
+            counters.inc("plans_skipped_incomplete")
+        return None
+
+    cursor.execute(_UPSERT_PLAN_SQL, row)
     result = cursor.fetchone()
     if result is None:
         return None
@@ -289,6 +307,7 @@ def _sync_chunk(
     date_from: date,
     date_to: date,
     client: PncpClient,
+    counters: RunCounters | None = None,
 ) -> tuple[int, int, int, str | None]:
     """Page one <=7-day window to exhaustion, upserting each DTO.
 
@@ -309,7 +328,7 @@ def _sync_chunk(
         )
         with conn.cursor() as cur:
             for dto in body.get("data", []):
-                plan_id = upsert_plan(cur, dto)
+                plan_id = upsert_plan(cur, dto, counters=counters)
                 plans_seen += 1
                 if plan_id is not None:
                     plans_upserted += 1
@@ -360,7 +379,11 @@ def sync_plans(
             window_end = min(window_start + timedelta(days=chunk_days - 1), until)
 
             plans_seen, plans_upserted, items_seen, max_watermark = _sync_chunk(
-                conn, date_from=window_start, date_to=window_end, client=client
+                conn,
+                date_from=window_start,
+                date_to=window_end,
+                client=client,
+                counters=counters,
             )
 
             plans_seen_total += plans_seen

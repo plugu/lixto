@@ -10,6 +10,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from lixto.pncp_client import PncpApiError
+from lixto.sync import details as details_module
 from lixto.sync.details import (
     _UPSERT_DOCUMENT_SQL,
     _UPSERT_ITEM_SQL,
@@ -237,8 +238,52 @@ def test_sync_details_applies_limit():
     assert executed_params["limit"] == 5
 
 
-def test_sync_details_no_limit_omits_limit_clause():
+def test_sync_details_without_limit_reads_the_queue_in_batches():
+    # Never one unbounded fetchall(): the pending queue is millions of rows
+    # on a fresh mirror, so it is read BATCH_SIZE at a time.
     conn, select_cursor, _write_cursor = _conn_with_pending([])
 
     assert sync_details(conn, client=_client()) == 0
-    assert "LIMIT" not in select_cursor.execute.call_args.args[0]
+
+    executed_sql, executed_params = select_cursor.execute.call_args.args
+    assert "LIMIT %(limit)s" in executed_sql
+    assert executed_params["limit"] == details_module.BATCH_SIZE
+    assert "OFFSET" not in executed_sql
+
+
+def test_sync_details_fetches_a_second_batch_when_the_first_fills_up(monkeypatch):
+    monkeypatch.setattr(details_module, "BATCH_SIZE", 2)
+    # one shared cursor: `fetchall` drives the batches, the writes land on it
+    cursor = MagicMock()
+    cursor.fetchall.side_effect = [
+        [
+            (7, "ctrl-1", "00360305000104", 2026, 52),
+            (8, "ctrl-2", "00360305000104", 2026, 53),
+        ],
+        [(9, "ctrl-3", "00360305000104", 2026, 54)],
+    ]
+    conn = MagicMock()
+    conn.cursor.return_value.__enter__.return_value = cursor
+    conn.cursor.return_value.__exit__.return_value = False
+
+    assert sync_details(conn, client=_client()) == 3
+    assert cursor.fetchall.call_count == 2
+
+
+def test_sync_details_offsets_past_rows_it_could_not_stamp(monkeypatch):
+    # A failed fetch leaves the row at the front of the queue; without the
+    # offset the next batch would hand back the same row forever.
+    monkeypatch.setattr(details_module, "BATCH_SIZE", 1)
+    cursor = MagicMock()
+    cursor.fetchall.side_effect = [[(7, "ctrl-fail", "00360305000104", 2026, 52)], []]
+    conn = MagicMock()
+    conn.cursor.return_value.__enter__.return_value = cursor
+    conn.cursor.return_value.__exit__.return_value = False
+    client = _client()
+    client.fetch_items.side_effect = PncpApiError("boom")
+
+    assert sync_details(conn, client=client) == 0
+
+    second_sql, second_params = cursor.execute.call_args.args
+    assert "OFFSET %(offset)s" in second_sql
+    assert second_params["offset"] == 1
