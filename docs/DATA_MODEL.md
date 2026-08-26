@@ -229,20 +229,40 @@ Messages within a conversation.
 - **Notable indexes**: `(conversation_id, id)`
 - **Purpose**: Chat transcript. Refs (procurement cards shown in UI) are denormalized here for display.
 
-### `opportunities`, `matches`, `recommendations`, `agent_actions`, `opportunity_feedback`
-Placeholder tables (exist in schema, not written in cycle 18; written by cycle 19+ — see `docs/ARCHITECTURE.md` Agent Core):
+### `opportunities`
+Per-company × procurement lifecycle (cycle 19).
+- **Key**: `id` (BIGSERIAL) PK
+- **Notable columns**: `company_id` (FK), `procurement_id` (FK), `state` (discovered|matched|analyzed|recommended|preparing|awaiting_approval|executed|dismissed), `score` (0–100), `reasons JSONB [{code, weight, detail}]`, `attention` (boolean, true if score ≥ 70), `computed_at`
+- **Notable indexes**: `(company_id, state, computed_at DESC)`, `(company_id, attention DESC)`
+- **Purpose**: Persisted opportunity lifecycle per company; users can mark interest or dismiss. Dashboard and digest filter by state.
 
 ### `matches`
-Persisted score history per company × procurement. Key `id`; index `(company_id, procurement_id, computed_at DESC)`. Columns: `score`, `reasons JSONB [{code, weight, detail}]`, `engine_version`, `computed_at`.
+Persisted score history per company × procurement (cycle 19).
+- **Key**: `id` (BIGSERIAL) PK
+- **Notable columns**: `company_id` (FK), `procurement_id` (FK), `score` (0–100), `reasons JSONB [{code, weight, detail}]`, `engine_version` (TEXT), `computed_at`
+- **Notable indexes**: `(company_id, procurement_id, computed_at DESC)`, `(company_id, score DESC)`
+- **Purpose**: Audit trail of matches for the learning loop; one per company × procurement × engine version. Computed by `lixto match run`.
 
 ### `recommendations`
-GO / NO-GO artifacts per opportunity. Key `id`; index `(opportunity_id, created_at DESC)`. `verdict` ∈ `go|no_go|borderline`, `rationale`, `model`, `confidence`.
+GO / NO-GO artifacts per opportunity (cycle 19).
+- **Key**: `id` (BIGSERIAL) PK
+- **Notable columns**: `opportunity_id` (FK), `verdict` (go|no_go|borderline), `rationale` (TEXT, Portuguese), `model` (TEXT, e.g., 'gpt-5.1'), `confidence` (REAL 0–1), `created_at`
+- **Notable indexes**: `(opportunity_id, created_at DESC)`
+- **Purpose**: Tier-3 LLM analysis for top opportunities; displayed in digest and detail views. Computed by `lixto recommend run`.
 
 ### `agent_actions`
-Prepare/execute actions with human approval. Key `id`; index `(opportunity_id)`. `kind`, `payload JSONB`, `requires_approval`, `status` ∈ `proposed|approved|rejected|executed|failed`, `approved_by`, `approved_at`, `executed_at`, `result`, `error`.
+Prepare/execute actions with human approval (placeholder, cycle 19+).
+- **Key**: `id` (BIGSERIAL) PK
+- **Notable columns**: `run_id` (FK), `opportunity_id` (FK), `kind`, `payload JSONB`, `requires_approval`, `status` (proposed|approved|rejected|executed|failed), `approved_by`, `approved_at`, `executed_at`, `result`, `error`
+- **Notable indexes**: `(opportunity_id)`
+- **Purpose**: Automated preparation and execution of submission artifacts with human approval.
 
 ### `opportunity_feedback`
-Learning loop. Key `id`; index `(opportunity_id)`. `kind` ∈ `accepted|rejected|participated|won|lost|disqualified`, `reason`, `price`, `margin_pct`.
+Learning loop feedback capture (cycle 19).
+- **Key**: `id` (BIGSERIAL) PK
+- **Notable columns**: `opportunity_id` (FK), `user_id` (FK), `kind` (accepted|rejected|participated|won|lost|disqualified), `reason` (TEXT: fora do ramo|valor|prazo|exigência|outro), `price`, `margin_pct`, `created_at`
+- **Notable indexes**: `(opportunity_id, created_at DESC)`, `(user_id, created_at DESC)`
+- **Purpose**: Capture user feedback (dismissals, interest, outcomes) for ranking and model improvement. Moves `opportunities.state` to `analyzed`/`dismissed`.
 
 ## Legacy → New Naming Map
 

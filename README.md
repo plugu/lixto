@@ -88,6 +88,8 @@ Opens at `http://localhost:3000`. Routes:
 | Variable | Purpose | Example / Default |
 |---|---|---|
 | `LIXTO_DATABASE_URL` | PostgreSQL | `postgresql://lixto:lixto@localhost:5433/lixto` |
+| `LIXTO_INTERNAL_TOKEN` | Shared secret for batch endpoints (`/api/internal/*`); same value on web + CLI | — (required in prod) |
+| `LIXTO_WEB_INTERNAL_URL` | Base URL of the web app's internal batch endpoints (CLI only) | `http://localhost:3000` (dev), `http://lixto-web-evs842:3000` (prod) |
 | `LIXTO_LLM_BASE_URL` | LLM provider base URL (OpenAI-compatible) | `https://api.openai.com/v1` |
 | `LIXTO_LLM_API_KEY` | API key (fallback: `OPENAI_API_KEY`) | — |
 | `LIXTO_LLM_MODEL_CHEAP` | Text classification model | `gpt-5-mini` |
@@ -96,6 +98,7 @@ Opens at `http://localhost:3000`. Routes:
 | `LIXTO_LLM_MODEL_FALLBACK` | Retry tier (optional) | — |
 | `LIXTO_LLM_MODEL_EMBED` | Embedding model (1536 dims) | `text-embedding-3-small` |
 | `LIXTO_CHAT_MODEL` | Chat agent model | `gpt-5-mini` |
+| `LIXTO_RECOMMEND_MODEL` | Recommendation model (GO/NO-GO, Tier-3) | `gpt-5.1` |
 | `LIXTO_IBGE_CNAE_URL` | CNAE seed source | `https://concla.ibge.gov.br/export/tabelas/ascii/subclasses.txt` |
 | `LIXTO_MIN_REQUEST_INTERVAL` | Seconds between PNCP requests | `0.25` |
 | `UPLOADS_DIR` | Document storage path | `./uploads` (dev), `/app/uploads` (prod) |
@@ -120,6 +123,10 @@ Opens at `http://localhost:3000`. Routes:
 ### Enrichment
 - `lixto enrich run [--limit N] [--days N] [--retry-errors]` — Produce one canonical enrichment per open procurement (routes to cheap/doc tier automatically).
 - `lixto enrich embed [--limit N]` — Backfill pgvector embeddings for enriched procurements.
+
+### Proactive Agent Loop
+- `lixto match run [--company-id N] [--since YYYY-MM-DD]` — Score procurements enriched since the last run against every company profile/CNAEs, persist `matches` and upsert `opportunities` (POST `/api/internal/match/run` on the web app).
+- `lixto recommend run [--company-id N] [--limit N]` — Build GO/NO-GO/borderline recommendations with rationale and confidence for the top new opportunities per company (POST `/api/internal/recommend/run` on the web app).
 
 ### Reference Data
 - `lixto cnae seed` — Fetch IBGE CNAE subclasses and upsert (idempotent).
@@ -150,6 +157,8 @@ Dokploy project `lixto`, app `lixto-cli`, timezone `America/Sao_Paulo`:
 | plans-sync | `0 4 * * *` | `lixto plans sync` | Disabled (manual) |
 | contracts-sync | `0 5 * * *` | `lixto contracts sync --max-amendments 500` | Disabled (manual) |
 | enrich-run | `30 7,14,21 * * *` | `lixto enrich run --days 30 --limit 300` | Enabled |
+| match-run | `0 8,15,22 * * *` | `lixto match run` | Disabled (user decision) |
+| recommend-run | `15 8 * * *` | `lixto recommend run` | Disabled (user decision) |
 | enrich-embed | `0 0 31 2 *` | `lixto enrich embed` | Disabled (manual) |
 | db-init | `0 0 31 2 *` | `lixto db init` | Disabled (manual) |
 

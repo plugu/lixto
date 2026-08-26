@@ -721,7 +721,7 @@ AI procurement operator.**
 
 ------------------------------------------------------------------------
 
-## Appendix — Implementation status (as of 2026-08-25, after cycles 16–18)
+## Appendix — Implementation status (as of 2026-08-25, after cycles 16–19)
 
 ### Built
 
@@ -740,29 +740,41 @@ AI procurement operator.**
 | Annual Procurement Plans (PCA) (§14) | `procurement_plans`, `procurement_plan_items`, `/v1/pca/atualizacao` sync (cycle 18) |
 | Contracts + amendments (supplier history, competitive intelligence) (§14) | `contracts`, `contract_amendments`, `/v1/contratos/atualizacao` + `/termos` sync (cycle 18) |
 | Agent run tracking (§7, §11) | `agent_runs` table, every sync/enrich/chat operation logged |
+| Proactive agent mode (§12): batch match, bounded GO/NO-GO, digest, feedback capture | `lixto match run` → `matches`/`opportunities` tables (score ≥40), `lixto recommend run` → `recommendations` (score ≥70, cap 5/company/day), `/lixto` digest, `/opportunities` list, feedback to `opportunity_feedback` (cycle 19) |
 
 ### Not built (open items)
 
 | vision item | status | notes |
 |---|---|---|
 | HTML parsing (§5.2) | skipped | PNCP attachments are PDFs; revisit if other portals ingested |
-| Proactive agent mode / daily digest / notifications (§12, MVP 11) | not built | needs batch match → persisted `matches` table (placeholder exists) → digest/notify |
-| Explicit GO / NO-GO recommendation (§1 step 3, §11 `recommend_go_no_go`) | partial | match score + reasons + enrichment risks exist; `recommendations` table placeholder exists for cycle 19 |
-| Prepare / execute / human-approval workflow (§13, MVP 13) | not built | `agent_actions` table placeholder exists for cycle 19 |
-| Additional tools: `search_items`, `get_documents`, `compare_procurements`, `check_company_eligibility`, `list_missing_documents`, `recommend_go_no_go`, `prepare_participation` (§11) | not built | 5 of 12 listed tools exist |
-| Learning loop / feedback capture (§14, MVP 14) | not built | `opportunity_feedback` table placeholder exists |
+| Email/WhatsApp/push notifications for new opportunities | not built | digest is in-app only; notifications planned for cycle 20 |
+| Prepare / execute / human-approval workflow (§13, MVP 13) | not built | `agent_actions` table placeholder exists for cycle 20 |
+| Additional tools: `search_items`, `get_documents`, `compare_procurements`, `check_company_eligibility`, `list_missing_documents`, `prepare_participation` (§11) | not built | 5 of 12 listed tools exist |
+| Learning from feedback: ranking improvements based on acceptance/dismissal patterns (§14) | not built | feedback captured in `opportunity_feedback`; model retraining not yet implemented |
 | On-demand deep analysis with a Tier-3 model (§6, MVP 12) | not built | `analyze_procurement` uses enrichment cached at ingest time |
 | Query-time semantic search (embed user's free text) | not built | vectors used only profile × procurement |
+| Per-page watermark for plans sync; plans/contracts in matching (§8) | not built | plans table exists; semantic matching not yet integrated |
 | Richer profile fields: suppliers, delivery capacity, margins, financial constraints, preferred portals, historical participation (§8) | partial | only base fields implemented |
 | Streaming chat responses | not built | single JSON reply per turn |
 
-### Cycle 19 targets
+### Cycle 19 — Proactive mode (built)
 
-**Proactive mode** (prerequisites met):
-- Batch match: company profiles × procurements → write persisted `matches` table
-- Daily digest: compile and notify matched opportunities
-- Explicit GO/NO-GO via `recommendations` table
-- Prepare/execute workflows via `agent_actions`
-- This unblocks the learning loop and feedback capture
+**Completed**:
+- Batch match: company profiles × procurements → persisted `matches` table (score ≥40)
+- Bounded GO/NO-GO: top 5 opportunities per company per day (score ≥70) via `recommendations` table
+- In-app digest: `/lixto` shows summary + attention cards; `/opportunities` lists by state; `/dashboard` links to digest
+- Feedback capture: `opportunity_feedback` table; users can dismiss with reason or mark interest
 
-Suggested next steps: (1) batch match worker, (2) digest composition, (3) opportunity state machine.
+### Cycle 20+ roadmap
+
+**High priority** (needed for production feedback loop):
+- Email/WhatsApp/push notifications for new attention-scoring opportunities
+- Prepare/execute workflows with human approval (via `agent_actions`)
+- Learning from feedback: use acceptance/dismissal patterns to improve ranking and recommendations
+- Enable prod ingestion schedules (user decision in Dokploy)
+
+**Medium priority**:
+- Query-time semantic search (embed user's free-text questions)
+- Additional chat tools (`search_items`, `get_documents`, `compare_procurements`, `prepare_participation`)
+- Streaming chat responses for long-running analyses
+- Plans/contracts in opportunity matching (currently enrichment only)

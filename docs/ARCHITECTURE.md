@@ -109,20 +109,59 @@ Located: `web/lib/agent/tools.ts`. Model calls tools by name + JSON args; every 
 
 ## Agent Core Tables
 
-Written by different cycles; in cycle 18 only a subset:
+Written by different cycles; in cycle 19:
 
 | Table | Columns | Cycle | Purpose |
 |---|---|---|---|
 | `agent_runs` | id, kind, status, started_at, finished_at, counters, error | 18 | Every CLI/sync/enrich/chat run |
 | `conversations` | id, company_id, user_id, title, created_at, updated_at | 18 | Chat threads |
 | `messages` | id, conversation_id, role, content, tool_calls, tool_call_id, refs, model, created_at | 18 | Messages in a thread |
-| `opportunities` | id, company_id, procurement_id, state, created_at, updated_at | Placeholder | Per-company × procurement lifecycle (discovered → dismissed/executed) |
-| `matches` | id, company_id, procurement_id, score, reasons, engine_version, computed_at | Placeholder | Persisted match history (for proactive mode, learning loop) |
-| `recommendations` | id, opportunity_id, verdict, rationale, model, confidence, created_at | Placeholder | GO/NO-GO verdicts (cycle 19+) |
+| `opportunities` | id, company_id, procurement_id, state, score, reasons, attention, computed_at | 19 | Per-company × procurement lifecycle; state ∈ discovered/matched/analyzed/recommended/preparing/awaiting_approval/executed/dismissed |
+| `matches` | id, company_id, procurement_id, score, reasons, engine_version, computed_at | 19 | Persisted match history (for proactive mode, learning loop) |
+| `recommendations` | id, opportunity_id, verdict, rationale, model, confidence, created_at | 19 | GO/NO-GO verdicts (verdict ∈ go/no_go/borderline) |
 | `agent_actions` | id, run_id, opportunity_id, kind, status, approved_by, executed_at, result | Placeholder | Prepare/execute with approval (cycle 19+) |
-| `opportunity_feedback` | id, opportunity_id, user_id, kind, reason, price, margin_pct, created_at | Placeholder | Learning loop: wins/losses/disqualifications (cycle 19+) |
+| `opportunity_feedback` | id, opportunity_id, user_id, kind, reason, price, margin_pct, created_at | 19 | Feedback capture: accepted/rejected/participated/won/lost/disqualified |
 
-In cycle 18, `agent_runs`, `conversations`, `messages` are written by CLI/web; the rest exist for later cycles.
+In cycles 18–19, `agent_runs`, `conversations`, `messages`, `opportunities`, `matches`, `recommendations`, `opportunity_feedback` are written by CLI/web. `agent_actions` remains placeholder for cycle 19+.
+
+## Proactive Loop (Cycle 19)
+
+Every newly enriched procurement is automatically evaluated against every company profile and surfaced as opportunities. The loop consists of:
+
+### 1. Batch Match (`lixto match run`)
+- **Endpoint**: `POST /api/internal/match/run` (web; triggered by CLI with shared secret `LIXTO_INTERNAL_TOKEN`)
+- **Process**: For each company with a profile or CNAEs, score procurements enriched since the last run with the same deterministic scoring rule used in chat
+- **Output**: Persist a `matches` row (history), upsert an `opportunities` row (lifecycle)
+- **Thresholds**:
+  - Score ≥ 70 → `opportunities.state='matched'` + `attention=true` (deserves attention)
+  - 40–69 → `matched`, `attention=false`
+  - Below 40 → no row created
+- **Idempotency**: One match per company × procurement × engine version; reruns are safe
+- **Schedule** (Dokploy, disabled by default): `0 8,15,22 * * *` (runs after enrichment completes)
+
+### 2. Recommendations (`lixto recommend run`)
+- **Endpoint**: `POST /api/internal/recommend/run` (web; triggered by CLI)
+- **Process**: For each company, select the top 5 new opportunities (score ≥ 70) created today
+- **Output**: Create a `recommendations` row per opportunity with verdict (go/no_go/borderline) + Portuguese rationale + confidence
+- **Analysis**: Uses enrichment data (requirements, risks, delivery), company profile (CNAEs, terms), and uploaded habilitação documents
+- **LLM Model**: Tier-3 (`LIXTO_RECOMMEND_MODEL`, default `gpt-5.1`)
+- **Hard cap**: 5 recommendations per company per day (server-enforced)
+- **Failures**: Never block the digest; logged in `agent_runs`
+- **Schedule** (Dokploy, disabled by default): `15 8 * * *` (after match-run)
+
+### 3. In-App Digest
+- **`/lixto`**: Chat interface opens with a system-authored message summarizing the last run
+  - Counts: new/matched/attention opportunities
+  - Cards for "attention" items (score ≥ 70) with score, reasons, recommendation verdict (if present)
+- **`/dashboard`**: "Oportunidades de hoje" card linking to the opportunity list
+- **`/opportunities`**: List company's opportunities by state/score; filter by state (matched/analyzed/dismissed)
+
+### 4. Feedback Capture
+- **User actions**: Each opportunity card offers "Tenho interesse" (accepted) and "Descartar" (dismissed with reason)
+- **Reasons for dismissal**: fora do ramo / valor / prazo / exigência / outro
+- **Effect**: Writes `opportunity_feedback` row + moves `opportunities.state` to `analyzed` or `dismissed`
+- **Visibility**: Dismissed opportunities hidden from digest; chat tools (`list_opportunities`, `explain_opportunity`) expose same data
+- **Single scoring**: Match engine used by both batch and conversational (no duplication)
 
 ## Enrichment Schema
 
