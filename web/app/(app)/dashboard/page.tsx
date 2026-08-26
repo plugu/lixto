@@ -3,8 +3,11 @@ import { BarList } from "@/components/charts/bar-list";
 import { DailyLine } from "@/components/charts/daily-line";
 import { StatTile } from "@/components/charts/stat-tile";
 import { StatusStack } from "@/components/charts/status-stack";
+import { OpportunityCard } from "@/components/opportunity-card";
+import { LinkButton } from "@/components/ui/button";
 import { Section } from "@/components/ui/section";
 import { requireSession } from "@/lib/auth";
+import { getDigest } from "@/lib/digest-queries";
 import {
   fetchByDay,
   fetchByModality,
@@ -31,16 +34,17 @@ const SCOPE_SUBTITLES: Record<ChartScope, string> = {
 export default async function DashboardPage({
   searchParams,
 }: PageProps<"/dashboard">) {
-  await requireSession();
+  const session = await requireSession();
 
   const resolved = await searchParams;
   const scope = parseChartScope(resolved.scope);
 
-  const [counts, byModality, byPortal, byDay] = await Promise.all([
+  const [counts, byModality, byPortal, byDay, digest] = await Promise.all([
     fetchStatusCounts(),
     fetchByModality(scope),
     fetchByPortal(scope),
     fetchByDay(),
+    getDigest(session.user.companyId),
   ]);
 
   return (
@@ -48,6 +52,30 @@ export default async function DashboardPage({
       <h1 className="font-display text-[30px] leading-[34px] text-ink">
         Visão geral
       </h1>
+
+      <Section
+        title="Oportunidades de hoje"
+        actions={<LinkButton href="/opportunities" variant="secondary" size="sm">Ver todas</LinkButton>}
+      >
+        {digest.run ? (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <StatTile label="Novas oportunidades" value={digest.newCount} />
+            <StatTile label="Combinam com a empresa" value={digest.matchedCount} />
+            <StatTile label="Merecem atenção" value={digest.attentionCount} />
+          </div>
+        ) : (
+          <p className="text-[13px] text-ink-muted">
+            Lixto ainda não analisou oportunidades para sua empresa.
+          </p>
+        )}
+        {digest.attention.length > 0 ? (
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+            {digest.attention.slice(0, 3).map((opportunity) => (
+              <OpportunityCard key={opportunity.id} opportunity={opportunity} />
+            ))}
+          </div>
+        ) : null}
+      </Section>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatTile label="Licitações no total" value={counts.total} />

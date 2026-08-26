@@ -3,7 +3,7 @@
 // Conversation state + the fetch to POST /api/chat. One request in, one JSON
 // reply out — the run.ts runtime has no streaming.
 
-import { useCallback, useState } from "react";
+import { useCallback, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Composer } from "@/components/chat/composer";
 import { MessageList, type ChatMessage } from "@/components/chat/message-list";
@@ -35,10 +35,14 @@ export function Chat({
   initialConversationId,
   initialMessages,
   companyName,
+  intro,
 }: {
   initialConversationId: number | null;
   initialMessages: Message[];
   companyName: string;
+  /** Server-rendered slot (e.g. the digest banner + attention cards) shown
+   * above the message list only while the conversation is empty. */
+  intro?: ReactNode;
 }) {
   const [conversationId, setConversationId] = useState<number | null>(
     initialConversationId,
@@ -124,6 +128,10 @@ export function Chat({
       </div>
 
       <QuickFilters filters={filters} onChange={setFilters} />
+
+      {intro && messages.length === 0 ? (
+        <div className="overflow-y-auto pr-1">{intro}</div>
+      ) : null}
 
       <MessageList messages={messages} />
 
