@@ -95,7 +95,8 @@ def test_upsert_agency_falls_back_to_tax_id_when_name_missing():
 
     assert tax_id == "00360305000104"
     params = cursor.execute.call_args.args[1]
-    assert params["name"] == "00360305000104"
+    assert params["name_insert"] == "00360305000104"
+    assert params["name_update"] is None
 
 
 def test_upsert_buyer_from_dto_writes_agency_then_unit():

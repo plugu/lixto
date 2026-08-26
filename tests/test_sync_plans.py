@@ -155,7 +155,7 @@ def test_upsert_plan_upserts_agency_before_plan_and_writes_payload():
 
     agency_params = cursor.execute.call_args_list[agency_idx].args[1]
     assert agency_params["tax_id"] == "00000000000191"
-    assert agency_params["name"] == "Prefeitura Municipal de Exemplo"
+    assert agency_params["name_insert"] == "Prefeitura Municipal de Exemplo"
 
     payload_params = cursor.execute.call_args_list[payload_idx].args[1]
     assert payload_params["external_id"] == "00000000000191-1-000001/2026"
@@ -226,8 +226,9 @@ def test_upsert_plan_agency_upsert_coalesces_name_and_never_writes_null():
     )
     # `agencies.name` is NOT NULL: fall back to the tax id rather than crash,
     # and COALESCE on update rather than null over a name another sync stored.
-    assert agency_params["name"] == "00000000000191"
-    assert "name = COALESCE(EXCLUDED.name, agencies.name)" in agency_sql
+    assert agency_params["name_insert"] == "00000000000191"
+    assert agency_params["name_update"] is None
+    assert "name = COALESCE(%(name_update)s, agencies.name)" in agency_sql
 
 
 @pytest.mark.parametrize(

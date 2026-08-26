@@ -33,9 +33,9 @@ _NON_DIGITS = re.compile(r"\D")
 
 _UPSERT_AGENCY_SQL = """
 INSERT INTO agencies (tax_id, name, power_code, sphere_code)
-VALUES (%(tax_id)s, %(name)s, %(power_code)s, %(sphere_code)s)
+VALUES (%(tax_id)s, %(name_insert)s, %(power_code)s, %(sphere_code)s)
 ON CONFLICT (tax_id) DO UPDATE SET
-    name = COALESCE(EXCLUDED.name, agencies.name),
+    name = COALESCE(%(name_update)s, agencies.name),
     power_code = COALESCE(EXCLUDED.power_code, agencies.power_code),
     sphere_code = COALESCE(EXCLUDED.sphere_code, agencies.sphere_code),
     updated_at = now()
@@ -96,9 +96,9 @@ def upsert_agency(
 ) -> str | None:
     """Upsert one `agencies` row; returns the normalized `tax_id` (or `None`).
 
-    `agencies.name` is NOT NULL, so a nameless DTO falls back to the tax id —
-    a later fetch that does carry `razaoSocial` overwrites it (the update
-    COALESCEs the *incoming* value, never the stored one, to nothing).
+    `agencies.name` is NOT NULL, so a nameless DTO inserts the tax id as a
+    placeholder name; on conflict a nameless DTO never overwrites a stored
+    name (the fallback is applied only in the INSERT branch).
     """
     normalized = normalize_tax_id(tax_id)
     if normalized is None:
@@ -107,7 +107,8 @@ def upsert_agency(
         _UPSERT_AGENCY_SQL,
         {
             "tax_id": normalized,
-            "name": name or normalized,
+            "name_insert": name or normalized,
+            "name_update": name or None,
             "power_code": power_code,
             "sphere_code": sphere_code,
         },

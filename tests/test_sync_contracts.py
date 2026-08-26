@@ -245,8 +245,9 @@ def test_upsert_contract_agency_upsert_never_nulls_a_stored_name():
     agency_sql, agency_params = cursor.execute.call_args_list[0].args
     # NOT NULL column: a nameless DTO falls back to the tax id, and the
     # update COALESCEs so a later nameless fetch can't erase a good name.
-    assert agency_params["name"] == "00000000000191"
-    assert "name = COALESCE(EXCLUDED.name, agencies.name)" in agency_sql
+    assert agency_params["name_insert"] == "00000000000191"
+    assert agency_params["name_update"] is None
+    assert "name = COALESCE(%(name_update)s, agencies.name)" in agency_sql
 
 
 def test_upsert_contract_skips_dto_without_agency_cnpj():
