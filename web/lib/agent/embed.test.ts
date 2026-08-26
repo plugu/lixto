@@ -4,7 +4,9 @@ import type OpenAI from "openai";
 
 import {
   EMBED_DIMS,
+  EMBED_MODEL,
   buildProfileEmbeddingText,
+  embedQuery,
   embedText,
   toPgVector,
 } from "./embed";
@@ -125,6 +127,58 @@ describe("embedText", () => {
     try {
       expect(await embedText("papel")).toBeNull();
       expect(warn).toHaveBeenCalled();
+    } finally {
+      if (before.lixto !== undefined) process.env.LIXTO_LLM_API_KEY = before.lixto;
+      if (before.openai !== undefined) process.env.OPENAI_API_KEY = before.openai;
+    }
+  });
+});
+
+describe("embedQuery", () => {
+  it("returns the vector as a pgvector literal", async () => {
+    const create = vi
+      .fn()
+      .mockResolvedValue({ data: [{ embedding: fakeVector(EMBED_DIMS) }] });
+
+    const literal = await embedQuery("material escolar", {
+      client: fakeClient(create),
+    });
+
+    expect(literal).toBe(toPgVector(fakeVector(EMBED_DIMS)));
+    expect(literal?.startsWith("[")).toBe(true);
+    expect(literal?.endsWith("]")).toBe(true);
+    expect(create).toHaveBeenCalledWith({
+      model: EMBED_MODEL,
+      input: "material escolar",
+    });
+  });
+
+  it("returns null when the provider fails", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const create = vi.fn().mockRejectedValue(new Error("429"));
+
+    expect(
+      await embedQuery("material escolar", { client: fakeClient(create) }),
+    ).toBeNull();
+  });
+
+  it("returns null for empty text without calling the SDK", async () => {
+    const create = vi.fn();
+    expect(await embedQuery("  ", { client: fakeClient(create) })).toBeNull();
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it("returns null when no API key is configured", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const before = {
+      lixto: process.env.LIXTO_LLM_API_KEY,
+      openai: process.env.OPENAI_API_KEY,
+    };
+    delete process.env.LIXTO_LLM_API_KEY;
+    delete process.env.OPENAI_API_KEY;
+
+    try {
+      expect(await embedQuery("material escolar")).toBeNull();
     } finally {
       if (before.lixto !== undefined) process.env.LIXTO_LLM_API_KEY = before.lixto;
       if (before.openai !== undefined) process.env.OPENAI_API_KEY = before.openai;

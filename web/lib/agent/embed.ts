@@ -86,3 +86,17 @@ export async function embedText(
     return null;
   }
 }
+
+/**
+ * Embeds a user's free-text search and returns it as a pgvector literal, ready
+ * to bind as `$n::vector` (see `buildListQuery` in lib/procurement-queries.ts).
+ * Returns null on any failure — no key, empty text, provider error — so search
+ * degrades to keyword-only instead of erroring.
+ */
+export async function embedQuery(
+  q: string,
+  deps: { client?: OpenAI; model?: string } = {},
+): Promise<string | null> {
+  const embedding = await embedText(q, deps);
+  return embedding === null ? null : toPgVector(embedding.vector);
+}

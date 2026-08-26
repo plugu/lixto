@@ -79,6 +79,35 @@ const STATUS_PREDICATES: Record<ProcurementStatus, string> = {
   closed: "(proposal_closes_at < now() OR proposal_closes_at IS NULL)",
 };
 
+// --- hybrid (keyword ∪ semantic) retrieval knobs -------------------------
+// Same values as match-queries.ts, deliberately *not* imported from it: the
+// match engine and free-text search are free to tune them independently.
+
+/** Rows the pgvector nearest-neighbour scan contributes as candidates. */
+export const SEARCH_SEMANTIC_TOP_K = 200;
+
+/** Minimum cosine similarity for a row that only the vector branch found —
+ * below this, a semantic-only hit is noise and is dropped. */
+export const SEARCH_SEMANTIC_MIN = 0.4;
+
+/** Reciprocal-rank-fusion damping constant: `1/(RRF_K + rank)`. The standard
+ * 60 — high enough that the top of each list doesn't dominate the other. */
+export const RRF_K = 60;
+
+/** The free-text predicate: FTS over the procurement description or any of its
+ * items, unaccented on both sides (migration 001) so "lapis" matches "lápis".
+ * `idx` is the 1-based position of the already-bound `q` parameter. */
+function buildQPredicate(idx: number): string {
+  return (
+    `(to_tsvector('portuguese', f_unaccent(coalesce(description, ''))) @@ websearch_to_tsquery('portuguese', f_unaccent($${idx}))` +
+    ` OR EXISTS (` +
+    `SELECT 1 FROM procurement_items i` +
+    ` WHERE i.procurement_id = procurements.id` +
+    ` AND to_tsvector('portuguese', f_unaccent(coalesce(i.description, ''))) @@ websearch_to_tsquery('portuguese', f_unaccent($${idx}))` +
+    `))`
+  );
+}
+
 /** Parses raw (possibly array-valued, from Next's searchParams) query values
  * into typed filters. Repeated params (`?modality=6&modality=8`) arrive as
  * arrays already; a single occurrence arrives as a bare string, normalized
@@ -152,11 +181,14 @@ function parseValue(raw: string | undefined): number | undefined {
 /** Builds the WHERE conditions + params shared by the list, count and facet
  * queries. `exclude`, when given, skips that one multi-select dimension's own
  * predicate — standard faceting, so a dimension's own selection never narrows
- * its own per-option counts. `values` starts at $1; callers append further
- * params (limit/offset) after. */
+ * its own per-option counts. `omitQ` leaves the free-text predicate out (and
+ * leaves `q` unbound), which is what the hybrid path wants: there the FTS
+ * predicate lives in the `kw` CTE, not in the structured filters. `values`
+ * starts at $1; callers append further params (limit/offset) after. */
 function buildFilterConditions(
   filters: ProcurementFilters,
   exclude?: MultiFilterKey,
+  omitQ = false,
 ): { conditions: string[]; values: unknown[] } {
   const conditions: string[] = [];
   const values: unknown[] = [];
@@ -166,18 +198,9 @@ function buildFilterConditions(
   values.push(ACTIVE_PORTALS);
   conditions.push(`origin_system = ANY($${values.length})`);
 
-  if (filters.q) {
+  if (filters.q && !omitQ) {
     values.push(filters.q);
-    const idx = values.length;
-    conditions.push(
-      // f_unaccent on both sides (migration 001): "lapis" matches "lápis".
-      `(to_tsvector('portuguese', f_unaccent(coalesce(description, ''))) @@ websearch_to_tsquery('portuguese', f_unaccent($${idx}))` +
-        ` OR EXISTS (` +
-        `SELECT 1 FROM procurement_items i` +
-        ` WHERE i.procurement_id = procurements.id` +
-        ` AND to_tsvector('portuguese', f_unaccent(coalesce(i.description, ''))) @@ websearch_to_tsquery('portuguese', f_unaccent($${idx}))` +
-        `))`,
-    );
+    conditions.push(buildQPredicate(values.length));
   }
 
   if (exclude !== "portals" && filters.portals && filters.portals.length > 0) {
@@ -262,29 +285,102 @@ export function buildWhereClause(
   where: string;
   values: unknown[];
 } {
-  const { conditions, values } = buildFilterConditions(filters);
-  const compatPredicate = buildCompatPredicate(filters, companyCnaes, values);
-  if (compatPredicate) conditions.push(compatPredicate);
-  const where = `WHERE ${conditions.join(" AND ")}`;
-  return { where, values };
+  const { conditions, values } = buildScopeConditions(filters, companyCnaes);
+  return { where: `WHERE ${conditions.join(" AND ")}`, values };
 }
 
-// Ordering: open closing soonest, then upcoming opening soonest, then closed
-// newest first.
-export function buildListQuery(
+/** Filter + compat predicates as a list, so the hybrid path can splice them
+ * into two different FROM clauses (`kw` and `sem`) instead of one WHERE. */
+function buildScopeConditions(
   filters: ProcurementFilters,
-  limit: number,
-  offset: number,
-  companyCnaes?: string[],
-): SqlQuery {
-  const { where, values } = buildWhereClause(filters, companyCnaes);
-  const limitIdx = values.length + 1;
-  const offsetIdx = values.length + 2;
+  companyCnaes: string[] | undefined,
+  omitQ = false,
+): { conditions: string[]; values: unknown[] } {
+  const { conditions, values } = buildFilterConditions(
+    filters,
+    undefined,
+    omitQ,
+  );
+  const compatPredicate = buildCompatPredicate(filters, companyCnaes, values);
+  if (compatPredicate) conditions.push(compatPredicate);
+  return { conditions, values };
+}
 
-  const text = `
-    WITH classified AS (
+/** Should this call take the hybrid (FTS ∪ pgvector) path? Only when there is
+ * free text *and* the caller managed to embed it — an embedder outage falls
+ * back to the keyword-only path rather than failing the search. */
+function isHybrid(
+  filters: ProcurementFilters,
+  qEmbedding: string | null | undefined,
+): qEmbedding is string {
+  return Boolean(filters.q) && Boolean(qEmbedding);
+}
+
+/**
+ * The three CTEs of the hybrid candidate set, plus the structured WHERE the
+ * list query re-applies to `procurements`:
+ *
+ * - `kw`  — FTS hits, ranked by `ts_rank`;
+ * - `sem` — the pgvector top-K by cosine distance;
+ * - `fused` — their union, scored by reciprocal-rank fusion.
+ *
+ * The structured filters (portal, UF, modalidade, faixa de valor, situação,
+ * compat) are applied inside *both* branches, so a semantic hit can never
+ * escape the user's hard filters. The vector is bound as text and cast —
+ * node-pg has no vector type.
+ */
+function buildHybridCtes(
+  filters: ProcurementFilters,
+  companyCnaes: string[] | undefined,
+  qEmbedding: string,
+): { ctes: string; where: string; values: unknown[] } {
+  const { conditions, values } = buildScopeConditions(filters, companyCnaes, true);
+  const structured = conditions.join(" AND ");
+
+  values.push(filters.q);
+  const qIdx = values.length;
+  values.push(qEmbedding);
+  const v = `$${values.length}::vector`;
+
+  const rank = `ts_rank(to_tsvector('portuguese', f_unaccent(coalesce(description, ''))), websearch_to_tsquery('portuguese', f_unaccent($${qIdx})))`;
+
+  const ctes = `kw AS (
+      SELECT procurements.id,
+             row_number() OVER (ORDER BY ${rank} DESC, id) AS rank
+        FROM procurements
+       WHERE ${structured}
+         AND ${buildQPredicate(qIdx)}
+    ),
+    sem AS (
+      SELECT pe.procurement_id AS id,
+             1 - (pe.embedding <=> ${v}) AS similarity,
+             row_number() OVER (ORDER BY pe.embedding <=> ${v}) AS rank
+        FROM procurement_embeddings pe
+        JOIN procurements ON procurements.id = pe.procurement_id
+       WHERE ${structured}
+       ORDER BY pe.embedding <=> ${v}
+       LIMIT ${SEARCH_SEMANTIC_TOP_K}
+    ),
+    fused AS (
       SELECT
-        procurements.source_id,
+        id,
+        coalesce(1.0 / (${RRF_K} + kw.rank), 0) + coalesce(1.0 / (${RRF_K} + sem.rank), 0) AS rrf,
+        sem.similarity AS similarity,
+        CASE
+          WHEN kw.id IS NOT NULL AND sem.id IS NOT NULL THEN 'both'
+          WHEN kw.id IS NOT NULL THEN 'keyword'
+          ELSE 'semantic'
+        END AS match_kind
+      FROM kw FULL OUTER JOIN sem USING (id)
+      -- A vector-only hit below the floor is noise; a keyword hit always stays.
+      WHERE kw.id IS NOT NULL OR sem.similarity >= ${SEARCH_SEMANTIC_MIN}
+    )`;
+
+  return { ctes, where: `WHERE ${structured}`, values };
+}
+
+/** Column list of the `classified` CTE, shared by both list paths. */
+const CLASSIFIED_COLUMNS = `procurements.source_id,
         procurements.description,
         agencies.name AS agency_name,
         procurements.city_name,
@@ -307,17 +403,69 @@ export function buildListQuery(
           ELSE -extract(epoch FROM coalesce(
             proposal_closes_at, published_at, '-infinity'::timestamptz
           ))
-        END AS sort_val
-      FROM procurements
+        END AS sort_val`;
+
+const CLASSIFIED_FROM = `FROM procurements
       JOIN agencies ON agencies.tax_id = procurements.agency_tax_id
       LEFT JOIN procurement_enrichments e
-        ON e.procurement_id = procurements.id AND e.status = 'done'
+        ON e.procurement_id = procurements.id AND e.status = 'done'`;
+
+// Ordering: open closing soonest, then upcoming opening soonest, then closed
+// newest first — except on the hybrid path, where relevance (the fused rank)
+// decides and the date ordering would bury the semantic hits.
+export function buildListQuery(
+  filters: ProcurementFilters,
+  limit: number,
+  offset: number,
+  companyCnaes?: string[],
+  qEmbedding?: string | null,
+): SqlQuery {
+  if (isHybrid(filters, qEmbedding)) {
+    const { ctes, where, values } = buildHybridCtes(
+      filters,
+      companyCnaes,
+      qEmbedding,
+    );
+    const limitIdx = values.length + 1;
+    const offsetIdx = values.length + 2;
+
+    const text = `
+    WITH ${ctes},
+    classified AS (
+      SELECT
+        procurements.id,
+        ${CLASSIFIED_COLUMNS}
+      ${CLASSIFIED_FROM}
       ${where}
     )
     SELECT
       source_id, description, agency_name, city_name, state,
       modality_name, estimated_value, proposal_opens_at, proposal_closes_at,
-      enriched
+      enriched, fused.match_kind, fused.similarity
+    FROM classified
+    JOIN fused ON fused.id = classified.id
+    ORDER BY fused.rrf DESC, source_id
+    LIMIT $${limitIdx} OFFSET $${offsetIdx}
+  `;
+
+    return { text, values: [...values, limit, offset] };
+  }
+
+  const { where, values } = buildWhereClause(filters, companyCnaes);
+  const limitIdx = values.length + 1;
+  const offsetIdx = values.length + 2;
+
+  const text = `
+    WITH classified AS (
+      SELECT
+        ${CLASSIFIED_COLUMNS}
+      ${CLASSIFIED_FROM}
+      ${where}
+    )
+    SELECT
+      source_id, description, agency_name, city_name, state,
+      modality_name, estimated_value, proposal_opens_at, proposal_closes_at,
+      enriched, NULL::text AS match_kind, NULL::real AS similarity
     FROM classified
     ORDER BY status_group ASC, sort_val ASC NULLS LAST
     LIMIT $${limitIdx} OFFSET $${offsetIdx}
@@ -329,7 +477,19 @@ export function buildListQuery(
 export function buildCountQuery(
   filters: ProcurementFilters,
   companyCnaes?: string[],
+  qEmbedding?: string | null,
 ): SqlQuery {
+  if (isHybrid(filters, qEmbedding)) {
+    const { ctes, values } = buildHybridCtes(filters, companyCnaes, qEmbedding);
+    return {
+      text: `
+    WITH ${ctes}
+    SELECT count(*)::text AS count FROM fused
+  `,
+      values,
+    };
+  }
+
   const { where, values } = buildWhereClause(filters, companyCnaes);
   return {
     text: `SELECT count(*)::text AS count FROM procurements ${where}`,
@@ -451,18 +611,37 @@ export type ProcurementRow = {
   proposal_opens_at: Date | null;
   proposal_closes_at: Date | null;
   enriched: boolean;
+  /** Which branch surfaced the row — null on the keyword-only path (no free
+   * text, or the embedder was unavailable). */
+  match_kind: "keyword" | "semantic" | "both" | null;
+  /** Cosine similarity of the semantic branch (null for keyword-only hits).
+   * pg hands numeric expressions back as strings unless a parser says
+   * otherwise. */
+  similarity: string | number | null;
 };
 
 export type ModalityOption = { id: number; name: string };
 
+/** `qEmbedding` is the pgvector text literal for `filters.q` (see
+ * `embedQuery` in lib/agent/embed.ts). Pass null/undefined — or omit it — to
+ * get the keyword-only behaviour. Facet counts stay keyword-only either way:
+ * they are computed over the structured filters, not the fused candidate set
+ * (documented limitation). */
 export async function fetchProcurements(
   filters: ProcurementFilters,
   limit: number,
   offset: number,
   companyCnaes?: string[],
+  qEmbedding?: string | null,
 ) {
-  const listQuery = buildListQuery(filters, limit, offset, companyCnaes);
-  const countQuery = buildCountQuery(filters, companyCnaes);
+  const listQuery = buildListQuery(
+    filters,
+    limit,
+    offset,
+    companyCnaes,
+    qEmbedding,
+  );
+  const countQuery = buildCountQuery(filters, companyCnaes, qEmbedding);
 
   const [rowsResult, countResult] = await Promise.all([
     pool.query<ProcurementRow>(listQuery.text, listQuery.values),

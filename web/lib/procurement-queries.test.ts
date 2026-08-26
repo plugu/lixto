@@ -11,7 +11,14 @@ import {
   buildStatusFacetQuery,
   buildWhereClause,
   parseFilters,
+  RRF_K,
+  SEARCH_SEMANTIC_MIN,
+  SEARCH_SEMANTIC_TOP_K,
 } from "./procurement-queries";
+
+/** A stand-in for a real 1536-d pgvector literal — the builder only ever
+ * binds it, never parses it. */
+const QVEC = "[0.1,0.2,0.3]";
 
 describe("parseFilters", () => {
   it("returns an empty object when no params are present", () => {
@@ -423,6 +430,170 @@ describe("buildCountQuery", () => {
     const { text, values } = buildCountQuery({});
     expect(text).toContain("WHERE origin_system = ANY($1)");
     expect(values).toEqual([ACTIVE_PORTALS]);
+  });
+});
+
+describe("hybrid retrieval (q + query embedding)", () => {
+  it("keeps the retrieval constants at their documented values", () => {
+    expect(SEARCH_SEMANTIC_TOP_K).toBe(200);
+    expect(SEARCH_SEMANTIC_MIN).toBe(0.4);
+    expect(RRF_K).toBe(60);
+  });
+
+  describe("buildListQuery", () => {
+    it("emits the kw/sem/fused CTEs and orders by the fused rank", () => {
+      const { text } = buildListQuery({ q: "merenda" }, 20, 0, undefined, QVEC);
+      expect(text).toContain("WITH kw AS (");
+      expect(text).toContain("sem AS (");
+      expect(text).toContain("fused AS (");
+      expect(text).toContain("FROM kw FULL OUTER JOIN sem USING (id)");
+      expect(text).toContain("<=>");
+      expect(text).toContain("ORDER BY fused.rrf DESC, source_id");
+      expect(text).not.toContain("ORDER BY status_group ASC");
+    });
+
+    it("binds q then the vector, with limit/offset last", () => {
+      const { text, values } = buildListQuery(
+        { q: "merenda" },
+        20,
+        40,
+        undefined,
+        QVEC,
+      );
+      expect(values).toEqual([ACTIVE_PORTALS, "merenda", QVEC, 20, 40]);
+      expect(text).toContain("$3::vector");
+      expect(text).toContain("LIMIT $4 OFFSET $5");
+    });
+
+    it("ranks the keyword branch by ts_rank and the semantic branch by distance", () => {
+      const { text } = buildListQuery({ q: "merenda" }, 20, 0, undefined, QVEC);
+      expect(text).toContain(
+        "row_number() OVER (ORDER BY ts_rank(to_tsvector('portuguese', f_unaccent(coalesce(description, ''))), websearch_to_tsquery('portuguese', f_unaccent($2))) DESC, id) AS rank",
+      );
+      expect(text).toContain(
+        "row_number() OVER (ORDER BY pe.embedding <=> $3::vector) AS rank",
+      );
+      expect(text).toContain(`LIMIT ${SEARCH_SEMANTIC_TOP_K}`);
+    });
+
+    it("fuses with reciprocal rank and labels the match kind", () => {
+      const { text } = buildListQuery({ q: "merenda" }, 20, 0, undefined, QVEC);
+      expect(text).toContain(
+        `coalesce(1.0 / (${RRF_K} + kw.rank), 0) + coalesce(1.0 / (${RRF_K} + sem.rank), 0) AS rrf`,
+      );
+      expect(text).toContain(
+        "WHEN kw.id IS NOT NULL AND sem.id IS NOT NULL THEN 'both'",
+      );
+      expect(text).toContain("WHEN kw.id IS NOT NULL THEN 'keyword'");
+      expect(text).toContain("ELSE 'semantic'");
+      expect(text).toContain(
+        `WHERE kw.id IS NOT NULL OR sem.similarity >= ${SEARCH_SEMANTIC_MIN}`,
+      );
+      expect(text).toContain("fused.match_kind, fused.similarity");
+    });
+
+    it("applies the structured filters inside both branches and to the row join", () => {
+      const { text, values } = buildListQuery(
+        { q: "merenda", states: ["SP"], statuses: ["open"], valueMin: 1000 },
+        20,
+        0,
+        undefined,
+        QVEC,
+      );
+      // states/valueMin bound before q and the vector; no q param inside them.
+      expect(values).toEqual([
+        ACTIVE_PORTALS,
+        ["SP"],
+        1000,
+        "merenda",
+        QVEC,
+        20,
+        0,
+      ]);
+      // origin_system allowlist + state + value in kw, in sem and in classified.
+      expect(text.match(/state = ANY\(\$2\)/g)?.length).toBe(3);
+      expect(text.match(/estimated_value >= \$3/g)?.length).toBe(3);
+      // 3 WHERE clauses + the 2 status CASE expressions of `classified`.
+      expect(
+        text.match(/proposal_opens_at <= now\(\) AND now\(\) < proposal_closes_at/g)
+          ?.length,
+      ).toBe(5);
+    });
+
+    it("keeps the q FTS predicate only in the keyword branch", () => {
+      const { text } = buildListQuery({ q: "merenda" }, 20, 0, undefined, QVEC);
+      expect(
+        text.match(/websearch_to_tsquery\('portuguese', f_unaccent\(\$2\)\)/g)
+          ?.length,
+        // ts_rank (1) + description predicate (1) + items predicate (1)
+      ).toBe(3);
+      expect(text).toContain("i.procurement_id = procurements.id");
+    });
+
+    it("threads companyCnaes into both branches ahead of q and the vector", () => {
+      const { text, values } = buildListQuery(
+        { q: "merenda", compat: true },
+        20,
+        0,
+        ["6201500"],
+        QVEC,
+      );
+      expect(values).toEqual([
+        ACTIVE_PORTALS,
+        ["6201500"],
+        "merenda",
+        QVEC,
+        20,
+        0,
+      ]);
+      expect(text.match(/procurement_cnaes/g)?.length).toBe(3);
+    });
+
+    it("falls back to the keyword-only path when the embedding is missing", () => {
+      const plain = buildListQuery({ q: "merenda" }, 20, 0);
+      expect(buildListQuery({ q: "merenda" }, 20, 0, undefined, null).text).toBe(
+        plain.text,
+      );
+      expect(plain.text).not.toContain("<=>");
+      expect(plain.text).toContain("ORDER BY status_group ASC, sort_val ASC NULLS LAST");
+      expect(plain.text).toContain(
+        "NULL::text AS match_kind, NULL::real AS similarity",
+      );
+    });
+
+    it("ignores an embedding when there is no free text", () => {
+      const { text, values } = buildListQuery({ states: ["SP"] }, 20, 0, undefined, QVEC);
+      expect(text).toBe(buildListQuery({ states: ["SP"] }, 20, 0).text);
+      expect(values).toEqual([ACTIVE_PORTALS, ["SP"], 20, 0]);
+    });
+  });
+
+  describe("buildCountQuery", () => {
+    it("counts the fused candidate set with the same params as the list", () => {
+      const count = buildCountQuery({ q: "merenda" }, undefined, QVEC);
+      const list = buildListQuery({ q: "merenda" }, 20, 0, undefined, QVEC);
+      expect(count.text).toContain("SELECT count(*)::text AS count FROM fused");
+      expect(count.text).toContain("WITH kw AS (");
+      expect(count.text).toContain("sem AS (");
+      expect(count.values).toEqual([ACTIVE_PORTALS, "merenda", QVEC]);
+      expect(list.values.slice(0, count.values.length)).toEqual(count.values);
+    });
+
+    it("applies the structured filters to both branches", () => {
+      const { text, values } = buildCountQuery(
+        { q: "merenda", modalityIds: [6] },
+        undefined,
+        QVEC,
+      );
+      expect(values).toEqual([ACTIVE_PORTALS, [6], "merenda", QVEC]);
+      expect(text.match(/modality_id = ANY\(\$2\)/g)?.length).toBe(2);
+    });
+
+    it("falls back to the plain count when there is no embedding", () => {
+      expect(buildCountQuery({ q: "merenda" }, undefined, null).text).toBe(
+        buildCountQuery({ q: "merenda" }).text,
+      );
+    });
   });
 });
 
