@@ -1,11 +1,11 @@
 # STATE — rewrite after every ticket completes; never append. ≤30 lines total.
 
 ## Now
-- Cycle 20 (query-time semantic search, mvp): 96–98 done (1 attempt each, 415 vitest, build OK). 99 (docs, haiku) in progress.
+- Cycle 20 (query-time semantic search, mvp) implemented: tickets 96–99 done, 1 attempt each, main green (vitest 415, tsc, lint, next build). Commits 3a09d66..HEAD. Awaiting final review (approval 2/2), then deploy.
 
 ## Next
-- 97 chat `search_procurements` (sonnet) → 98 `/procurements` page (sonnet) → 99 docs (haiku). Then diff summary for approval 2/2.
-- Post-run operator: Dokploy `enrich-embed` cron `45 7,14,21 * * *` (stays disabled until ingestion enabled); set LIXTO_LLM_API_KEY; enable ingestion schedules when ready.
+- After approval: push → Dokploy lixto-web deploy; update Dokploy `enrich-embed` cron to `45 7,14,21 * * *` (keep disabled until ingestion enabled); prod smoke: chat "material escolar para crianças" + `/procurements?q=...` shows Similar pill (needs LIXTO_LLM_API_KEY + embedded rows).
+- Operator: set LIXTO_LLM_API_KEY; enable ingestion schedules when ready (sync-incremental → enrich-run → enrich-embed → match-run → recommend-run).
 - Cycle 21 candidates: email/push digest; prepare/execute + approval; learning from feedback; plans/contracts in matching; per-page watermark for plans sync.
 
 ## Decisions
