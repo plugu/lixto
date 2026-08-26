@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { normalizeCnaeCode } from "./company-queries";
 import {
   buildInsertCnaes,
   buildInsertCompany,
@@ -72,6 +73,17 @@ describe("buildInsertCnaes", () => {
   it("returns an empty VALUES row set when given no cnaes", () => {
     const query = buildInsertCnaes(42, []);
     expect(query.values).toEqual([42]);
+  });
+
+  it("pads a short code the same way company-queries.normalizeCnaeCode does", () => {
+    // Reviewer finding 11: signup and the company profile page must write
+    // the same CHAR(7) shape for a re-saved CNAE, or the join to
+    // procurement_cnaes silently breaks.
+    const query = buildInsertCnaes(1, [
+      { code: "620150", description: "Software", isPrimary: true },
+    ]);
+    expect(query.values[1]).toBe(normalizeCnaeCode("620150"));
+    expect(query.values[1]).toBe("0620150");
   });
 });
 

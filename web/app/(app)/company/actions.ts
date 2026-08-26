@@ -6,7 +6,7 @@
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
 import { isValidCEP, isValidEmail } from "@/lib/br-validators";
-import { UF_LIST } from "@/lib/types";
+import { COMPANY_SIZES, UF_LIST } from "@/lib/types";
 import {
   replaceCnaes,
   updateCompany,
@@ -45,6 +45,11 @@ export async function updateCompanyAction(
     return { error: "UF inválida." };
   }
 
+  const size = field(formData, "size");
+  if (size && !(COMPANY_SIZES as string[]).includes(size)) {
+    return { error: "Porte inválido." };
+  }
+
   const email = field(formData, "email");
   if (email && !isValidEmail(email)) {
     return { error: "E-mail inválido." };
@@ -72,7 +77,7 @@ export async function updateCompanyAction(
     legalName,
     tradeName: field(formData, "tradeName"),
     legalNature: field(formData, "legalNature"),
-    size: field(formData, "size"),
+    size,
     simplesOptant: formData.get("simplesOptant") === "on",
     stateRegistration: field(formData, "stateRegistration"),
     municipalRegistration: field(formData, "municipalRegistration"),

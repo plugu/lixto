@@ -13,6 +13,11 @@ function fakeClient(create: ReturnType<typeof vi.fn>): OpenAI {
   return { embeddings: { create } } as unknown as OpenAI;
 }
 
+/** A vector of the given length filled with distinct small numbers. */
+function fakeVector(length: number): number[] {
+  return Array.from({ length }, (_, i) => i / length);
+}
+
 afterEach(() => {
   vi.restoreAllMocks();
 });
@@ -59,16 +64,17 @@ describe("buildProfileEmbeddingText", () => {
 
 describe("embedText", () => {
   it("returns the vector and the model used", async () => {
+    const vector = fakeVector(EMBED_DIMS);
     const create = vi
       .fn()
-      .mockResolvedValue({ data: [{ embedding: [0.1, 0.2] }] });
+      .mockResolvedValue({ data: [{ embedding: vector }] });
 
     const out = await embedText("material escolar", {
       client: fakeClient(create),
       model: "text-embedding-3-small",
     });
 
-    expect(out).toEqual({ vector: [0.1, 0.2], model: "text-embedding-3-small" });
+    expect(out).toEqual({ vector, model: "text-embedding-3-small" });
     expect(create).toHaveBeenCalledWith({
       model: "text-embedding-3-small",
       input: "material escolar",
@@ -92,6 +98,16 @@ describe("embedText", () => {
   it("returns null and warns when the response has no embedding", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const create = vi.fn().mockResolvedValue({ data: [] });
+
+    expect(await embedText("papel", { client: fakeClient(create) })).toBeNull();
+    expect(warn).toHaveBeenCalled();
+  });
+
+  it("returns null and warns when the embedding has the wrong dimensions", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const create = vi
+      .fn()
+      .mockResolvedValue({ data: [{ embedding: fakeVector(3) }] });
 
     expect(await embedText("papel", { client: fakeClient(create) })).toBeNull();
     expect(warn).toHaveBeenCalled();

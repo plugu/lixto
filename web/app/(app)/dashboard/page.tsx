@@ -4,6 +4,7 @@ import { DailyLine } from "@/components/charts/daily-line";
 import { StatTile } from "@/components/charts/stat-tile";
 import { StatusStack } from "@/components/charts/status-stack";
 import { Section } from "@/components/ui/section";
+import { requireSession } from "@/lib/auth";
 import {
   fetchByDay,
   fetchByModality,
@@ -30,6 +31,8 @@ const SCOPE_SUBTITLES: Record<ChartScope, string> = {
 export default async function DashboardPage({
   searchParams,
 }: PageProps<"/dashboard">) {
+  await requireSession();
+
   const resolved = await searchParams;
   const scope = parseChartScope(resolved.scope);
 

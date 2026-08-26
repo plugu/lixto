@@ -39,6 +39,14 @@ export type SqlQuery = {
   values: unknown[];
 };
 
+/** Normalizes a CNAE code to the `CHAR(7)` shape stored in the DB: digits
+ * only, zero-padded on the left. Shared with signup-queries.ts so a code
+ * re-saved from the profile page matches the one written at signup —
+ * otherwise an unpadded code never joins `procurement_cnaes`. */
+export function normalizeCnaeCode(code: string): string {
+  return onlyDigits(code).padStart(7, "0");
+}
+
 /** Empty string → null (most company fields are optional). */
 function nullIfEmpty(value: string): string | null {
   const trimmed = value.trim();
@@ -149,7 +157,7 @@ export function buildInsertCnaes(
 ): SqlQuery {
   const values: unknown[] = [companyId];
   const rows = cnaes.map((c) => {
-    const codeIdx = values.push(onlyDigits(c.code));
+    const codeIdx = values.push(normalizeCnaeCode(c.code));
     const descriptionIdx = values.push(c.description.trim());
     const isPrimaryIdx = values.push(c.isPrimary);
     return `($1, $${codeIdx}, $${descriptionIdx}, $${isPrimaryIdx})`;
