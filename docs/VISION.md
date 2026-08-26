@@ -721,39 +721,48 @@ AI procurement operator.**
 
 ------------------------------------------------------------------------
 
-## Appendix — Implementation status (as of 2026-08-25, after cycles 16–17)
+## Appendix — Implementation status (as of 2026-08-25, after cycles 16–18)
 
 ### Built
 
 | vision item | where |
 |---|---|
-| Raw ingestion, structured parse (§2, §5.1–5.2) | pre-existing `plic sync *`, `licitacao`/`item`/`documento` |
-| Deterministic PDF text extraction + quality gate (§4, §5.2) | `src/plic/enrich/documents.py` → `documento_texto` |
-| Cheap text LLM / multimodal LLM routing (§4, §6 tiers 1–2) | `src/plic/llm.py` (`LlmClient`), `src/plic/enrich/worker.py` (`fonte` texto/pdf/estruturado) |
-| Global enrichment, canonical JSON, versioned + confidence (§3, §5.3, MVP 1–4) | `enriquecimento` table, `schema_version 1.0`, `plic enrich run` |
-| Provider abstraction (§6) | `PLIC_LLM_*` env, OpenAI-compatible base URL |
-| PostgreSQL FTS/structured indexes + pgvector (§7, MVP 5) | migrations 005/010/013; `pgvector/pgvector:pg18-trixie` in prod; HNSW cosine index |
-| Company profile — CNAEs, products, synonyms/keywords, exclusions, UFs, value range, porte, documents (§8, MVP 6) | `empresa_perfil`, `/empresa/perfil`, existing `empresa_cnae`/`documento_empresa` |
-| Match engine: deterministic + semantic score with machine-readable reasons (§9, MVP 7) | `web/lib/match-engine.ts`, `match-queries.ts` (on demand) |
-| Safe structured tools, no LLM SQL (§10–11, MVP 8, 10) | `web/lib/agent/tools.ts` — `search_procurements`, `search_my_matches`, `get_procurement`, `calculate_match`, `analyze_procurement` |
-| Conversational-first UI + quick controls (§10, MVP 9) | `/lixto`, `web/components/chat/*`, `POST /api/chat`, `conversa`/`mensagem` |
+| Raw ingestion, structured parse (§2, §5.1–5.2) | `lixto sync incremental`, `lixto sync details`, `procurements`/`procurement_items`/`procurement_documents` |
+| Deterministic PDF text extraction + quality gate (§4, §5.2) | `src/lixto/enrich/documents.py` → `procurement_document_texts` |
+| Cheap text LLM / multimodal LLM routing (§4, §6 tiers 1–2) | `src/lixto/llm.py` (OpenAI-compatible), `src/lixto/enrich/worker.py` (routes by input_kind) |
+| Global enrichment, canonical JSON, versioned + confidence (§3, §5.3, MVP 1–4) | `procurement_enrichments` (schema_version 1.0), `lixto enrich run` |
+| Provider abstraction (§6) | `LIXTO_LLM_*` env, OpenAI-compatible base URL |
+| PostgreSQL FTS/structured indexes + pgvector (§7, MVP 5) | `pgvector/pgvector:pg16-trixie` (local) / `pg18-trixie` (prod); HNSW cosine index on `procurement_embeddings` |
+| Company profile — CNAEs, products, keywords, exclusions, UFs, value range, size, documents (§8, MVP 6) | `companies`, `company_cnaes`, `company_profiles`, `company_documents`, `/company/profile` form |
+| Match engine: deterministic + semantic score with machine-readable reasons (§9, MVP 7) | `web/lib/match-engine.ts` (on-demand, 15 reason codes) |
+| Safe structured tools, no LLM SQL (§10–11, MVP 8, 10) | `web/lib/agent/tools.ts` — 5 tools (`search_procurements`, `search_my_matches`, `get_procurement`, `calculate_match`, `analyze_procurement`) |
+| Conversational-first UI + quick controls (§10, MVP 9) | `/lixto` chat, `web/components/chat/*`, `POST /api/chat`, `conversations`/`messages` tables |
+| Annual Procurement Plans (PCA) (§14) | `procurement_plans`, `procurement_plan_items`, `/v1/pca/atualizacao` sync (cycle 18) |
+| Contracts + amendments (supplier history, competitive intelligence) (§14) | `contracts`, `contract_amendments`, `/v1/contratos/atualizacao` + `/termos` sync (cycle 18) |
+| Agent run tracking (§7, §11) | `agent_runs` table, every sync/enrich/chat operation logged |
 
 ### Not built (open items)
 
 | vision item | status | notes |
 |---|---|---|
-| HTML parsing (§5.2) | skipped | PNCP attachments are PDFs; revisit if other portals are ingested |
-| Proactive agent mode / daily digest / notifications (§12, MVP 11) | not built | needs Python batch match → persisted `match` table → digest/notify |
-| Explicit GO / NO-GO recommendation (§1 step 3, §11 `recommend_go_no_go`) | partial | score + motivos + enrichment risks exist; no formal verdict output |
-| Prepare / execute / human-approval workflow (§13, MVP 13) | not built | |
-| Tools `search_items`, `get_documents`, `compare_procurements`, `check_company_eligibility`, `list_missing_documents`, `recommend_go_no_go`, `prepare_participation` (§11) | not built | 5 of 11 listed tools exist; `check_company_eligibility` ≈ `calculate_match` |
-| Learning loop / feedback capture (§14, MVP 14) | not built | |
-| On-demand deep analysis with a Tier-3 model (§6, MVP 12) | not built | `analyze_procurement` composes ingestion-time enrichment; legacy `plic agents run` deep analysis still reads `company_profile.md` |
-| Query-time semantic search (embed the user's free text) | not built | vectors used only profile × licitação |
-| Richer profile fields: suppliers, delivery capacity, margins, certifications, financial constraints, preferred portals, historical participation (§8) | partial | only the fields listed under "Built" |
-| Retire `company_profile.md` + legacy triage/deep pipeline | not done | still feeds the Fit badge |
-| `matches`, `agent_runs`, `agent_actions` tables (§7) | not built | only `conversa`/`mensagem` persisted |
-| Enrichment `cnae_candidatos` feeding `licitacao_cnae` | informational | Ollama CNAE pipeline remains source of truth |
+| HTML parsing (§5.2) | skipped | PNCP attachments are PDFs; revisit if other portals ingested |
+| Proactive agent mode / daily digest / notifications (§12, MVP 11) | not built | needs batch match → persisted `matches` table (placeholder exists) → digest/notify |
+| Explicit GO / NO-GO recommendation (§1 step 3, §11 `recommend_go_no_go`) | partial | match score + reasons + enrichment risks exist; `recommendations` table placeholder exists for cycle 19 |
+| Prepare / execute / human-approval workflow (§13, MVP 13) | not built | `agent_actions` table placeholder exists for cycle 19 |
+| Additional tools: `search_items`, `get_documents`, `compare_procurements`, `check_company_eligibility`, `list_missing_documents`, `recommend_go_no_go`, `prepare_participation` (§11) | not built | 5 of 12 listed tools exist |
+| Learning loop / feedback capture (§14, MVP 14) | not built | `opportunity_feedback` table placeholder exists |
+| On-demand deep analysis with a Tier-3 model (§6, MVP 12) | not built | `analyze_procurement` uses enrichment cached at ingest time |
+| Query-time semantic search (embed user's free text) | not built | vectors used only profile × procurement |
+| Richer profile fields: suppliers, delivery capacity, margins, financial constraints, preferred portals, historical participation (§8) | partial | only base fields implemented |
 | Streaming chat responses | not built | single JSON reply per turn |
 
-Suggested next cycle: proactive mode (batch match + persisted `match` table + digest), which also unblocks GO/NO-GO and the learning loop.
+### Cycle 19 targets
+
+**Proactive mode** (prerequisites met):
+- Batch match: company profiles × procurements → write persisted `matches` table
+- Daily digest: compile and notify matched opportunities
+- Explicit GO/NO-GO via `recommendations` table
+- Prepare/execute workflows via `agent_actions`
+- This unblocks the learning loop and feedback capture
+
+Suggested next steps: (1) batch match worker, (2) digest composition, (3) opportunity state machine.
