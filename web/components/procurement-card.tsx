@@ -24,10 +24,17 @@ export function ProcurementCard({
       <p className="line-clamp-2 text-sm font-medium text-ink">
         {row.description || "—"}
       </p>
-      <p className="truncate text-xs text-ink-muted">
-        {row.agency_name || "—"}
-        {location ? ` · ${location}` : ""}
-        {row.modality_name ? ` · ${row.modality_name}` : ""}
+      <p className="flex items-center gap-1.5 truncate text-xs text-ink-muted">
+        <span className="truncate">
+          {row.agency_name || "—"}
+          {location ? ` · ${location}` : ""}
+          {row.modality_name ? ` · ${row.modality_name}` : ""}
+        </span>
+        {row.match_kind === "semantic" && (
+          <span className="shrink-0 rounded bg-off-soft px-1.5 py-0.5 text-xs text-off">
+            Similar
+          </span>
+        )}
       </p>
       <div className="flex flex-wrap items-center gap-1.5">
         <StatusBadge status={status} />

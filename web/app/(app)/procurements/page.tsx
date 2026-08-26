@@ -6,6 +6,7 @@ import { LinkButton } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Search } from "@/components/ui/icons";
 import { TBody, THead, TR, Table } from "@/components/ui/table";
+import { embedQuery } from "@/lib/agent/embed";
 import { getSession } from "@/lib/auth";
 import { getCompanyCnaes } from "@/lib/company-queries";
 import { formatCurrencyBRL, formatDateBR } from "@/lib/format";
@@ -62,8 +63,18 @@ export default async function ProcurementsPage({
   const showCompat = companyCnaes.length > 0;
   if (!showCompat) delete filters.compat;
 
+  // Hybrid retrieval: embed the free-text query once (null on failure or no
+  // `q`), reused by fetchProcurements below; facets stay keyword-only.
+  const qEmbedding = filters.q ? await embedQuery(filters.q) : null;
+
   const [{ rows, total }, modalityOptions, facetCounts] = await Promise.all([
-    fetchProcurements(filters, PAGE_SIZE, (page - 1) * PAGE_SIZE, companyCnaes),
+    fetchProcurements(
+      filters,
+      PAGE_SIZE,
+      (page - 1) * PAGE_SIZE,
+      companyCnaes,
+      qEmbedding,
+    ),
     fetchModalityOptions(),
     fetchFacetCounts(filters),
   ]);
@@ -142,9 +153,16 @@ export default async function ProcurementsPage({
                         <p className="line-clamp-2 text-sm font-medium text-ink">
                           {row.description || "—"}
                         </p>
-                        <p className="truncate text-xs text-ink-muted">
-                          {row.agency_name || "—"}
-                          {location ? ` · ${location}` : ""}
+                        <p className="flex items-center gap-1.5 truncate text-xs text-ink-muted">
+                          <span className="truncate">
+                            {row.agency_name || "—"}
+                            {location ? ` · ${location}` : ""}
+                          </span>
+                          {row.match_kind === "semantic" && (
+                            <span className="shrink-0 rounded bg-off-soft px-1.5 py-0.5 text-xs text-off">
+                              Similar
+                            </span>
+                          )}
                         </p>
                       </ColTD>
                       <ColTD

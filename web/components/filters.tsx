@@ -249,7 +249,7 @@ export function Filters({
           <input
             name="q"
             defaultValue={filters.q ?? ""}
-            placeholder="Buscar por objeto, órgão…"
+            placeholder="Buscar por objeto, órgão ou descreva o que você vende…"
             className="w-full bg-transparent outline-none placeholder:text-ink-faint"
           />
         </div>
