@@ -13,6 +13,8 @@ const PUBLIC_PREFIXES = [
   "/invite",
   "/_next",
   "/favicon.ico",
+  // Internal batch routes authenticate with LIXTO_INTERNAL_TOKEN, not a session.
+  "/api/internal",
 ];
 
 export function proxy(request: NextRequest) {
