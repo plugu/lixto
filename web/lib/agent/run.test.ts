@@ -258,6 +258,14 @@ describe("runChat: prompt assembly", () => {
   });
 });
 
+describe("SYSTEM_PROMPT", () => {
+  it("mentions list_opportunities and explain_opportunity for 'o que encontrou hoje' / 'por que essa'", () => {
+    const prompt = SYSTEM_PROMPT({ companyId: 7, size: "ME", companyName: "Alfa" });
+    expect(prompt).toContain("list_opportunities");
+    expect(prompt).toContain("explain_opportunity");
+  });
+});
+
 describe("runChat: guards", () => {
   it("throws ConversationNotFound for another user's thread", async () => {
     mock(getConversation).mockResolvedValue(null);

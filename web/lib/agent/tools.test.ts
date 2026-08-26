@@ -13,10 +13,16 @@ vi.mock("../procurement-detail-queries", () => ({
   fetchItems: vi.fn(),
   fetchDocuments: vi.fn(),
 }));
+vi.mock("../opportunity-queries", () => ({
+  ATTENTION_SCORE: 70,
+  listOpportunities: vi.fn(),
+  getOpportunity: vi.fn(),
+}));
 
 import { getCompanyCnaes } from "../company-queries";
 import { fetchEnrichment } from "../enrichment-queries";
 import { fetchMatches } from "../match-queries";
+import { getOpportunity, listOpportunities } from "../opportunity-queries";
 import {
   fetchDocuments,
   fetchItems,
@@ -98,16 +104,44 @@ beforeEach(() => {
   mock(fetchItems).mockResolvedValue([]);
   mock(fetchDocuments).mockResolvedValue([]);
   mock(fetchEnrichment).mockResolvedValue(null);
+  mock(listOpportunities).mockResolvedValue([]);
+  mock(getOpportunity).mockResolvedValue(null);
 });
 
+function opportunityRow(over: Record<string, unknown> = {}) {
+  return {
+    id: 1,
+    company_id: 7,
+    procurement_id: 123,
+    source_id: SOURCE_ID,
+    state: "matched",
+    score: 82,
+    reasons: [{ code: "cnae_primary", weight: 35, detail: "4761-0/03" }],
+    attention: true,
+    computed_at: OPENS_AT,
+    description: "Aquisição de lápis preto nº 2",
+    agency_name: "Prefeitura do Rio de Janeiro",
+    state_uf: "RJ",
+    city_name: "Rio de Janeiro",
+    modality_name: "Pregão Eletrônico",
+    estimated_value: "18400.00",
+    proposal_closes_at: CLOSES_AT,
+    verdict: null,
+    rationale: null,
+    ...over,
+  };
+}
+
 describe("TOOL_DEFINITIONS", () => {
-  it("declares the five tools with object schemas", () => {
+  it("declares the seven tools with object schemas", () => {
     expect(TOOL_DEFINITIONS.map((t) => t.name)).toEqual([
       "search_procurements",
       "search_my_matches",
       "get_procurement",
       "calculate_match",
       "analyze_procurement",
+      "list_opportunities",
+      "explain_opportunity",
     ]);
     for (const tool of TOOL_DEFINITIONS) {
       expect(tool.parameters.type).toBe("object");
@@ -494,6 +528,137 @@ describe("analyze_procurement", () => {
     if (!res.ok) return;
     expect((res.data as { match: unknown }).match).toBeNull();
     expect(res.refs[0].score).toBeUndefined();
+  });
+});
+
+describe("list_opportunities", () => {
+  it("defaults to the attention view, scoped to ctx.companyId", async () => {
+    mock(listOpportunities).mockResolvedValue([opportunityRow()]);
+
+    const res = await executeTool("list_opportunities", {}, CTX);
+
+    const [companyId, opts] = mock(listOpportunities).mock.calls[0];
+    expect(companyId).toBe(7);
+    expect(opts).toEqual({
+      limit: 10,
+      states: ["matched", "recommended"],
+      minScore: 70,
+    });
+
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(res.data).toEqual({
+      total: 1,
+      items: [
+        {
+          source_id: SOURCE_ID,
+          score: 82,
+          verdict: null,
+          closes_at: CLOSES_AT.toISOString(),
+          description: "Aquisição de lápis preto nº 2",
+        },
+      ],
+    });
+    expect(res.refs).toHaveLength(1);
+    expect(res.refs[0]).toMatchObject({
+      source_id: SOURCE_ID,
+      score: 82,
+      reasons: [{ code: "cnae_primary", weight: 35, detail: "4761-0/03" }],
+    });
+  });
+
+  it("maps view=all and view=dismissed to different query options", async () => {
+    await executeTool("list_opportunities", { view: "all" }, CTX);
+    expect(mock(listOpportunities).mock.calls[0][1]).toEqual({ limit: 10 });
+
+    await executeTool("list_opportunities", { view: "dismissed", limit: 3 }, CTX);
+    expect(mock(listOpportunities).mock.calls[1][1]).toEqual({
+      limit: 3,
+      states: ["dismissed"],
+    });
+  });
+
+  it("falls back to attention for an unknown view and clamps the limit", async () => {
+    await executeTool("list_opportunities", { view: "bogus", limit: 500 }, CTX);
+    expect(mock(listOpportunities).mock.calls[0][1]).toEqual({
+      limit: 20,
+      states: ["matched", "recommended"],
+      minScore: 70,
+    });
+  });
+
+  it("returns a short error when the query fails", async () => {
+    mock(listOpportunities).mockRejectedValue(new Error("connection refused"));
+    expect(await executeTool("list_opportunities", {}, CTX)).toEqual({
+      ok: false,
+      error: "falha ao consultar",
+    });
+  });
+});
+
+describe("explain_opportunity", () => {
+  it("rejects a malformed source_id without touching the database", async () => {
+    expect(
+      await executeTool("explain_opportunity", { source_id: "123" }, CTX),
+    ).toEqual({ ok: false, error: "número de controle inválido" });
+    expect(await executeTool("explain_opportunity", {}, CTX)).toEqual({
+      ok: false,
+      error: "número de controle inválido",
+    });
+    expect(getOpportunity).not.toHaveBeenCalled();
+  });
+
+  it("reports a missing opportunity, scoped to ctx.companyId", async () => {
+    mock(getOpportunity).mockResolvedValue(null);
+    expect(
+      await executeTool(
+        "explain_opportunity",
+        { source_id: SOURCE_ID, companyId: 999 },
+        CTX,
+      ),
+    ).toEqual({ ok: false, error: "oportunidade não encontrada" });
+    expect(getOpportunity).toHaveBeenCalledWith(7, SOURCE_ID);
+  });
+
+  it("returns score, reasons, verdict/rationale and state, plus one ref", async () => {
+    mock(getOpportunity).mockResolvedValue(
+      opportunityRow({ verdict: "go", rationale: "Atende os requisitos." }),
+    );
+
+    const res = await executeTool(
+      "explain_opportunity",
+      { source_id: SOURCE_ID },
+      CTX,
+    );
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+
+    expect(res.data).toEqual({
+      score: 82,
+      reasons: [{ code: "cnae_primary", detail: "4761-0/03" }],
+      verdict: "go",
+      rationale: "Atende os requisitos.",
+      state: "matched",
+    });
+    expect(res.refs).toEqual([
+      expect.objectContaining({ source_id: SOURCE_ID, score: 82 }),
+    ]);
+  });
+
+  it("falls back to 'sem recomendação ainda' when there is no rationale yet", async () => {
+    mock(getOpportunity).mockResolvedValue(opportunityRow());
+
+    const res = await executeTool(
+      "explain_opportunity",
+      { source_id: SOURCE_ID },
+      CTX,
+    );
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect((res.data as { rationale: string }).rationale).toBe(
+      "sem recomendação ainda",
+    );
+    expect((res.data as { verdict: unknown }).verdict).toBeNull();
   });
 });
 

@@ -86,6 +86,7 @@ export function SYSTEM_PROMPT(ctx: ToolContext): string {
     "Ao listar licitações, numere-as (1., 2., …) na mesma ordem retornada, para o usuário poder dizer 'a segunda'.",
     "Quando perguntarem o que dá para participar / o que combina, use search_my_matches ou calculate_match e explique os motivos pelo código (cnae, termos, uf, valor, me/epp, exclusão).",
     "Se o perfil de match não estiver configurado, diga como configurar em /company/profile.",
+    "Para 'o que você encontrou hoje', 'oportunidades' ou 'por que essa', use list_opportunities e explain_opportunity — o resumo diário é a fonte da verdade para 'hoje'.",
   ].join(" ");
 }
 

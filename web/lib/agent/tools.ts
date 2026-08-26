@@ -17,6 +17,13 @@ import { fetchEnrichment } from "../enrichment-queries";
 import type { Reason } from "../match-engine";
 import { fetchMatches, type MatchFilters, type MatchRow } from "../match-queries";
 import {
+  ATTENTION_SCORE,
+  getOpportunity,
+  listOpportunities,
+  type OpportunityRow,
+  type OpportunityState,
+} from "../opportunity-queries";
+import {
   fetchDocuments,
   fetchItems,
   fetchProcurementDetail,
@@ -198,12 +205,44 @@ function matchRefs(rows: MatchRow[]): ProcurementRef[] {
   return rows.map((row) => toRef(row, { score: row.score, reasons: row.reasons }));
 }
 
+/** `opportunities` rows carry `state_uf` (not `state`, reserved for the
+ * lifecycle state) and no `proposal_opens_at` — the batch only tracks
+ * open/upcoming procurements, but this row shape can't distinguish them, so
+ * the ref's `status` falls back to whatever `computeProcurementStatus` does
+ * with an unknown opening date. */
+function opportunityRef(row: OpportunityRow): ProcurementRef {
+  return {
+    source_id: row.source_id,
+    description: truncate(row.description),
+    agency: row.agency_name,
+    state: row.state_uf,
+    city: row.city_name,
+    modality: row.modality_name,
+    estimated_value: row.estimated_value,
+    closes_at: iso(row.proposal_closes_at),
+    status: computeProcurementStatus(null, row.proposal_closes_at),
+    score: row.score,
+    reasons: row.reasons,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Tool implementations
 // ---------------------------------------------------------------------------
 
 const ERROR_SOURCE_ID = "número de controle inválido";
 const ERROR_NOT_FOUND = "licitação não encontrada";
+const ERROR_OPPORTUNITY_NOT_FOUND = "oportunidade não encontrada";
+
+const OPPORTUNITY_VIEWS = ["attention", "all", "dismissed"] as const;
+type OpportunityView = (typeof OPPORTUNITY_VIEWS)[number];
+
+function asOpportunityView(value: unknown): OpportunityView {
+  return typeof value === "string" &&
+    (OPPORTUNITY_VIEWS as readonly string[]).includes(value)
+    ? (value as OpportunityView)
+    : "attention";
+}
 
 async function searchProcurements(args: unknown): Promise<ToolResult> {
   const { filters, limit } = parseSearchArgs(args, ["open"]);
@@ -404,6 +443,68 @@ async function analyzeProcurement(
   return { ok: true, data, refs: [ref] };
 }
 
+/** `attention` (default): opportunities the batch flagged as deserving
+ * attention (score ≥ 70, still active). `all`: every opportunity regardless
+ * of score. `dismissed`: what the user discarded. `matched`/`recommended`
+ * both count as "active" per PRODUCT.md — dismissed/executed ones don't show
+ * up outside their own view. */
+async function listOpportunitiesTool(
+  args: unknown,
+  ctx: ToolContext,
+): Promise<ToolResult> {
+  const raw = asRecord(args);
+  const view = asOpportunityView(raw.view);
+  const limit = asLimit(raw.limit);
+
+  const opts: { states?: OpportunityState[]; minScore?: number; limit: number } = {
+    limit,
+  };
+  if (view === "attention") {
+    opts.states = ["matched", "recommended"];
+    opts.minScore = ATTENTION_SCORE;
+  } else if (view === "dismissed") {
+    opts.states = ["dismissed"];
+  }
+
+  const rows = await listOpportunities(ctx.companyId, opts);
+  const refs = rows.map((row) => opportunityRef(row));
+  const items = rows.map((row) => ({
+    source_id: row.source_id,
+    score: row.score,
+    verdict: row.verdict,
+    closes_at: iso(row.proposal_closes_at),
+    description: truncate(row.description),
+  }));
+
+  return { ok: true, data: { total: items.length, items }, refs };
+}
+
+async function explainOpportunity(
+  args: unknown,
+  ctx: ToolContext,
+): Promise<ToolResult> {
+  const sourceId = asString(asRecord(args).source_id);
+  if (!sourceId || !SOURCE_ID_RE.test(sourceId)) {
+    return { ok: false, error: ERROR_SOURCE_ID };
+  }
+
+  const row = await getOpportunity(ctx.companyId, sourceId);
+  if (row === null) return { ok: false, error: ERROR_OPPORTUNITY_NOT_FOUND };
+
+  const data = {
+    score: row.score,
+    reasons: row.reasons.map((reason) => ({
+      code: reason.code,
+      detail: reason.detail,
+    })),
+    verdict: row.verdict,
+    rationale: row.rationale ?? "sem recomendação ainda",
+    state: row.state,
+  };
+
+  return { ok: true, data, refs: [opportunityRef(row)] };
+}
+
 // ---------------------------------------------------------------------------
 // Declarations + dispatch
 // ---------------------------------------------------------------------------
@@ -524,6 +625,44 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       additionalProperties: false,
     },
   },
+  {
+    name: "list_opportunities",
+    description:
+      "Lista as oportunidades já analisadas pelo agente para a empresa logada (rodadas diárias de " +
+      "match), com score e situação. Use para 'o que você encontrou hoje', 'quais oportunidades' ou " +
+      "'o que apareceu' — o resumo diário é a fonte da verdade para 'hoje'.",
+    parameters: {
+      type: "object",
+      properties: {
+        view: {
+          type: "string",
+          enum: OPPORTUNITY_VIEWS as unknown as string[],
+          description:
+            "attention: só as que merecem atenção (score alto, padrão). all: todas. " +
+            "dismissed: as descartadas pelo usuário.",
+        },
+        limit: {
+          type: "integer",
+          description: `Quantidade de resultados (1 a ${MAX_LIMIT}, padrão ${DEFAULT_LIMIT}).`,
+        },
+      },
+      required: [],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "explain_opportunity",
+    description:
+      "Explica uma oportunidade específica já analisada pelo agente: score, motivos, e o parecer " +
+      "GO/NO-GO com a justificativa, quando houver. Use para 'por que essa?' ou 'por que essa " +
+      "licitação apareceu'.",
+    parameters: {
+      type: "object",
+      properties: { source_id: SOURCE_ID_PROPERTY },
+      required: ["source_id"],
+      additionalProperties: false,
+    },
+  },
 ];
 
 /**
@@ -548,6 +687,10 @@ export async function executeTool(
         return await calculateMatch(args, ctx);
       case "analyze_procurement":
         return await analyzeProcurement(args, ctx);
+      case "list_opportunities":
+        return await listOpportunitiesTool(args, ctx);
+      case "explain_opportunity":
+        return await explainOpportunity(args, ctx);
       default:
         return { ok: false, error: "ferramenta desconhecida" };
     }
