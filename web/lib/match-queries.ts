@@ -27,6 +27,10 @@ export type MatchFilters = {
   valueMax?: number;
   /** "Score exactly these" mode: `procurements.source_id` values. */
   sourceIds?: string[];
+  /** Batch mode (match-batch.ts): only procurements whose enrichment landed
+   * after this instant. Implies "enriched": the LEFT JOIN on
+   * `procurement_enrichments` becomes effectively an inner join for this run. */
+  enrichedSince?: Date;
 };
 
 export type MatchRow = {
@@ -197,6 +201,9 @@ export function buildCandidateQuery(
     `(${statuses.map((s) => `(${STATUS_PREDICATES[s]})`).join(" OR ")})`,
   );
 
+  if (filters.enrichedSince) {
+    conditions.push(`e.enriched_at > ${bind(filters.enrichedSince)}`);
+  }
   if (filters.states && filters.states.length > 0) {
     conditions.push(`p.state = ANY(${bind(filters.states)})`);
   }
@@ -334,19 +341,21 @@ function time(date: Date | null): number {
 
 /**
  * Scored matches for one company. `companyId` must always come from the
- * session — the tenant golden rule.
+ * session — the tenant golden rule. `candidateLimit` is the SQL-side cap; the
+ * batch (match-batch.ts) raises it, interactive callers keep the default.
  */
 export async function fetchMatches(
   companyId: number,
   filters: MatchFilters,
   limit = 20,
+  candidateLimit = CANDIDATE_LIMIT,
 ): Promise<MatchRow[]> {
   const profile = await loadProfileSummary(companyId);
   const query = buildCandidateQuery(
     companyId,
     filters,
     profile,
-    CANDIDATE_LIMIT,
+    candidateLimit,
     profile.embedding,
   );
   const { rows } = await pool.query<CandidateRow>(query.text, query.values);

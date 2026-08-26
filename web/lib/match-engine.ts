@@ -6,6 +6,11 @@
 // unit-testable and reproducible. On demand, never persisted — a just-edited
 // profile is reflected on the next request.
 
+/** Version of the weights below, stamped on every persisted `matches` row
+ * (ADR 001 §D5). Bump it whenever a weight or rule changes, so old scores stay
+ * interpretable and a rescore can be told apart from a rerun. */
+export const MATCH_ENGINE_VERSION = "1";
+
 export type ReasonCode =
   | "cnae_primary"
   | "cnae_secondary"
