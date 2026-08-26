@@ -159,6 +159,17 @@ describe("buildCandidateQuery", () => {
     );
   });
 
+  it("binds enrichedSince and requires a non-null enrichment row", () => {
+    const since = new Date("2026-08-01T00:00:00Z");
+    const q = buildCandidateQuery(1, { enrichedSince: since }, profile(), 200);
+    expect(q.text).toContain("e.enriched_at > $");
+    expect(q.values).toContainEqual(since);
+    expect(q.text).not.toContain("2026-08-01");
+
+    const without = buildCandidateQuery(1, {}, profile(), 200);
+    expect(without.text).not.toContain("e.enriched_at");
+  });
+
   it("binds every optional filter as a parameter", () => {
     const filters: MatchFilters = {
       q: "lapis",
@@ -335,6 +346,19 @@ describe("fetchMatches", () => {
     const rows = await fetchMatches(1, {}, 2);
 
     expect(rows).toHaveLength(2);
+  });
+
+  it("uses the default candidate cap and honours an explicit one", async () => {
+    mockCompany(profileRow, "ME", []);
+    await fetchMatches(1, {});
+    const [, defaultValues] = query.mock.calls[3];
+    expect(defaultValues[defaultValues.length - 1]).toBe(200);
+
+    query.mockReset();
+    mockCompany(profileRow, "ME", []);
+    await fetchMatches(1, {}, 1000, 500);
+    const [, values] = query.mock.calls[3];
+    expect(values[values.length - 1]).toBe(500);
   });
 
   it("scores an ME/EPP-exclusive procurement 40 lower for a LARGE company", async () => {
