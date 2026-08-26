@@ -1,7 +1,7 @@
 # STATE — rewrite after every ticket completes; never append. ≤30 lines total.
 
 ## Now
-- Cycle 20 (query-time semantic search, mvp): 96 done (1 attempt, 411 vitest). 97 (chat tool, sonnet) in progress; 98, 99 todo.
+- Cycle 20 (query-time semantic search, mvp): 96, 97 done (1 attempt each, 415 vitest). 98 (/procurements page, sonnet) in progress; 99 todo.
 
 ## Next
 - 97 chat `search_procurements` (sonnet) → 98 `/procurements` page (sonnet) → 99 docs (haiku). Then diff summary for approval 2/2.

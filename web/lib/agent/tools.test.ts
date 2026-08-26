@@ -18,6 +18,7 @@ vi.mock("../opportunity-queries", () => ({
   listOpportunities: vi.fn(),
   getOpportunity: vi.fn(),
 }));
+vi.mock("./embed", () => ({ embedQuery: vi.fn() }));
 
 import { getCompanyCnaes } from "../company-queries";
 import { fetchEnrichment } from "../enrichment-queries";
@@ -30,6 +31,7 @@ import {
 } from "../procurement-detail-queries";
 import { fetchProcurements } from "../procurement-queries";
 import { getProfile } from "../profile-queries";
+import { embedQuery } from "./embed";
 import {
   asIntArray,
   asNumber,
@@ -106,6 +108,7 @@ beforeEach(() => {
   mock(fetchEnrichment).mockResolvedValue(null);
   mock(listOpportunities).mockResolvedValue([]);
   mock(getOpportunity).mockResolvedValue(null);
+  mock(embedQuery).mockResolvedValue(null);
 });
 
 function opportunityRow(over: Record<string, unknown> = {}) {
@@ -251,6 +254,51 @@ describe("search_procurements", () => {
       ok: false,
       error: "falha ao consultar",
     });
+  });
+
+  it("embeds q once and passes the vector to fetchProcurements as the 5th arg", async () => {
+    mock(embedQuery).mockResolvedValue("[0.1,0.2,0.3]");
+
+    await executeTool("search_procurements", { q: "material escolar" }, CTX);
+
+    expect(embedQuery).toHaveBeenCalledTimes(1);
+    expect(embedQuery).toHaveBeenCalledWith("material escolar");
+    const call = mock(fetchProcurements).mock.calls[0];
+    expect(call[4]).toBe("[0.1,0.2,0.3]");
+  });
+
+  it("skips embedding when q is absent — 5th arg is undefined", async () => {
+    await executeTool("search_procurements", { states: ["rj"] }, CTX);
+
+    expect(embedQuery).not.toHaveBeenCalled();
+    const call = mock(fetchProcurements).mock.calls[0];
+    expect(call[4]).toBeUndefined();
+  });
+
+  it("degrades to keyword-only (5th arg null) when embedQuery resolves null", async () => {
+    mock(embedQuery).mockResolvedValue(null);
+
+    await executeTool("search_procurements", { q: "lápis" }, CTX);
+
+    expect(embedQuery).toHaveBeenCalledWith("lápis");
+    const call = mock(fetchProcurements).mock.calls[0];
+    expect(call[4]).toBeNull();
+  });
+
+  it("copies match_kind from the row onto the ref", async () => {
+    mock(fetchProcurements).mockResolvedValue({
+      rows: [procurementRow({ match_kind: "semantic", similarity: 0.82 })],
+      total: 1,
+    });
+
+    const res = await executeTool(
+      "search_procurements",
+      { q: "material escolar" },
+      CTX,
+    );
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(res.refs[0].match_kind).toBe("semantic");
   });
 });
 

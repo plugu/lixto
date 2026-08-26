@@ -33,6 +33,10 @@ export type ProcurementRef = {
   status: ProcurementStatus;
   score?: number;
   reasons?: Reason[];
+  /** How this row surfaced when the search embedded free text: matched the
+   * keyword/FTS branch, the semantic (vector) branch, or both. Absent when
+   * the row didn't come from a hybrid search. */
+  match_kind?: "keyword" | "semantic" | "both";
 };
 
 export type ToolResult =

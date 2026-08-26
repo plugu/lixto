@@ -35,6 +35,7 @@ import {
 import { getProfile } from "../profile-queries";
 import { computeProcurementStatus, type ProcurementStatus } from "../status";
 import { UF_LIST } from "../types";
+import { embedQuery } from "./embed";
 import type {
   ProcurementRef,
   ToolContext,
@@ -178,6 +179,8 @@ type RefSource = {
   estimated_value: string | null;
   proposal_opens_at: Date | null;
   proposal_closes_at: Date | null;
+  /** Only `ProcurementRow` (hybrid search) carries this; absent elsewhere. */
+  match_kind?: "keyword" | "semantic" | "both" | null;
 };
 
 function toRef(
@@ -197,6 +200,7 @@ function toRef(
       row.proposal_opens_at,
       row.proposal_closes_at,
     ),
+    ...(row.match_kind ? { match_kind: row.match_kind } : {}),
     ...(extra ?? {}),
   };
 }
@@ -246,7 +250,14 @@ function asOpportunityView(value: unknown): OpportunityView {
 
 async function searchProcurements(args: unknown): Promise<ToolResult> {
   const { filters, limit } = parseSearchArgs(args, ["open"]);
-  const { rows, total } = await fetchProcurements(filters, limit, 0);
+  const qEmbedding = filters.q ? await embedQuery(filters.q) : undefined;
+  const { rows, total } = await fetchProcurements(
+    filters,
+    limit,
+    0,
+    undefined,
+    qEmbedding,
+  );
   const refs = rows.map((row) => toRef(row));
   return { ok: true, data: { total, items: refs }, refs };
 }
@@ -558,8 +569,11 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     name: "search_procurements",
     description:
       "Busca licitações públicas por texto, UF, modalidade, faixa de valor e situação. " +
-      "Use quando o usuário quiser encontrar oportunidades em geral, sem pedir avaliação " +
-      "de compatibilidade com a empresa dele.",
+      "A busca por texto é semântica: encontra sinônimos e paráfrases mesmo sem palavras " +
+      "em comum (ex.: \"material escolar\" encontra \"cadernos e lápis\"), então passe o " +
+      "termo como o usuário disse, sem reescrever em palavras-chave. Use quando o usuário " +
+      "quiser encontrar oportunidades em geral, sem pedir avaliação de compatibilidade " +
+      "com a empresa dele.",
     parameters: {
       type: "object",
       properties: searchProperties("[\"open\"]"),
