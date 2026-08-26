@@ -1,10 +1,11 @@
 # STATE — rewrite after every ticket completes; never append. ≤30 lines total.
 
 ## Now
-- Cycle 18 running. Done: 74,75,76,79,80,81,82,83 (all 1–2 attempts). Running in worktrees: 77 (plans), 78 (contracts, slow PNCP probe).
+- Cycle 18: all code tickets 74–83, 85–89 done; reviewer pass done (18 findings → 87–89, all fixed). Main green: pytest 275 (+14 DDL-backed integration), vitest 328, tsc, build. Remaining: 84 infra cutover (orchestrator + user approvals, no prod ingestion) → approval 3/3.
 
 ## Next
-- After 77+78 merge: 85 purge → 86 docs → reviewer pass (production) → 84 infra cutover (orchestrator + user approvals; no prod ingestion) → approval 3/3.
+- 84: provision DB `lixto` on pg-shared → GitHub rename → Dokploy project `lixto` (lixto-web, lixto-cli, schedules disabled) → push + deploy → smoke → decommission legacy (separate approval).
+- Then /forge:idea cycle 19: proactive agent mode (batch match, opportunities, daily digest) per docs/VISION.md §12.
 
 ## Decisions
 - No prod backfill/sync/enrich in cycle 18 (user decision 2026-08-25): schedules created disabled; ingestion starts only after the user re-reviews docs/VISION.md.
