@@ -68,7 +68,7 @@ export async function embedText(
   }
 
   try {
-    const res = await client.embeddings.create({ model, input: trimmed });
+    const res = await client.embeddings.create({ model, input: trimmed, dimensions: EMBED_DIMS });
     const vector = res.data?.[0]?.embedding;
     if (!Array.isArray(vector) || vector.length === 0) {
       console.warn("[embed] response carried no embedding");

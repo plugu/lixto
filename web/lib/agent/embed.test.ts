@@ -80,6 +80,7 @@ describe("embedText", () => {
     expect(create).toHaveBeenCalledWith({
       model: "text-embedding-3-small",
       input: "material escolar",
+      dimensions: 1536,
     });
   });
 
@@ -150,6 +151,7 @@ describe("embedQuery", () => {
     expect(create).toHaveBeenCalledWith({
       model: EMBED_MODEL,
       input: "material escolar",
+      dimensions: 1536,
     });
   });
 
