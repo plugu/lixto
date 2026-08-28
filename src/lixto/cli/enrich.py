@@ -50,6 +50,14 @@ def run_cmd(
         conn.close()
 
     typer.echo(f"enriched: {result['processed']} (done {result['done']}, error {result['error']})")
+    typer.echo(
+        f"usage: {result.get('llm_calls', 0)} calls, "
+        f"{result.get('llm_prompt_tokens', 0)} prompt + "
+        f"{result.get('llm_completion_tokens', 0)} completion tokens, "
+        f"est US$ {result.get('est_usd', 0.0):.4f}"
+    )
+    if result.get("cap_reached"):
+        typer.echo(f"daily cap reached (cap {result.get('cap')})")
     if result["error"] > 0 and result["done"] == 0:
         typer.echo(
             "no procurement enriched successfully — check the LLM provider key/URL",

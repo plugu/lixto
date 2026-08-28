@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from typing import Any
 
 import httpx
@@ -28,12 +29,16 @@ import psycopg
 from lixto.enrich.documents import DOWNLOAD_TIMEOUT, extract_for_procurement, pick_documents
 from lixto.enrich.embed import build_embedding_text, to_pgvector
 from lixto.enrich.schema import ENRICHMENT_SCHEMA, SCHEMA_VERSION, validate_payload
+from lixto.fence import Fence, get_fence
 from lixto.llm import LlmClient
 from lixto.runs import RunCounters
 
 logger = logging.getLogger(__name__)
 
 BATCH_LIMIT_DEFAULT = 200
+
+# Rows/day across every `enrich run` invocation; 0 or unset means unlimited.
+LIXTO_ENRICH_DAILY_CAP = "LIXTO_ENRICH_DAILY_CAP"
 MAX_ITEMS = 40
 ITEM_CHARS = 160
 DESCRIPTION_CHARS = 2000
@@ -194,6 +199,30 @@ SET model = EXCLUDED.model,
 # drop it when no new one was produced, which puts the row back in
 # `lixto enrich embed`'s queue.
 _DELETE_EMBEDDING_SQL = "DELETE FROM procurement_embeddings WHERE procurement_id = %(id)s"
+
+# All statuses count against the cap — a row that errored still cost tokens.
+_USED_TODAY_SQL = (
+    "SELECT count(*) FROM procurement_enrichments WHERE enriched_at >= date_trunc('day', now())"
+)
+
+
+def _daily_cap() -> int:
+    """`LIXTO_ENRICH_DAILY_CAP` rows/day across all `enrich run` invocations;
+    0 or unset means unlimited."""
+    raw = os.environ.get(LIXTO_ENRICH_DAILY_CAP, "0")
+    try:
+        return int(raw)
+    except ValueError:
+        return 0
+
+
+def _pending_sql(fence: Fence) -> str:
+    """`_SELECT_PENDING_SQL` with the fence predicate spliced in before
+    `ORDER BY`; unchanged when the fence is inactive."""
+    fragment, _ = fence.sql("p")
+    if not fragment:
+        return _SELECT_PENDING_SQL
+    return _SELECT_PENDING_SQL.replace("\nORDER BY", fragment + "\nORDER BY", 1)
 
 
 def fetch_items(conn: psycopg.Connection, procurement_id: int) -> list[dict[str, Any]]:
@@ -487,6 +516,24 @@ def enrich_one(
         return "error"
 
 
+def _apply_usage(counters: RunCounters, llm: LlmClient) -> dict[str, Any]:
+    """Folds `llm.usage_summary()` into `counters` and returns the run's
+    final result dict (counters plus `est_usd`, a float — USD stays as
+    integer micros in the persisted counters so they remain whole numbers)."""
+    s = llm.usage_summary()
+    counters["llm_calls"] = s["calls"]
+    counters["llm_prompt_tokens"] = s["prompt_tokens"]
+    counters["llm_completion_tokens"] = s["completion_tokens"]
+    counters["llm_est_usd_micros"] = s["est_usd_micros"]
+    if s["unpriced_models"]:
+        counters["llm_unpriced_models"] = len(s["unpriced_models"])
+        logger.warning("unpriced models in usage: %s", s["unpriced_models"])
+
+    result = counters.as_dict()
+    result["est_usd"] = s["est_usd_micros"] / 1_000_000
+    return result
+
+
 def enrich(
     conn: psycopg.Connection,
     *,
@@ -496,28 +543,67 @@ def enrich(
     llm: LlmClient | None = None,
     http_client: httpx.Client | None = None,
     counters: RunCounters | None = None,
-) -> dict[str, int]:
-    """Enriches pending open procurements one at a time, committing after
-    each so the run is resumable. Returns {processed, done, error}."""
+    fence: Fence | None = None,
+) -> dict[str, Any]:
+    """Enriches pending open procurements in the fence, one at a time,
+    committing after each so the run is resumable, until the effective limit
+    (min of `--limit` and what's left of the daily cap) is exhausted. Returns
+    counters (processed, done, error, cap, used_today_at_start, cap_reached,
+    llm_*) plus `est_usd`."""
     llm = llm or LlmClient()
     owns_http_client = http_client is None
     http_client = http_client or httpx.Client()
+    fence = fence if fence is not None else get_fence()
 
     counters = counters if counters is not None else RunCounters()
     for key in ("processed", "done", "error"):
         counters[key] = counters.get(key)
 
+    cap = _daily_cap()
+    counters["cap"] = cap
+    counters["cap_reached"] = 0
+
     try:
+        used_today = 0
+        if cap > 0:
+            with conn.cursor() as cur:
+                cur.execute(_USED_TODAY_SQL)
+                used_today = cur.fetchone()[0]
+        counters["used_today_at_start"] = used_today
+
+        requested_limit = limit if limit is not None else BATCH_LIMIT_DEFAULT
+        effective_limit = requested_limit
+        cap_limited = False
+
+        if cap > 0:
+            remaining = cap - used_today
+            if remaining <= 0:
+                counters["cap_reached"] = 1
+                logger.info(
+                    "daily cap %d reached (%d enriched today); nothing to do",
+                    cap,
+                    used_today,
+                )
+                return _apply_usage(counters, llm)
+            effective_limit = min(requested_limit, remaining)
+            cap_limited = effective_limit < requested_limit
+
+        sql = _pending_sql(fence)
+        _, fence_params = fence.sql("p")
         with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
             cur.execute(
-                _SELECT_PENDING_SQL,
+                sql,
                 {
-                    "limit": limit if limit is not None else BATCH_LIMIT_DEFAULT,
+                    "limit": effective_limit,
                     "days": days,
                     "retry_errors": retry_errors,
+                    **fence_params,
                 },
             )
             rows = cur.fetchall()
+
+        if cap_limited and len(rows) >= effective_limit:
+            counters["cap_reached"] = 1
 
         for row in rows:
             status = enrich_one(conn, row, llm=llm, http_client=http_client)
@@ -534,4 +620,4 @@ def enrich(
         if owns_http_client:
             http_client.close()
 
-    return counters.as_dict()
+    return _apply_usage(counters, llm)

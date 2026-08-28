@@ -21,6 +21,15 @@ from lixto.enrich.worker import (
     enrich,
     enrich_one,
 )
+from lixto.fence import Fence
+
+
+@pytest.fixture(autouse=True)
+def _unlimited_cap(monkeypatch):
+    """Most tests care about neither the daily cap nor the fence; keep both
+    inert unless a test explicitly overrides them."""
+    monkeypatch.setattr(worker, "_daily_cap", lambda: 0)
+    monkeypatch.setattr(worker, "get_fence", lambda: Fence((), (), False))
 
 
 def _row(procurement_id=1):
@@ -83,11 +92,22 @@ def _payload():
     }
 
 
-def _llm(payload=None, model="cheap-model"):
+def _usage(calls=0, prompt_tokens=0, completion_tokens=0, est_usd_micros=0, unpriced_models=None):
+    return {
+        "calls": calls,
+        "prompt_tokens": prompt_tokens,
+        "completion_tokens": completion_tokens,
+        "est_usd_micros": est_usd_micros,
+        "unpriced_models": unpriced_models or [],
+    }
+
+
+def _llm(payload=None, model="cheap-model", usage=None):
     llm = MagicMock()
     llm.complete_json_text.return_value = (payload or _payload(), model)
     llm.complete_json_pdf.return_value = (payload or _payload(), "doc-model")
     llm.embed.side_effect = lambda texts: ([[0.5] * 4 for _ in texts], "embed-model")
+    llm.usage_summary.return_value = usage or _usage()
     return llm
 
 
@@ -458,7 +478,10 @@ def test_enrich_passes_days_and_retry_errors_to_sql(patched):
 
     result = enrich(conn, limit=7, days=30, retry_errors=True, llm=_llm(), http_client=MagicMock())
 
-    assert result == {"processed": 0, "done": 0, "error": 0}
+    assert result["processed"] == 0
+    assert result["done"] == 0
+    assert result["error"] == 0
+    assert result["cap_reached"] == 0
     params = select_cur.execute.call_args.args[1]
     assert params["limit"] == 7
     assert params["days"] == 30
@@ -484,7 +507,10 @@ def test_enrich_fills_the_run_counters(patched):
 
     enrich(conn, llm=_llm(), http_client=MagicMock(), counters=counters)
 
-    assert counters.as_dict() == {"processed": 1, "done": 1, "error": 0}
+    result = counters.as_dict()
+    assert result["processed"] == 1
+    assert result["done"] == 1
+    assert result["error"] == 0
 
 
 def test_enrich_isolates_a_failing_row_and_continues(patched):
@@ -492,9 +518,184 @@ def test_enrich_isolates_a_failing_row_and_continues(patched):
     llm = MagicMock()
     llm.complete_json_text.side_effect = [RuntimeError("boom"), (_payload(), "cheap-model")]
     llm.embed.side_effect = lambda texts: ([[0.5] * 4 for _ in texts], "embed-model")
+    llm.usage_summary.return_value = _usage()
 
     result = enrich(conn, llm=llm, http_client=MagicMock())
 
-    assert result == {"processed": 2, "done": 1, "error": 1}
+    assert result["processed"] == 2
+    assert result["done"] == 1
+    assert result["error"] == 1
     assert _enrichment_params(persist_curs[0])["status"] == "error"
     assert _enrichment_params(persist_curs[1])["status"] == "done"
+
+
+# --- fence ------------------------------------------------------------
+
+
+def test_pending_sql_is_unchanged_for_an_inactive_fence():
+    assert worker._pending_sql(Fence((), (), False)) == worker._SELECT_PENDING_SQL
+
+
+def test_pending_sql_splices_the_fence_before_order_by():
+    fence = Fence(portals=("compras.gov.br",), modalities=(6, 8), open_only=True)
+
+    sql = worker._pending_sql(fence)
+
+    assert "p.origin_system = ANY(%(fence_portals)s)" in sql
+    assert "p.modality_id = ANY(%(fence_modalities)s)" in sql
+    assert sql.index("fence_portals") < sql.index("ORDER BY")
+
+
+def test_enrich_merges_fence_params_into_the_select(patched):
+    conn, select_cur, _ = _conn_for_enrich([])
+    fence = Fence(portals=("compras.gov.br",), modalities=(6,), open_only=True)
+
+    enrich(conn, llm=_llm(), http_client=MagicMock(), fence=fence)
+
+    sql, params = select_cur.execute.call_args.args
+    assert "fence_portals" in sql
+    assert params["fence_portals"] == ["compras.gov.br"]
+    assert params["fence_modalities"] == [6]
+
+
+def test_enrich_defaults_to_get_fence_when_not_given(monkeypatch, patched):
+    fence = Fence(portals=("ecustomize",), modalities=(), open_only=False)
+    monkeypatch.setattr(worker, "get_fence", lambda: fence)
+    conn, select_cur, _ = _conn_for_enrich([])
+
+    enrich(conn, llm=_llm(), http_client=MagicMock())
+
+    _sql, params = select_cur.execute.call_args.args
+    assert params["fence_portals"] == ["ecustomize"]
+    assert "fence_modalities" not in params
+
+
+# --- daily cap ----------------------------------------------------------
+
+
+def _conn_used_today(count):
+    used_cur = MagicMock()
+    used_cur.fetchone.return_value = (count,)
+    conn = MagicMock()
+    conn.cursor.return_value.__enter__.side_effect = [used_cur]
+    conn.cursor.return_value.__exit__.return_value = False
+    return conn, used_cur
+
+
+def test_cap_reached_skips_the_select_entirely(monkeypatch, patched):
+    monkeypatch.setattr(worker, "_daily_cap", lambda: 1500)
+    conn, used_cur = _conn_used_today(1500)
+
+    result = enrich(conn, llm=_llm(), http_client=MagicMock())
+
+    assert result["cap"] == 1500
+    assert result["used_today_at_start"] == 1500
+    assert result["cap_reached"] == 1
+    assert result["processed"] == 0
+    used_cur.execute.assert_called_once_with(worker._USED_TODAY_SQL)
+    assert conn.cursor.call_count == 1  # only the used-today count, no select
+
+
+def test_effective_limit_is_cap_minus_used(monkeypatch, patched):
+    monkeypatch.setattr(worker, "_daily_cap", lambda: 10)
+    used_cur = MagicMock()
+    used_cur.fetchone.return_value = (7,)
+    select_cur = MagicMock()
+    select_cur.fetchall.return_value = []
+    conn = MagicMock()
+    conn.cursor.return_value.__enter__.side_effect = [used_cur, select_cur]
+    conn.cursor.return_value.__exit__.return_value = False
+
+    result = enrich(conn, limit=50, llm=_llm(), http_client=MagicMock())
+
+    params = select_cur.execute.call_args.args[1]
+    assert params["limit"] == 3
+    assert result["cap_reached"] == 0
+
+
+def test_cap_reached_when_the_selected_rows_hit_the_effective_limit(monkeypatch, patched):
+    monkeypatch.setattr(worker, "_daily_cap", lambda: 10)
+    used_cur = MagicMock()
+    used_cur.fetchone.return_value = (9,)  # remaining = 1
+    select_cur = MagicMock()
+    select_cur.fetchall.return_value = [_row(1)]
+    items_cur = MagicMock()
+    items_cur.fetchall.return_value = []
+    persist_cur = MagicMock()
+    conn = MagicMock()
+    conn.cursor.return_value.__enter__.side_effect = [used_cur, select_cur, items_cur, persist_cur]
+    conn.cursor.return_value.__exit__.return_value = False
+
+    result = enrich(conn, llm=_llm(), http_client=MagicMock())
+
+    assert result["processed"] == 1
+    assert result["cap_reached"] == 1
+
+
+def test_cap_not_reached_when_fewer_rows_than_the_effective_limit(monkeypatch, patched):
+    monkeypatch.setattr(worker, "_daily_cap", lambda: 10)
+    used_cur = MagicMock()
+    used_cur.fetchone.return_value = (0,)  # remaining = 10, well above what's available
+    select_cur = MagicMock()
+    select_cur.fetchall.return_value = [_row(1)]
+    items_cur = MagicMock()
+    items_cur.fetchall.return_value = []
+    persist_cur = MagicMock()
+    conn = MagicMock()
+    conn.cursor.return_value.__enter__.side_effect = [used_cur, select_cur, items_cur, persist_cur]
+    conn.cursor.return_value.__exit__.return_value = False
+
+    result = enrich(conn, limit=1, llm=_llm(), http_client=MagicMock())
+
+    # limit=1 equals the effective limit but wasn't reduced by the cap
+    assert result["cap_reached"] == 0
+
+
+def test_unlimited_cap_never_queries_used_today(patched):
+    conn, _select_cur, _ = _conn_for_enrich([])
+
+    result = enrich(conn, llm=_llm(), http_client=MagicMock())
+
+    assert result["cap"] == 0
+    assert result["used_today_at_start"] == 0
+    assert conn.cursor.call_count == 1  # just the select, no used-today count
+
+
+# --- usage counters -------------------------------------------------------
+
+
+def test_enrich_reports_llm_usage_in_counters(patched):
+    conn, _select_cur, _ = _conn_for_enrich([_row(1)])
+    llm = _llm(
+        usage=_usage(calls=3, prompt_tokens=1000, completion_tokens=200, est_usd_micros=4500)
+    )
+
+    result = enrich(conn, llm=llm, http_client=MagicMock())
+
+    assert result["llm_calls"] == 3
+    assert result["llm_prompt_tokens"] == 1000
+    assert result["llm_completion_tokens"] == 200
+    assert result["llm_est_usd_micros"] == 4500
+    assert result["est_usd"] == pytest.approx(0.0045)
+
+
+def test_enrich_logs_unpriced_models(patched, caplog):
+    conn, _select_cur, _ = _conn_for_enrich([])
+    llm = _llm(usage=_usage(unpriced_models=["gemini-2.5-flash-lite"]))
+
+    with caplog.at_level("WARNING"):
+        result = enrich(conn, llm=llm, http_client=MagicMock())
+
+    assert result["llm_unpriced_models"] == 1
+    assert "gemini-2.5-flash-lite" in caplog.text
+
+
+def test_cap_reached_run_still_reports_usage_keys(monkeypatch, patched):
+    monkeypatch.setattr(worker, "_daily_cap", lambda: 1)
+    conn, _used_cur = _conn_used_today(1)
+    llm = _llm(usage=_usage(calls=0))
+
+    result = enrich(conn, llm=llm, http_client=MagicMock())
+
+    assert result["llm_calls"] == 0
+    assert result["est_usd"] == 0.0
