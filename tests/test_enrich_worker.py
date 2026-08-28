@@ -18,6 +18,7 @@ from lixto.enrich.worker import (
     INSTRUCTIONS,
     MAX_ITEMS,
     build_prompt,
+    derive_me_epp,
     enrich,
     enrich_one,
 )
@@ -83,8 +84,6 @@ def _payload():
         ],
         "requires_certification": False,
         "requires_technical_certificate": False,
-        "me_epp_exclusive": True,
-        "me_epp_preference": False,
         "delivery": {"location": "Rio de Janeiro", "deadline_days": 30},
         "risks": ["prazo curto"],
         "complexity": "low",
@@ -111,15 +110,18 @@ def _llm(payload=None, model="cheap-model", usage=None):
     return llm
 
 
-def _conn(items):
+def _conn(items, benefit_ids=None):
     """Cursor order inside enrich_one (with extract_for_procurement patched):
-    fetch_items (select), then _persist (one cursor for the transaction)."""
+    fetch_benefit_ids (select), fetch_items (select), then _persist (one
+    cursor for the transaction)."""
+    benefits_cur = MagicMock()
+    benefits_cur.fetchall.return_value = [(b,) for b in (benefit_ids or [])]
     items_cur = MagicMock()
     items_cur.fetchall.return_value = items
     persist_cur = MagicMock()
 
     conn = MagicMock()
-    conn.cursor.return_value.__enter__.side_effect = [items_cur, persist_cur]
+    conn.cursor.return_value.__enter__.side_effect = [benefits_cur, items_cur, persist_cur]
     conn.cursor.return_value.__exit__.return_value = False
     return conn, persist_cur
 
@@ -159,10 +161,16 @@ def test_retry_errors_predicate_reopens_error_rows():
 def test_instructions_name_every_payload_field():
     for field in _payload():
         assert field in INSTRUCTIONS
-    assert "48" in INSTRUCTIONS  # Lei 123 art. 48 I (ME/EPP exclusive)
     assert "0000-0/00" in INSTRUCTIONS
     for value in ("low", "medium", "high", "tax_compliance", "site_visit"):
         assert value in INSTRUCTIONS
+
+
+def test_instructions_no_longer_ask_for_me_epp():
+    """me_epp_exclusive / me_epp_preference are Tier-0 (derive_me_epp from
+    procurement_items.benefit_type_id); the LLM is no longer asked."""
+    assert "me_epp_exclusive" not in INSTRUCTIONS
+    assert "me_epp_preference" not in INSTRUCTIONS
 
 
 # --- build_prompt --------------------------------------------------------
@@ -300,7 +308,7 @@ def test_no_docs_routes_to_structured(patched):
 
 def test_enrichment_row_carries_the_validated_payload(patched):
     patched.docs = []
-    conn, persist_cur = _conn([])
+    conn, persist_cur = _conn([], benefit_ids=[1, 1])
 
     enrich_one(conn, _row(7), llm=_llm(), http_client=MagicMock())
 
@@ -311,7 +319,9 @@ def test_enrichment_row_carries_the_validated_payload(patched):
     assert params["concepts"] == ["lapis"]
     assert params["risks"] == ["prazo curto"]
     assert params["complexity"] == "low"
+    # me_epp is derived from procurement_items.benefit_type_id, not payload.
     assert params["me_epp_exclusive"] is True
+    assert params["me_epp_preference"] is False
     assert params["delivery_location"] == "Rio de Janeiro"
     assert params["delivery_deadline_days"] == 30
     assert json.loads(params["data"]) == validate_payload(_payload())
@@ -451,6 +461,63 @@ def test_sdk_exception_persists_error_row(patched):
     conn.commit.assert_called()
 
 
+# --- Tier-0 ME/EPP (derive_me_epp / _persist) -----------------------------
+
+
+@pytest.mark.parametrize(
+    "benefit_ids, expected",
+    [
+        ([1, 1, 1], (True, False)),
+        ([1, 4], (False, True)),
+        ([3, 4], (False, True)),
+        ([4, 5], (False, False)),
+        ([], (None, None)),
+        ([None, None], (None, None)),
+    ],
+)
+def test_derive_me_epp_truth_table(benefit_ids, expected):
+    assert derive_me_epp(benefit_ids) == expected
+
+
+def test_persist_writes_derived_me_epp_regardless_of_payload():
+    """_persist writes the derived me_epp tuple even when the payload dict
+    still carries stale me_epp_* keys (a model that ignores the new schema)."""
+    persist_cur = MagicMock()
+    conn = MagicMock()
+    conn.cursor.return_value.__enter__.return_value = persist_cur
+    conn.cursor.return_value.__exit__.return_value = False
+
+    worker._persist(
+        conn,
+        1,
+        status="done",
+        input_kind="structured",
+        model="m",
+        error=None,
+        payload={"me_epp_exclusive": False, "me_epp_preference": True},
+        me_epp=(True, False),
+    )
+
+    params = _enrichment_params(persist_cur)
+    assert params["me_epp_exclusive"] is True
+    assert params["me_epp_preference"] is False
+
+
+def test_persist_defaults_me_epp_to_none_none():
+    persist_cur = MagicMock()
+    conn = MagicMock()
+    conn.cursor.return_value.__enter__.return_value = persist_cur
+    conn.cursor.return_value.__exit__.return_value = False
+
+    worker._persist(
+        conn, 1, status="error", input_kind="structured", model=None, error="x", payload=None
+    )
+
+    params = _enrichment_params(persist_cur)
+    assert params["me_epp_exclusive"] is None
+    assert params["me_epp_preference"] is None
+
+
 # --- enrich orchestration ------------------------------------------------
 
 
@@ -461,11 +528,13 @@ def _conn_for_enrich(rows):
     cursors = [select_cur]
     persist_curs = []
     for _ in rows:
+        benefits_cur = MagicMock()
+        benefits_cur.fetchall.return_value = []
         items_cur = MagicMock()
         items_cur.fetchall.return_value = []
         persist_cur = MagicMock()
         persist_curs.append(persist_cur)
-        cursors.extend([items_cur, persist_cur])
+        cursors.extend([benefits_cur, items_cur, persist_cur])
 
     conn = MagicMock()
     conn.cursor.return_value.__enter__.side_effect = cursors
@@ -619,11 +688,19 @@ def test_cap_reached_when_the_selected_rows_hit_the_effective_limit(monkeypatch,
     used_cur.fetchone.return_value = (9,)  # remaining = 1
     select_cur = MagicMock()
     select_cur.fetchall.return_value = [_row(1)]
+    benefits_cur = MagicMock()
+    benefits_cur.fetchall.return_value = []
     items_cur = MagicMock()
     items_cur.fetchall.return_value = []
     persist_cur = MagicMock()
     conn = MagicMock()
-    conn.cursor.return_value.__enter__.side_effect = [used_cur, select_cur, items_cur, persist_cur]
+    conn.cursor.return_value.__enter__.side_effect = [
+        used_cur,
+        select_cur,
+        benefits_cur,
+        items_cur,
+        persist_cur,
+    ]
     conn.cursor.return_value.__exit__.return_value = False
 
     result = enrich(conn, llm=_llm(), http_client=MagicMock())
@@ -638,11 +715,19 @@ def test_cap_not_reached_when_fewer_rows_than_the_effective_limit(monkeypatch, p
     used_cur.fetchone.return_value = (0,)  # remaining = 10, well above what's available
     select_cur = MagicMock()
     select_cur.fetchall.return_value = [_row(1)]
+    benefits_cur = MagicMock()
+    benefits_cur.fetchall.return_value = []
     items_cur = MagicMock()
     items_cur.fetchall.return_value = []
     persist_cur = MagicMock()
     conn = MagicMock()
-    conn.cursor.return_value.__enter__.side_effect = [used_cur, select_cur, items_cur, persist_cur]
+    conn.cursor.return_value.__enter__.side_effect = [
+        used_cur,
+        select_cur,
+        benefits_cur,
+        items_cur,
+        persist_cur,
+    ]
     conn.cursor.return_value.__exit__.return_value = False
 
     result = enrich(conn, limit=1, llm=_llm(), http_client=MagicMock())

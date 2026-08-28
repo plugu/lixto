@@ -1,6 +1,6 @@
 ---
 id: 106
-status: todo
+status: doing
 model: haiku
 depends_on: [102, 103, 104, 105]
 max_attempts: 3

@@ -35,8 +35,6 @@ def test_schema_keys_are_english_and_match_the_columns():
         "requirements",
         "requires_certification",
         "requires_technical_certificate",
-        "me_epp_exclusive",
-        "me_epp_preference",
         "delivery",
         "risks",
         "complexity",
@@ -46,6 +44,15 @@ def test_schema_keys_are_english_and_match_the_columns():
     assert cnae["required"] == ["code", "confidence"]
     requirement = ENRICHMENT_SCHEMA["properties"]["requirements"]["items"]
     assert requirement["required"] == ["kind", "description"]
+
+
+def test_schema_no_longer_requires_me_epp_fields():
+    """me_epp_exclusive / me_epp_preference are Tier-0 since cycle 21:
+    derived from procurement_items.benefit_type_id, not asked of the LLM."""
+    assert "me_epp_exclusive" not in ENRICHMENT_SCHEMA["properties"]
+    assert "me_epp_preference" not in ENRICHMENT_SCHEMA["properties"]
+    assert "me_epp_exclusive" not in ENRICHMENT_SCHEMA["required"]
+    assert "me_epp_preference" not in ENRICHMENT_SCHEMA["required"]
 
 
 def test_enums_match_the_database_checks():
@@ -163,3 +170,12 @@ def test_validate_payload_clamps_confidence():
     assert validate_payload(_payload(confidence=3))["confidence"] == 1.0
     assert validate_payload(_payload(confidence=-1))["confidence"] == 0.0
     assert validate_payload(_payload(confidence=True))["confidence"] is None
+
+
+def test_validate_payload_drops_me_epp_fields_even_if_a_model_still_emits_them():
+    """me_epp_exclusive / me_epp_preference are Tier-0 (worker.derive_me_epp);
+    validate_payload tolerates a stray model response that still includes
+    them by dropping rather than erroring on them."""
+    out = validate_payload(_payload())
+    assert "me_epp_exclusive" not in out
+    assert "me_epp_preference" not in out

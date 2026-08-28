@@ -75,11 +75,6 @@ description curta em português.
 - requires_certification: true se o edital exige certificação/registro \
 específico do produto ou do fornecedor.
 - requires_technical_certificate: true se exige atestado de capacidade técnica.
-- me_epp_exclusive: true SOMENTE quando o edital diz que a participação é \
-exclusiva de microempresas e empresas de pequeno porte (Lei 123/2006, \
-art. 48, I). Cota reservada ou empate ficto não contam.
-- me_epp_preference: true quando há benefício/preferência a ME/EPP sem \
-exclusividade (cota de 25%, direito de preferência, empate ficto).
 - delivery: location (local de entrega/execução) e deadline_days (prazo em \
 dias). Use location "" e deadline_days -1 quando o edital não informar.
 - risks: cláusulas restritivas, exigências incomuns, prazos apertados ou \
@@ -122,11 +117,17 @@ LIMIT %(limit)s
 """
 
 _SELECT_ITEMS_SQL = """
-SELECT description, quantity, unit, estimated_unit_price, kind
+SELECT description, quantity, unit, estimated_unit_price, kind, benefit_type_id
 FROM procurement_items
 WHERE procurement_id = %(procurement_id)s
 ORDER BY item_number
 LIMIT %(max_items)s
+"""
+
+# Unlike _SELECT_ITEMS_SQL (capped at MAX_ITEMS for the prompt), the ME/EPP
+# flags are derived from every item on the procurement, so this has no LIMIT.
+_SELECT_BENEFITS_SQL = """
+SELECT benefit_type_id FROM procurement_items WHERE procurement_id = %(procurement_id)s
 """
 
 _UPSERT_ENRICHMENT_SQL = """
@@ -231,6 +232,33 @@ def fetch_items(conn: psycopg.Connection, procurement_id: int) -> list[dict[str,
         return cur.fetchall()
 
 
+def fetch_benefit_ids(conn: psycopg.Connection, procurement_id: int) -> list[int | None]:
+    """`benefit_type_id` of every item on the procurement (no MAX_ITEMS cap),
+    the input to `derive_me_epp`."""
+    with conn.cursor() as cur:
+        cur.execute(_SELECT_BENEFITS_SQL, {"procurement_id": procurement_id})
+        return [row[0] for row in cur.fetchall()]
+
+
+def derive_me_epp(benefit_ids: list[int | None]) -> tuple[bool | None, bool | None]:
+    """`(me_epp_exclusive, me_epp_preference)` from PNCP `tipoBeneficioId`
+    per item (1 = participação exclusiva, 2 = subcontratação, 3 = cota
+    reservada, 4 = sem benefício, 5 = não se aplica):
+
+    - no items, or every id is null -> (None, None): nothing to derive from.
+    - every non-null id == 1 -> (True, False): whole procurement is exclusive.
+    - otherwise -> (False, preference), where preference is True when any
+      item carries id 1, 2 or 3 — a benefit exists somewhere, just not on
+      every item, so it reads as a preference rather than exclusivity.
+    """
+    ids = [b for b in benefit_ids if b is not None]
+    if not ids:
+        return None, None
+    if all(b == 1 for b in ids):
+        return True, False
+    return False, any(b in (1, 2, 3) for b in ids)
+
+
 def _format_item(index: int, item: dict[str, Any]) -> str:
     description = (item.get("description") or "(sem descrição)").strip()[:ITEM_CHARS]
     parts = [f"{index}. {description}"]
@@ -244,8 +272,22 @@ def _format_item(index: int, item: dict[str, Any]) -> str:
     return " — ".join(parts)
 
 
+def _benefit_line(me_epp: tuple[bool | None, bool | None]) -> str | None:
+    """One prompt line summarizing the derived ME/EPP flags so the model can
+    weigh them in `risks`/`requirements`; None when there's nothing derived
+    (no items / no benefit data)."""
+    exclusive, preference = me_epp
+    if exclusive is None and preference is None:
+        return None
+    label = "exclusivo" if exclusive else ("cota reservada" if preference else "nenhum")
+    return f"Benefício ME/EPP (PNCP): {label}"
+
+
 def build_prompt(
-    row: dict[str, Any], items: list[dict[str, Any]], docs: list[dict[str, Any]]
+    row: dict[str, Any],
+    items: list[dict[str, Any]],
+    docs: list[dict[str, Any]],
+    me_epp: tuple[bool | None, bool | None] = (None, None),
 ) -> str:
     """Structured summary of the procurement plus, when available, the pypdf
     text of its edital documents capped at CONTEXT_TEXT_CHARS."""
@@ -266,6 +308,9 @@ def build_prompt(
         lines.append(f"SRP (registro de preços): {'sim' if row['is_price_registry'] else 'não'}")
     if row.get("proposal_closes_at"):
         lines.append(f"Encerramento das propostas: {row['proposal_closes_at']}")
+    benefit_line = _benefit_line(me_epp)
+    if benefit_line:
+        lines.append(benefit_line)
 
     if items:
         lines.append("")
@@ -331,13 +376,19 @@ def _persist(
     model: str | None,
     error: str | None,
     payload: dict[str, Any] | None,
+    me_epp: tuple[bool | None, bool | None] = (None, None),
     embedding: str | None = None,
     embedding_model: str | None = None,
 ) -> None:
     """Writes the enrichment row and its four facet tables in one
-    transaction, so readers never see half an enrichment."""
+    transaction, so readers never see half an enrichment. `me_epp` — from
+    `derive_me_epp(fetch_benefit_ids(...))` — is written for
+    `me_epp_exclusive`/`me_epp_preference` regardless of what (if anything)
+    the LLM payload says, since those two flags are Tier-0 (deterministic
+    from `procurement_items.benefit_type_id`)."""
     payload = payload or {}
     delivery = payload.get("delivery") or {}
+    me_epp_exclusive, me_epp_preference = me_epp
     params = {
         "procurement_id": procurement_id,
         "schema_version": SCHEMA_VERSION,
@@ -353,8 +404,8 @@ def _persist(
         "complexity": payload.get("complexity"),
         "requires_certification": payload.get("requires_certification"),
         "requires_technical_certificate": payload.get("requires_technical_certificate"),
-        "me_epp_exclusive": payload.get("me_epp_exclusive"),
-        "me_epp_preference": payload.get("me_epp_preference"),
+        "me_epp_exclusive": me_epp_exclusive,
+        "me_epp_preference": me_epp_preference,
         "delivery_location": delivery.get("location"),
         "delivery_deadline_days": delivery.get("deadline_days"),
         "data": json.dumps(payload),
@@ -439,10 +490,12 @@ def enrich_one(
     to pick it back up)."""
     procurement_id = row["id"]
     input_kind = "structured"
+    me_epp: tuple[bool | None, bool | None] = (None, None)
     try:
+        me_epp = derive_me_epp(fetch_benefit_ids(conn, procurement_id))
         docs = extract_for_procurement(conn, procurement_id, http_client)
         items = fetch_items(conn, procurement_id)
-        prompt = build_prompt(row, items, docs)
+        prompt = build_prompt(row, items, docs, me_epp=me_epp)
 
         pdfs: list[dict[str, Any]] | None = None
         if any(d.get("method") == "pypdf" for d in docs):
@@ -479,6 +532,7 @@ def enrich_one(
                 model=model,
                 error="resposta inválida",
                 payload=None,
+                me_epp=me_epp,
             )
             return "error"
 
@@ -491,6 +545,7 @@ def enrich_one(
             model=model,
             error=None,
             payload=payload,
+            me_epp=me_epp,
             embedding=embedding,
             embedding_model=embedding_model,
         )
@@ -509,6 +564,7 @@ def enrich_one(
                 model=None,
                 error=str(exc)[:2000],
                 payload=None,
+                me_epp=me_epp,
             )
         except Exception:
             logger.exception("failed to persist error status for %s", procurement_id)

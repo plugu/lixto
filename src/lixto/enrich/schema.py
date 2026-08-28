@@ -10,6 +10,12 @@ source material is. Normalization is a contract: the match engine compares a
 company's terms with `procurement_enrichments.keywords/concepts` and
 `procurement_categories.category` using Postgres `&&`/`=`, so both sides MUST
 be normalized by `normalize_term` here.
+
+`me_epp_exclusive` / `me_epp_preference` are Tier-0 since cycle 21: derived
+deterministically in `lixto.enrich.worker` from
+`procurement_items.benefit_type_id` (PNCP `tipoBeneficio`) rather than asked
+of the LLM, so this schema no longer requires (or even accepts) them from a
+model response. The two columns on `procurement_enrichments` are unchanged.
 """
 
 from __future__ import annotations
@@ -75,8 +81,6 @@ ENRICHMENT_SCHEMA: dict[str, Any] = {
         },
         "requires_certification": {"type": "boolean"},
         "requires_technical_certificate": {"type": "boolean"},
-        "me_epp_exclusive": {"type": "boolean"},
-        "me_epp_preference": {"type": "boolean"},
         # Strict json_schema forbids optional keys, so unknowns are encoded as
         # sentinels: deadline_days = -1 and location = "" (-> None here).
         "delivery": {
@@ -101,8 +105,6 @@ ENRICHMENT_SCHEMA: dict[str, Any] = {
         "requirements",
         "requires_certification",
         "requires_technical_certificate",
-        "me_epp_exclusive",
-        "me_epp_preference",
         "delivery",
         "risks",
         "complexity",
@@ -239,8 +241,10 @@ def validate_payload(payload: Any) -> dict[str, Any] | None:
         "requirements": _clean_requirements(payload.get("requirements")),
         "requires_certification": _as_bool(payload.get("requires_certification")),
         "requires_technical_certificate": _as_bool(payload.get("requires_technical_certificate")),
-        "me_epp_exclusive": _as_bool(payload.get("me_epp_exclusive")),
-        "me_epp_preference": _as_bool(payload.get("me_epp_preference")),
+        # me_epp_exclusive / me_epp_preference are Tier-0 (worker.derive_me_epp
+        # from procurement_items.benefit_type_id): dropped here even if a
+        # model still emits them, since ENRICHMENT_SCHEMA no longer lists
+        # them as valid properties.
         "delivery": _clean_delivery(payload.get("delivery")),
         "risks": _clean_strings(payload.get("risks")),
         "complexity": complexity,
