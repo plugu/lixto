@@ -7,9 +7,13 @@ backlog and every sync watermark, as one plain-text block. Read-only.
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 
 import psycopg
+
+from lixto.enrich.worker import LIXTO_ENRICH_DAILY_CAP
+from lixto.fence import get_fence
 
 # Every table this cycle's syncs write. Counted with one query each (all are
 # cheap index-only counts next to the sync itself).
@@ -45,6 +49,48 @@ FROM procurements
 """
 
 
+_ENRICHED_TODAY_SQL = (
+    "SELECT count(*), count(*) FILTER (WHERE status='error') "
+    "FROM procurement_enrichments WHERE enriched_at >= date_trunc('day', now())"
+)
+
+_LLM_TODAY_SQL = """
+SELECT
+    coalesce(sum((counters->>'llm_calls')::bigint), 0),
+    coalesce(sum((counters->>'llm_prompt_tokens')::bigint), 0),
+    coalesce(sum((counters->>'llm_completion_tokens')::bigint), 0),
+    coalesce(sum((counters->>'llm_est_usd_micros')::bigint), 0)
+FROM agent_runs
+WHERE kind = 'enrich' AND started_at >= date_trunc('day', now())
+"""
+
+_LLM_LAST_7D_SQL = """
+SELECT coalesce(sum((counters->>'llm_est_usd_micros')::bigint), 0)
+FROM agent_runs
+WHERE kind = 'enrich' AND started_at >= now() - interval '7 days'
+"""
+
+
+def _daily_cap() -> int:
+    """`LIXTO_ENRICH_DAILY_CAP` rows/day; 0 or unset means unlimited."""
+    raw = os.environ.get(LIXTO_ENRICH_DAILY_CAP, "0")
+    try:
+        return int(raw)
+    except ValueError:
+        return 0
+
+
+_FENCED_PENDING_SQL = """
+SELECT count(*)
+FROM procurements p
+WHERE (p.proposal_closes_at >= now() OR p.proposal_opens_at > now())
+  AND NOT EXISTS (
+        SELECT 1 FROM procurement_enrichments e
+        WHERE e.procurement_id = p.id
+      )
+"""
+
+
 @dataclass
 class StatusReport:
     table_counts: dict[str, int] = field(default_factory=dict)
@@ -55,6 +101,13 @@ class StatusReport:
     pending_details: int = 0
     watermarks: dict[str, str | None] = field(default_factory=dict)
     newest_source_global_updated_at: str | None = None
+    fence: str = ""
+    enrich_daily_cap: int = 0
+    enriched_today: int = 0
+    enriched_today_errors: int = 0
+    llm_today: dict[str, int] = field(default_factory=dict)
+    llm_last_7d_est_usd_micros: int = 0
+    fenced_pending: int = 0
 
 
 def get_status(conn: psycopg.Connection) -> StatusReport:
@@ -90,6 +143,20 @@ def get_status(conn: psycopg.Connection) -> StatusReport:
         cur.execute("SELECT max(source_global_updated_at) FROM procurements")
         newest = cur.fetchone()[0]
 
+        cur.execute(_ENRICHED_TODAY_SQL)
+        enriched_today, enriched_today_errors = cur.fetchone()
+
+        cur.execute(_LLM_TODAY_SQL)
+        llm_calls, llm_prompt_tokens, llm_completion_tokens, llm_est_usd_micros = cur.fetchone()
+
+        cur.execute(_LLM_LAST_7D_SQL)
+        (llm_last_7d_est_usd_micros,) = cur.fetchone()
+
+        fence = get_fence()
+        fence_fragment, fence_params = fence.sql("p")
+        cur.execute(_FENCED_PENDING_SQL + fence_fragment, fence_params)
+        (fenced_pending,) = cur.fetchone()
+
     return StatusReport(
         table_counts=table_counts,
         by_modality=by_modality,
@@ -99,6 +166,18 @@ def get_status(conn: psycopg.Connection) -> StatusReport:
         pending_details=pending_details,
         watermarks=watermarks,
         newest_source_global_updated_at=newest.isoformat() if newest else None,
+        fence=fence.describe(),
+        enrich_daily_cap=_daily_cap(),
+        enriched_today=enriched_today,
+        enriched_today_errors=enriched_today_errors,
+        llm_today={
+            "calls": llm_calls,
+            "prompt_tokens": llm_prompt_tokens,
+            "completion_tokens": llm_completion_tokens,
+            "est_usd_micros": llm_est_usd_micros,
+        },
+        llm_last_7d_est_usd_micros=llm_last_7d_est_usd_micros,
+        fenced_pending=fenced_pending,
     )
 
 
@@ -119,4 +198,27 @@ def format_status(report: StatusReport) -> str:
     else:
         lines.append("  (none)")
     lines.append(f"newest source_global_updated_at: {report.newest_source_global_updated_at}")
+
+    cap = "unlimited" if report.enrich_daily_cap == 0 else str(report.enrich_daily_cap)
+    llm_today = report.llm_today
+    llm_today_usd = llm_today.get("est_usd_micros", 0) / 1_000_000
+    llm_7d_usd = report.llm_last_7d_est_usd_micros / 1_000_000
+    today_line = (
+        f"  today: {report.enriched_today} enriched ({report.enriched_today_errors} errors)"
+        f" / cap {cap}"
+    )
+    llm_today_line = (
+        f"  llm today: {llm_today.get('calls', 0)} calls, "
+        f"{llm_today.get('prompt_tokens', 0)} prompt + "
+        f"{llm_today.get('completion_tokens', 0)} completion tokens, "
+        f"est US$ {llm_today_usd:.4f}"
+    )
+    lines += [
+        "enrichment:",
+        f"  fence: {report.fence}",
+        today_line,
+        f"  pending in fence: {report.fenced_pending}",
+        llm_today_line,
+        f"  llm last 7 days: est US$ {llm_7d_usd:.2f}",
+    ]
     return "\n".join(lines)
