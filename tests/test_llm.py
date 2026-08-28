@@ -618,3 +618,12 @@ def test_pdf_primary_file_rejection_short_circuits_to_fallback():
     llm.complete_json_pdf(instructions="i", prompt="p", pdfs=pdfs, schema=SCHEMA, name="t")
     assert primary.chat.completions.create.call_count == 1  # not called again
     assert fallback.chat.completions.create.call_count == 2
+
+
+def test_reasoning_effort_minimal_only_for_gpt5_models():
+    client = _client(chat_return=_chat_response('{"a": "x"}'))
+    llm = _llm(client, cheap="gpt-5-mini", strong="gemini-3.7-flash")
+    llm.complete_json_text(tier="cheap", instructions="i", prompt="p", schema=SCHEMA, name="t")
+    assert client.chat.completions.create.call_args.kwargs["reasoning_effort"] == "minimal"
+    llm.complete_json_text(tier="strong", instructions="i", prompt="p", schema=SCHEMA, name="t")
+    assert "reasoning_effort" not in client.chat.completions.create.call_args.kwargs

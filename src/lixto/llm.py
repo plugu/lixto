@@ -61,6 +61,7 @@ FALLBACK_MODEL_STRONG = os.environ.get("LIXTO_LLM_FALLBACK_MODEL_STRONG") or Non
 EMBED_DIMS = 1536
 EMBED_BATCH = 100
 EMBED_CHARS = 8_000
+REASONING_EFFORT_OPENAI = os.environ.get("LIXTO_LLM_OPENAI_REASONING_EFFORT", "minimal")
 
 # (input, output) USD per 1M tokens. Embedding models price input only.
 # Unknown models are billed as 0 and reported by `unpriced_models()`.
@@ -389,17 +390,23 @@ class LlmClient:
         schema: dict[str, Any],
         name: str,
     ) -> dict[str, Any] | None:
-        response = client.chat.completions.create(
-            model=model,
-            messages=[
+        kwargs: dict[str, Any] = {
+            "model": model,
+            "messages": [
                 {"role": "system", "content": instructions},
                 {"role": "user", "content": content},
             ],
-            response_format={
+            "response_format": {
                 "type": "json_schema",
                 "json_schema": {"name": name, "strict": True, "schema": schema},
             },
-        )
+        }
+        # gpt-5 family bills hidden reasoning tokens as output ($2/M on
+        # gpt-5-mini); this is structured extraction, so ask for the minimum.
+        # Only OpenAI models understand the knob — Gemini's endpoint rejects it.
+        if model.startswith("gpt-5"):
+            kwargs["reasoning_effort"] = REASONING_EFFORT_OPENAI
+        response = client.chat.completions.create(**kwargs)
         self._record_usage(model, response)
         return _loads(_chat_content(response))
 
