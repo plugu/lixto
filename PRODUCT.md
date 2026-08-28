@@ -4,28 +4,28 @@ routing_profile: cloud
 parallel_default: parallel
 ---
 
-# Lixto — query-time semantic search (cycle 20)
+# Lixto — cost-fenced go-live (cycle 21)
 
 ## What / why
-Lixto already stores a 1536-d vector per procurement (`procurement_embeddings`, HNSW cosine) but uses it only for profile × procurement matching. Free-text search — the `search_procurements` chat tool and the `/procurements` page — is still keyword-only (FTS/ILIKE), so "material escolar para crianças" misses a procurement for "cadernos e lápis". The vision (§7, §11) calls for embedding the user's free text and retrieving by meaning. This cycle closes that gap using the existing table and model tier (`LIXTO_LLM_MODEL_EMBED`) — no new infrastructure, no schema change.
+Cycles 18–20 built the whole pipeline (sync → enrich → match → recommend → digest → semantic search) but production has never ingested a row: all schedules are disabled and no LLM key is set. The blocker is cost uncertainty — enrichment is the only LLM spend, and today `lixto enrich run` would spend on every open procurement from 257 portals (~6,300/day nationally, ~$12/1k on OpenAI). This cycle turns production on with the spend fenced by construction, all data coming from PNCP ingestion (nothing from the legacy database).
 
-1. **Hybrid retrieval, one builder.** When a search carries free text, embed it once and build candidates as FTS hits ∪ vector top-K (cosine ≥ minimum, both constants alongside `SEMANTIC_TOP_K`/`SEMANTIC_MIN` in `match-queries.ts`). Structured filters (UF, modalidade, faixa de valor, situação, dates) stay hard SQL `WHERE` clauses applied to both branches. Ranking = reciprocal-rank fusion of the two lists; deterministic, no LLM. Queries without free text are unchanged. If the embedding call fails, fall back to FTS-only and log — search never errors because of the embedder.
-2. **Two callers, same builder.** `search_procurements` (`web/lib/agent/tools.ts`) and the `/procurements` list query call the same hybrid query builder with bound params. Results expose why a row surfaced (`keyword`, `semantic`, or both) so the chat can say "encontrei por similaridade".
-3. **Embeddings as part of the pipeline.** `lixto enrich run` already embeds inline (`worker.py` → `_embed_payload`) and `lixto enrich embed` backfills rows whose inline call failed. What's missing is operational: the Dokploy `enrich-embed` schedule is manual-only (`0 0 31 2 *`) — this cycle gives it a real cadence after `enrich-run` so failures self-heal, and documents the search path. No code change on the Python side unless a test reveals a gap.
-
-Guardrails from the vision: deterministic first (fusion, not LLM re-ranking); process once globally (one vector per procurement, reused by matching and search); no LLM SQL (builder with bound params); pgvector only, no separate vector store.
+1. **Ingest everything, enrich a fence.** `sync incremental` keeps pulling all portals/modalities (HTTP + storage only). Details (items/documents) and enrichment run only for the **fence**: `origin_system` in top-3 portals (Compras.gov.br, ECustomize, IPM Sistemas), modality 6 (Pregão eletrônico) or 8 (Dispensa), and open/upcoming (`proposal_closes_at >= now() OR proposal_opens_at > now()`). Fence is config (env), not code.
+2. **45-day backfill from today backwards.** `lixto sync backfill --days 45` pages `/contratacoes/publicacao` per fenced modality, then details + enrichment drain the fenced open set closing-soonest first. Legacy run-rate says ≈ 8–10k rows one-off, ≈ 1,500/day after.
+3. **Hard daily cap + usage.** `LIXTO_ENRICH_DAILY_CAP=1500` rows/day across all runs; when reached the run stops and says so. Every LLM call records prompt/completion tokens, model and estimated USD in `agent_runs` counters; `lixto status` shows today's enriched / cap / tokens / est. $. Cap can't be exceeded by scheduling more runs.
+4. **Gemini for all tiers, OpenAI fallback.** Primary provider Gemini via the OpenAI-compatible endpoint: cheap = `gemini-2.5-flash-lite`, doc/strong = `gemini-2.5-flash`, embed = `gemini-embedding-001` at 1536 dims. Doc tier moves off the OpenAI Responses API to chat completions with inline PDFs. A second provider (`LIXTO_LLM_FALLBACK_BASE_URL/API_KEY/MODEL_*`) is used per call when the primary errors; embeddings never fall back across providers (vectors must share one model). Keys are an operator step at run time (Gemini key to be supplied; OpenAI key from hackiv's Dokploy env).
+5. **Tier-0 ME/EPP from items.** `me_epp_exclusive` / `me_epp_preference` derive deterministically from `procurement_items.benefit_type_id` (PNCP `tipoBeneficio`: 1 exclusive, 2 subcontracting, 3 reserved quota) when the enrichment row is written (same tables, no DDL); the LLM schema drops those two fields. Match engine and recommendations read the derived values.
+6. **Enable schedules** in order: sync-incremental → enrich-run → enrich-embed → match-run → recommend-run; plans/contracts stay disabled.
 
 ## Primary user story
-As a user searching for opportunities, I type what I sell in my own words — in chat or in the `/procurements` box — and get procurements that mean the same thing even when they use different words, still respecting my UF/value/status filters, so I stop missing opportunities that don't share my vocabulary.
+As the operator, I turn ingestion on and know that Lixto will enrich at most 1,500 fenced open procurements per day on Gemini, see today's spend in `lixto status`, and within 24 h a test company's digest shows real opportunities — without ever touching the legacy database.
 
 ## Out of scope
-- Item-level embeddings / `search_items` tool
-- LLM re-ranking or query rewriting
-- Full-history embedding backfill beyond the scheduled catch-up job
-- Golden-set recall evaluation (manual demo only)
-- Streaming chat; notifications; prepare/execute; learning from feedback
-- Plans/contracts in search or matching
-- Richer profile fields
+- Plans/contracts sync (per-page watermark), results sync enablement
+- Notifications (email/WhatsApp), prepare/execute, learning loop
+- Metadata-only / two-stage enrichment (edital read at recommend time)
+- Other Tier-0 fields (lot structure, deadline pressure, judging criterion), doc-checklist enum, schema v1.1
+- Mistral OCR or any provider beyond Gemini + OpenAI fallback
+- Local/Ollama lane
 
 ## Success demo
-Done when I can ask the chat "material escolar para crianças" and get the "cadernos e lápis" procurement (no shared keyword), see the same result list from the `/procurements` search box with a UF filter applied, and find a procurement ingested today searchable after the next `enrich run` without running `enrich embed` by hand.
+Done when schedules are enabled in Dokploy and, 24 h later, `lixto status` in prod shows fenced open procurements enriched on Gemini with tokens and estimated $ under the 1,500/day cap, a test company's `/lixto` digest lists real opportunities, and their ME/EPP flags come from `benefit_type_id` rather than the LLM.
