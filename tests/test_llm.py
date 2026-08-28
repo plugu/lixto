@@ -589,3 +589,32 @@ def test_prices_cover_the_configured_provider_models():
         "text-embedding-3-small",
     ):
         assert model in llm_module.PRICES_USD_PER_M
+
+
+def test_pdf_primary_file_rejection_short_circuits_to_fallback():
+    """Gemini's endpoint 400s on `file` parts: after the first rejection the
+    doc tier goes straight to the fallback client without paying a failed
+    primary call."""
+    primary = MagicMock()
+    primary.chat.completions.create.side_effect = Exception(
+        "Error code: 400 - Invalid content part type: file"
+    )
+    fallback = MagicMock()
+    fallback.chat.completions.create.return_value = _chat_response('{"ok": true}')
+    llm = LlmClient(
+        client=primary,
+        fallback_client=fallback,
+        doc="gemini-3.7-flash",
+        fallback_doc="gpt-5-mini",
+    )
+    pdfs = [{"filename": "e.pdf", "content": b"%PDF-1.1"}]
+    out, model = llm.complete_json_pdf(
+        instructions="i", prompt="p", pdfs=pdfs, schema=SCHEMA, name="t"
+    )
+    assert out == {"ok": True} and model == "gpt-5-mini"
+    assert primary.chat.completions.create.call_count == 1
+    assert llm._primary_rejects_files is True
+
+    llm.complete_json_pdf(instructions="i", prompt="p", pdfs=pdfs, schema=SCHEMA, name="t")
+    assert primary.chat.completions.create.call_count == 1  # not called again
+    assert fallback.chat.completions.create.call_count == 2

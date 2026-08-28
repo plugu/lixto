@@ -775,13 +775,23 @@ AI procurement operator.**
 - Rows carry `match_kind` ('keyword'/'semantic'/'both') so chat/UI can explain hits
 - Backfill schedule: `enrich-embed` runs 15 min after `enrich-run` (45 7,14,21 * * *) to heal ingestion-time failures
 
+### Cycle 21 — Cost-fenced go-live (built)
+
+**Completed**:
+- Cost fence: details + enrichment restricted to top-3 portals, modalities 6/8, open/upcoming status via env config (§1, §2)
+- Hard daily cap: `LIXTO_ENRICH_DAILY_CAP` rows/day; stops when reached with visibility (§3)
+- Gemini primary + OpenAI fallback: `LIXTO_LLM_BASE_URL` points to Gemini's OpenAI-compatible endpoint; doc tier uses chat completions with inline PDF `file` parts (§4)
+- Tier-0 ME/EPP: derived from `procurement_items.benefit_type_id` at enrichment write time; LLM schema drops these fields (§5)
+- Cost reporting: `lixto status` shows today's tokens/USD and last 7 days' total (§3)
+- Go-live runbook: `lixto backfill --days 45 → enrich run (cap) → enable schedules in order` (README.md)
+- Prod ingestion schedules enabled (user decision in Dokploy; §6)
+
 ### Cycle 20+ roadmap
 
 **High priority** (needed for production feedback loop):
 - Email/WhatsApp/push notifications for new attention-scoring opportunities
 - Prepare/execute workflows with human approval (via `agent_actions`)
 - Learning from feedback: use acceptance/dismissal patterns to improve ranking and recommendations
-- Enable prod ingestion schedules (user decision in Dokploy)
 
 **Medium priority**:
 - Additional chat tools (`search_items`, `get_documents`, `compare_procurements`, `prepare_participation`)

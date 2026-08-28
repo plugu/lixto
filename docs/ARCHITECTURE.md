@@ -32,23 +32,46 @@ procurement_embeddings (pgvector, 1536 dims)
 
 ## LLM Strategy
 
-**Principle**: Route by task complexity, not cost alone. Three tier environment variables, one fallback.
+**Principle**: Route by task complexity, not cost alone. Primary provider (Gemini) with per-call fallback (OpenAI).
 
-| Tier | Model Env | Purpose | Input | Example |
+| Tier | Primary | Fallback | Purpose | Input |
 |---|---|---|---|---|
-| Cheap | `LIXTO_LLM_MODEL_CHEAP` | Text classification, keywords, categories | Clean text, structured metadata | `gpt-4o-mini` |
-| Doc | `LIXTO_LLM_MODEL_DOC` | PDF analysis (multimodal) | Scanned PDFs, complex layouts | `gpt-4o` (OpenAI Responses API only) |
-| Strong | `LIXTO_LLM_MODEL_STRONG` | Deep reasoning (reserved) | Full context for complex analysis | `gpt-4o` |
-| Fallback | `LIXTO_LLM_MODEL_FALLBACK` (optional) | Retry on primary tier failure | Any | `gpt-4o-mini` |
-| Embed | `LIXTO_LLM_MODEL_EMBED` | Embeddings (1536-dim vectors) | Concatenated enrichment text | `text-embedding-3-small` |
+| Cheap | `gemini-3.5-flash-lite` | `gpt-5-mini` | Text classification, keywords, categories | Clean text, structured metadata |
+| Doc | `gemini-3.7-flash` | `gpt-5-mini` | PDF analysis (inline file parts) | Scanned PDFs, complex layouts |
+| Strong | `gemini-3.7-flash` | `gpt-5.1` | Deep reasoning (reserved) | Full context for complex analysis |
+| Embed | `gemini-embedding-001` | none | Embeddings (1536-dim vectors, pinned) | Concatenated enrichment text |
+
+**Provider configuration**:
+- **Primary**: `LIXTO_LLM_BASE_URL` (default: Gemini's OpenAI-compatible endpoint) + `LIXTO_LLM_API_KEY` (Gemini key)
+- **Fallback**: `LIXTO_LLM_FALLBACK_BASE_URL` (default: OpenAI) + `LIXTO_LLM_FALLBACK_API_KEY` (OpenAI key) + `LIXTO_LLM_FALLBACK_MODEL_*` tier models
+- **Embeddings never fall back**: all vectors must come from the same model; changing `LIXTO_LLM_MODEL_EMBED` after ingestion requires full re-embedding
+
+**PDF handling**: Doc tier uses chat completions with inline base64 `file` content parts (not OpenAI Responses API).
 
 **Routing logic** (`src/lixto/enrich/worker.py`):
 1. If the procurement has no edital text (structured metadata only) → cheap tier.
 2. If text extraction succeeded → cheap tier.
-3. If text extraction failed (scanned PDF) → doc tier (OpenAI Responses API).
-4. On tier failure, retry once with fallback if configured.
+3. If text extraction failed (scanned PDF) → doc tier with PDF files.
+4. On tier failure, retry once with fallback provider if configured.
 
 Provider is abstracted (`LIXTO_LLM_BASE_URL`, OpenAI-compatible interface); switching providers is an env change.
+
+## Cost Fence
+
+Production ingestion is cost-fenced to keep enrichment spend within bounds.
+
+**Ingestion stays unfenced**: `lixto sync incremental` fetches all portals, modalities, and statuses via PNCP's `/atualizacao` (HTTP only, no LLM cost).
+
+**Details + enrichment are fenced**: Details fetch and enrichment only process procurements matching all three criteria:
+- `origin_system` in `LIXTO_FENCE_PORTALS` (top-3 portals by default: Compras.gov.br, ECustomize, IPM)
+- `modality_id` in `LIXTO_FENCE_MODALITIES` (modalities 6 and 8: Pregão eletrônico, Dispensa)
+- `LIXTO_FENCE_OPEN_ONLY=1` restricts to open/upcoming (`proposal_closes_at >= now() OR proposal_opens_at > now()`)
+
+**Hard daily cap**: `LIXTO_ENRICH_DAILY_CAP` limits enrichment rows written per day across all runs. When reached, `lixto enrich run` stops and says so. Every LLM call records prompt/completion tokens and estimated USD in `agent_runs.counters`.
+
+**Cost reporting**: `lixto status` shows today's enriched/cap/tokens/estimated USD and last 7 days' total USD (integrates `agent_runs` counters).
+
+**Configuration**: All limits are env config, not code — flip them to widen/narrow the fence without a deploy.
 
 ## Match Engine (Deterministic Scoring)
 
@@ -178,7 +201,7 @@ Every newly enriched procurement is automatically evaluated against every compan
 ```json
 {
   "schema_version": "1.0",
-  "model": "gpt-4o-mini",
+  "model": "gemini-3.5-flash-lite",
   "confidence": 0.92,
   "status": "done",  // or "error"
   "input_kind": "text",  // "structured" | "text" | "pdf"
@@ -190,13 +213,15 @@ Every newly enriched procurement is automatically evaluated against every compan
   "complexity": "low",  // "low" | "medium" | "high"
   "requires_certification": false,
   "requires_technical_certificate": false,
-  "me_epp_exclusive": false,
-  "me_epp_preference": true,
   "delivery_location": "São Paulo, SP",
   "delivery_deadline_days": 30,
   "data": { /* full canonical payload */ }
 }
 ```
+
+**Tier-0 fields** (deterministic, derived from `procurement_items.benefit_type_id` at enrichment write time):
+- `me_epp_exclusive` (bool) — `true` if any item has `benefit_type_id = 1` (exclusive)
+- `me_epp_preference` (bool) — `true` if any item has `benefit_type_id ∈ {2, 3}` (subcontracting or reserved quota)
 
 Facet tables link back to `procurements`:
 - `procurement_categories` — normalized categories
@@ -251,7 +276,10 @@ See `docs/PNCP_API.md` for DTO field mappings.
 ### Key Environment Variables
 
 - `LIXTO_DATABASE_URL` — PostgreSQL connection (default: local via docker-compose)
-- `LIXTO_LLM_*` — Tiered model configuration (see LLM Strategy section)
+- `LIXTO_LLM_BASE_URL`, `LIXTO_LLM_API_KEY`, `LIXTO_LLM_MODEL_*` — Primary LLM provider (see LLM Strategy section)
+- `LIXTO_LLM_FALLBACK_*` — Fallback provider when primary errors (see LLM Strategy section)
+- `LIXTO_FENCE_PORTALS`, `LIXTO_FENCE_MODALITIES`, `LIXTO_FENCE_OPEN_ONLY` — Cost fence scope (see Cost Fence section)
+- `LIXTO_ENRICH_DAILY_CAP` — Daily enrichment row limit (see Cost Fence section)
 - `LIXTO_IBGE_CNAE_URL` — CNAE seed source
 - `LIXTO_MIN_REQUEST_INTERVAL` — Seconds between PNCP HTTP requests (default 0.5)
 - `UPLOADS_DIR` — Document storage

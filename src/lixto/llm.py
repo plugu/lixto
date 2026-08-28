@@ -65,9 +65,18 @@ EMBED_CHARS = 8_000
 # (input, output) USD per 1M tokens. Embedding models price input only.
 # Unknown models are billed as 0 and reported by `unpriced_models()`.
 PRICES_USD_PER_M: dict[str, tuple[float, float]] = {
+    # Gemini list prices, verified 2026-08-28 (ai.google.dev/gemini-api/docs/pricing).
+    # 2.5 models are retired for new keys; 3.6/3.7 Flash are promo-priced through 2026-12-31.
     "gemini-2.5-flash-lite": (0.10, 0.40),
     "gemini-2.5-flash": (0.30, 2.50),
+    "gemini-3.1-flash-lite": (0.25, 1.50),
+    "gemini-3.5-flash-lite": (0.30, 2.50),
+    "gemini-3.5-flash": (1.50, 9.00),
+    "gemini-3.6-flash": (0.75, 3.75),
+    "gemini-3.7-flash": (0.75, 3.75),
     "gemini-embedding-001": (0.15, 0.0),
+    "gemini-embedding-2": (0.20, 0.0),
+    "gpt-5-nano": (0.05, 0.40),
     "gpt-5-mini": (0.25, 2.00),
     "gpt-5.1": (1.25, 10.00),
     "gpt-5": (1.25, 10.00),
@@ -183,6 +192,7 @@ class LlmClient:
             fallback_strong if fallback_strong is not None else FALLBACK_MODEL_STRONG
         )
         self.embed_model = embed or MODEL_EMBED
+        self._primary_rejects_files = False
         self.usage: dict[str, dict[str, int]] = {}
 
     # --- models ----------------------------------------------------------
@@ -288,8 +298,10 @@ class LlmClient:
         name: str,
     ) -> tuple[dict[str, Any] | None, str]:
         """Doc tier: the same Chat Completions json_schema call with the PDFs
-        inlined as base64 `file` content parts, which Gemini's and OpenAI's
-        OpenAI-compatible endpoints both accept."""
+        inlined as base64 `file` content parts (OpenAI). Gemini's compatible
+        endpoint rejects `file` parts with 400 "Invalid content part type";
+        the first such rejection flips `_primary_rejects_files` so later PDFs
+        go straight to the fallback route instead of paying a failed call."""
         content: list[dict[str, Any]] = []
         for pdf in pdfs:
             b64 = base64.b64encode(pdf["content"]).decode("ascii")
@@ -304,14 +316,27 @@ class LlmClient:
             )
         content.append({"type": "text", "text": prompt})
 
-        return self._complete(
-            tier="doc",
-            model=self.doc,
-            content=content,
-            instructions=instructions,
-            schema=schema,
-            name=name,
-        )
+        if self._primary_rejects_files:
+            route = self._fallback_route("doc")
+            if route is not None:
+                client, fallback_model = route
+                return (
+                    self._chat_json(client, fallback_model, instructions, content, schema, name),
+                    fallback_model,
+                )
+        try:
+            return self._complete(
+                tier="doc",
+                model=self.doc,
+                content=content,
+                instructions=instructions,
+                schema=schema,
+                name=name,
+            )
+        except Exception as exc:
+            if "Invalid content part type" in str(exc):
+                self._primary_rejects_files = True
+            raise
 
     def _complete(
         self,
@@ -327,7 +352,9 @@ class LlmClient:
         route (second provider, else second model on the same client)."""
         try:
             payload = self._chat_json(self.client, model, instructions, content, schema, name)
-        except Exception:
+        except Exception as exc:
+            if tier == "doc" and "Invalid content part type" in str(exc):
+                self._primary_rejects_files = True
             route = self._fallback_route(tier)
             if route is None:
                 raise

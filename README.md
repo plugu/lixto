@@ -90,17 +90,25 @@ Opens at `http://localhost:3000`. Routes:
 | `LIXTO_DATABASE_URL` | PostgreSQL | `postgresql://lixto:lixto@localhost:5433/lixto` |
 | `LIXTO_INTERNAL_TOKEN` | Shared secret for batch endpoints (`/api/internal/*`); same value on web + CLI | — (required in prod) |
 | `LIXTO_WEB_INTERNAL_URL` | Base URL of the web app's internal batch endpoints (CLI only) | `http://localhost:3000` (dev), `http://lixto-web-evs842:3000` (prod) |
-| `LIXTO_LLM_BASE_URL` | LLM provider base URL (OpenAI-compatible) | `https://api.openai.com/v1` |
-| `LIXTO_LLM_API_KEY` | API key (fallback: `OPENAI_API_KEY`) | — |
-| `LIXTO_LLM_MODEL_CHEAP` | Text classification model | `gpt-5-mini` |
-| `LIXTO_LLM_MODEL_DOC` | PDF parsing model (Responses API) | `gpt-5.1` |
-| `LIXTO_LLM_MODEL_STRONG` | Deep reasoning model | `gpt-5.1` |
-| `LIXTO_LLM_MODEL_FALLBACK` | Retry tier (optional) | — |
-| `LIXTO_LLM_MODEL_EMBED` | Embedding model (1536 dims) | `text-embedding-3-small` |
-| `LIXTO_CHAT_MODEL` | Chat agent model | `gpt-5-mini` |
-| `LIXTO_RECOMMEND_MODEL` | Recommendation model (GO/NO-GO, Tier-3) | `gpt-5.1` |
+| `LIXTO_LLM_BASE_URL` | Primary LLM provider base URL (OpenAI-compatible) | `https://generativelanguage.googleapis.com/v1beta/openai/` (Gemini) |
+| `LIXTO_LLM_API_KEY` | Primary provider API key | — (Gemini key) |
+| `LIXTO_LLM_MODEL_CHEAP` | Text classification model | `gemini-3.5-flash-lite` |
+| `LIXTO_LLM_MODEL_DOC` | PDF parsing model (chat completions with file parts) | `gemini-3.7-flash` |
+| `LIXTO_LLM_MODEL_STRONG` | Deep reasoning model | `gemini-3.7-flash` |
+| `LIXTO_LLM_MODEL_EMBED` | Embedding model (1536 dims, never falls back) | `gemini-embedding-001` |
+| `LIXTO_CHAT_MODEL` | Chat agent model | `gemini-3.7-flash` |
+| `LIXTO_RECOMMEND_MODEL` | Recommendation model (GO/NO-GO, Tier-3) | `gemini-3.7-flash` |
+| `LIXTO_LLM_FALLBACK_BASE_URL` | Secondary provider base URL (used on primary error) | `https://api.openai.com/v1` (OpenAI) |
+| `LIXTO_LLM_FALLBACK_API_KEY` | Secondary provider API key | — (OpenAI key) |
+| `LIXTO_LLM_FALLBACK_MODEL_CHEAP` | Fallback cheap model | `gpt-5-mini` |
+| `LIXTO_LLM_FALLBACK_MODEL_DOC` | Fallback doc model | `gpt-5-mini` |
+| `LIXTO_LLM_FALLBACK_MODEL_STRONG` | Fallback strong model | `gpt-5.1` |
+| `LIXTO_FENCE_PORTALS` | Comma-separated list of allowed portals (cost fence) | `Compras.gov.br,ECustomize Consultoria em Software S.A,IPM Sistemas` |
+| `LIXTO_FENCE_MODALITIES` | Comma-separated modality IDs (cost fence) | `6,8` |
+| `LIXTO_FENCE_OPEN_ONLY` | Restrict to open/upcoming procurements (cost fence) | `1` |
+| `LIXTO_ENRICH_DAILY_CAP` | Max enrichment rows/day; 0 or unset = unlimited | `1500` |
 | `LIXTO_IBGE_CNAE_URL` | CNAE seed source | `https://concla.ibge.gov.br/export/tabelas/ascii/subclasses.txt` |
-| `LIXTO_MIN_REQUEST_INTERVAL` | Seconds between PNCP requests | `0.25` |
+| `LIXTO_MIN_REQUEST_INTERVAL` | Seconds between PNCP requests | `0.5` |
 | `UPLOADS_DIR` | Document storage path | `./uploads` (dev), `/app/uploads` (prod) |
 
 ## CLI Commands
@@ -163,6 +171,37 @@ Dokploy project `lixto`, app `lixto-cli`, timezone `America/Sao_Paulo`:
 | db-init | `0 0 31 2 *` | `lixto db init` | Disabled (manual) |
 
 Dates `0 0 31 2 *` (Feb 31st) never fire; use for manual-only schedules.
+
+## Go-live runbook
+
+When moving Lixto to production ingestion:
+
+1. **Set environment on both apps** in Dokploy:
+   - `lixto-cli`: All vars from `.env.example` (Gemini key, fence, cap, fallback OpenAI key)
+   - `lixto-web`: All vars from `web/.env.example` (Gemini key, embedding and chat models)
+
+2. **Backfill the last 45 days** (one-off, resumable):
+   ```bash
+   lixto backfill --days 45 --max-details 0
+   ```
+   This fetches 45 days of fenced procurements and queues items/documents for drain by the scheduled details sync.
+
+3. **Drain enrichment** until `daily cap reached`:
+   ```bash
+   lixto enrich run
+   ```
+   The cap is enforced per day; monitor `lixto status` for tokens and estimated USD.
+
+4. **Enable schedules in order** in Dokploy (one-off each):
+   - `sync-incremental` — pulls new fenced procurements
+   - `enrich-run` — produces enrichments up to the daily cap
+   - `enrich-embed` — backfills missing vector embeddings for semantic search
+   - `match-run` — scores procurements against company profiles; persists opportunities
+   - `recommend-run` — builds GO/NO-GO recommendations for top scoring opportunities
+
+5. **Monitor cost** with `lixto status` — shows today's LLM spend (calls, tokens, estimated USD) and last 7 days' total.
+
+**Important**: The embedding model (`LIXTO_LLM_MODEL_EMBED`) must never change after ingestion starts, as all vectors in the table would become incomparable. If you need to re-embed, either run a full backfill or set up a new vector table and migrate indices.
 
 ## Troubleshooting
 

@@ -40,28 +40,38 @@ Key facts:
 | Prefix | Purpose | Examples |
 |---|---|---|
 | `LIXTO_DATABASE_URL` | PostgreSQL connection | `postgresql://lixto:lixto@localhost:5433/lixto` |
-| `LIXTO_LLM_MODEL_*` | Model tiers (CHEAP, DOC, STRONG, FALLBACK, EMBED) | `gpt-4o-mini`, `gpt-4o`, etc. |
-| `LIXTO_LLM_BASE_URL` | LLM provider base URL | `https://api.openai.com/v1` |
-| `LIXTO_LLM_API_KEY` | LLM API key (fallback: `OPENAI_API_KEY`) | — |
-| `LIXTO_CHAT_MODEL` | Chat model | `gpt-4o-mini` |
+| `LIXTO_LLM_BASE_URL` | Primary LLM provider base URL (OpenAI-compatible) | `https://generativelanguage.googleapis.com/v1beta/openai/` (Gemini) |
+| `LIXTO_LLM_API_KEY` | Primary provider API key | — |
+| `LIXTO_LLM_MODEL_*` | Model tiers (CHEAP, DOC, STRONG, EMBED) | `gemini-3.5-flash-lite`, `gemini-3.7-flash`, etc. |
+| `LIXTO_LLM_FALLBACK_BASE_URL` | Secondary provider base URL (used on primary error) | `https://api.openai.com/v1` (OpenAI) |
+| `LIXTO_LLM_FALLBACK_API_KEY` | Secondary provider API key | — |
+| `LIXTO_LLM_FALLBACK_MODEL_*` | Fallback model tiers (CHEAP, DOC, STRONG) | `gpt-5-mini`, `gpt-5.1`, etc. |
+| `LIXTO_CHAT_MODEL` | Chat model | `gemini-3.7-flash` |
+| `LIXTO_RECOMMEND_MODEL` | Recommendation model (GO/NO-GO, Tier-3) | `gemini-3.7-flash` |
+| `LIXTO_FENCE_PORTALS` | Comma-separated list of allowed portals (cost fence) | `Compras.gov.br,ECustomize Consultoria em Software S.A,IPM Sistemas` |
+| `LIXTO_FENCE_MODALITIES` | Comma-separated modality IDs (cost fence) | `6,8` |
+| `LIXTO_FENCE_OPEN_ONLY` | Restrict to open/upcoming procurements (cost fence) | `1` |
+| `LIXTO_ENRICH_DAILY_CAP` | Max enrichment rows/day; 0 or unset = unlimited | `1500` |
 | `LIXTO_IBGE_CNAE_URL` | CNAE seed source | `https://concla.ibge.gov.br/export/tabelas/ascii/subclasses.txt` |
 | `LIXTO_MIN_REQUEST_INTERVAL` | Seconds between PNCP requests | `0.5` |
-| `UPLOADS_DIR` | Document storage | `./web/uploads` (dev), `/app/uploads` (prod) |
+| `UPLOADS_DIR` | Document storage | `./uploads` (dev), `/app/uploads` (prod) |
 
-**Note**: All `LIXTO_*` vars are read by Python (CLI); `web` also reads LLM vars via `.env.local`.
+**Note**: All `LIXTO_*` vars are read by Python (CLI); `web` also reads LLM + embedding vars via `.env.local`.
 
 ### Production Deployment
 
 **Dokploy**:
 - Project: `lixto` (renamed from `plataforma-licitante`)
 - Apps: `lixto-web` (Next.js) + `lixto-cli` (Python, sleeps forever on `ENTRYPOINT ["sleep", "infinity"]`)
-- Schedules on `lixto-cli` (all disabled in cycle 18; enable as needed):
-  - `sync-incremental` — `0 6,13,20 * * *`
-  - `results-sync` — `0 3 * * *`
-  - `plans-sync` — `0 4 * * *` (disabled)
-  - `contracts-sync` — `0 5 * * *` (disabled)
-  - `enrich-run` — `30 7,14,21 * * *`
-  - `enrich-embed` — `45 7,14,21 * * *` (15 min after `enrich-run`; created disabled until ingestion is enabled)
+- Schedules on `lixto-cli` (enabled in cycle 21; before that, run manually):
+  - `sync-incremental` — `0 6,13,20 * * *` (pull fenced procurements)
+  - `results-sync` — `0 3 * * *` (homologated results)
+  - `plans-sync` — `0 4 * * *` (disabled; manual only)
+  - `contracts-sync` — `0 5 * * *` (disabled; manual only)
+  - `enrich-run` — `30 7,14,21 * * *` (enrich up to daily cap)
+  - `match-run` — `0 8,15,22 * * *` (score procurements vs profiles)
+  - `recommend-run` — `15 8 * * *` (GO/NO-GO for top opportunities)
+  - `enrich-embed` — `45 7,14,21 * * *` (backfill vector embeddings; 15 min after `enrich-run`)
   - `db-init` — manual only (`0 0 31 2 *`)
 
 **Note on schedules**: Date `0 0 31 2 *` never fires (Feb 31st). Use for "manual only" jobs.
