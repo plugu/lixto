@@ -402,3 +402,4 @@ def test_upsert_strips_nul_bytes_before_persisting():
     params = cur.execute.call_args.args[1]
     assert params["text"] == "abcd"
     assert documents._strip_nul(None) is None
+    assert documents._strip_nul("ok\udbc0x") == "okx"  # lone surrogate dropped

@@ -206,7 +206,11 @@ def _upsert(conn: psycopg.Connection, procurement_id: int, row: dict[str, Any]) 
 
 
 def _strip_nul(text: str | None) -> str | None:
-    return text.replace("\x00", "") if text else text
+    """Drop what PostgreSQL's text type cannot store: NUL bytes and lone
+    surrogate code points (both show up in pypdf output of broken PDFs)."""
+    if not text:
+        return text
+    return text.replace("\x00", "").encode("utf-8", "ignore").decode("utf-8")
 
 
 def _download(url: str, http_client: httpx.Client) -> bytes | None:
