@@ -197,10 +197,16 @@ def _upsert(conn: psycopg.Connection, procurement_id: int, row: dict[str, Any]) 
                 "method": row["method"],
                 "pages": row["pages"],
                 "chars": row["chars"],
-                "text": row["text"],
+                # pypdf (and occasionally OCR) can emit NUL bytes, which
+                # PostgreSQL text columns reject outright.
+                "text": _strip_nul(row["text"]),
             },
         )
     conn.commit()
+
+
+def _strip_nul(text: str | None) -> str | None:
+    return text.replace("\x00", "") if text else text
 
 
 def _download(url: str, http_client: httpx.Client) -> bytes | None:

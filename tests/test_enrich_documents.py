@@ -386,3 +386,19 @@ def test_extract_for_procurement_retries_stale_insufficient_cache_through_ocr(mo
     assert rows[0]["method"] == "ocr"
     upserted = [c for c in upsert_curs if c.execute.call_args is not None]
     assert len(upserted) == 1
+
+
+def test_upsert_strips_nul_bytes_before_persisting():
+    """pypdf sometimes yields NUL bytes; Postgres text columns reject them."""
+    from lixto.enrich import documents
+
+    conn = MagicMock()
+    cur = conn.cursor.return_value.__enter__.return_value
+    documents._upsert(
+        conn,
+        7,
+        {"sequence": 1, "method": "pypdf", "pages": 2, "chars": 6, "text": "ab\x00cd\x00"},
+    )
+    params = cur.execute.call_args.args[1]
+    assert params["text"] == "abcd"
+    assert documents._strip_nul(None) is None
