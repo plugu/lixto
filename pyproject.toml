@@ -9,6 +9,8 @@ dependencies = [
     "httpx>=0.28.1",
     "openai>=1.60",
     "pypdf>=5",
+    "pypdfium2>=5.13.0",
+    "pillow>=12.3.0",
 ]
 
 [project.scripts]

@@ -3,18 +3,35 @@
 Downloads up to MAX_DOCS edital PDFs per procurement and extracts their text
 with pypdf, persisting the result in `procurement_document_texts` so the
 enrichment worker never re-downloads and any future re-enrichment reuses it.
-Scanned PDFs (image-only) come out as `method='insufficient'`, which is the
-marker that routes them to the multimodal tier in the worker — no OCR here.
+Scanned PDFs (image-only) come out as `method='insufficient'` after pypdf; we
+then try Tesseract OCR (`ocr_pdf`) on the same bytes and re-classify with the
+same quality gate. Success persists `method='ocr'`. When OCR is unavailable
+(no `tesseract` binary) or still doesn't clear the gate, the row stays
+`method='insufficient'` and is the marker that routes it to the multimodal
+doc tier in the worker as a last resort.
+
+Cached `insufficient` rows are retried through OCR exactly once per
+procurement run: since the PDF bytes aren't stored, the document is
+re-downloaded, OCR'd, and upserted. To avoid retrying forever on documents
+where OCR itself fails (missing binary, timeout, garbled scan), a failed OCR
+attempt is persisted as `method='insufficient'` with `chars=-1` — this is the
+"OCR already tried, don't retry" marker. Any other `insufficient` row (i.e.
+`chars >= 0`) is still eligible for another OCR attempt.
 """
 
 from __future__ import annotations
 
 import logging
+import shutil
+import subprocess
+import tempfile
 from io import BytesIO
+from pathlib import Path
 from typing import Any
 
 import httpx
 import psycopg
+import pypdfium2 as pdfium
 from pypdf import PdfReader
 
 logger = logging.getLogger(__name__)
@@ -25,6 +42,11 @@ MAX_TEXT_CHARS = 200_000
 MIN_CHARS_PER_PAGE = 200
 MIN_TOTAL_CHARS = 500
 DOWNLOAD_TIMEOUT = 60.0
+MAX_OCR_PAGES = 40
+OCR_DPI = 200
+OCR_PAGE_TIMEOUT = 60.0
+
+_ocr_binary_missing_logged = False
 
 # Edital first (type_id 2 is the PNCP "Edital" document type), then whatever
 # else the órgão attached, by sequence.
@@ -80,6 +102,77 @@ def classify_extraction(text: str, pages: int) -> str:
     if len(text) / pages < MIN_CHARS_PER_PAGE:
         return "insufficient"
     return "pypdf"
+
+
+def ocr_pdf(pdf_bytes: bytes) -> tuple[str, int]:
+    """Renders up to MAX_OCR_PAGES pages at OCR_DPI with pypdfium2 and runs
+    Tesseract (`por`) on each as a PNG, joining the page texts with a blank
+    line. Returns (text, pages_rendered) — ("", 0) when the `tesseract`
+    binary isn't installed (logged once) or every page failed to render."""
+    global _ocr_binary_missing_logged
+    tesseract = shutil.which("tesseract")
+    if tesseract is None:
+        if not _ocr_binary_missing_logged:
+            logger.warning("tesseract binary not found on PATH; OCR disabled")
+            _ocr_binary_missing_logged = True
+        return "", 0
+
+    pdf = pdfium.PdfDocument(pdf_bytes)
+    scale = OCR_DPI / 72
+    page_texts: list[str] = []
+    pages_rendered = 0
+    try:
+        for index, page in enumerate(pdf):
+            if index >= MAX_OCR_PAGES:
+                break
+            try:
+                image = page.render(scale=scale).to_pil()
+            except Exception:
+                logger.warning("failed to render page %d for OCR", index, exc_info=True)
+                continue
+            pages_rendered += 1
+            with tempfile.TemporaryDirectory() as tmpdir:
+                png_path = Path(tmpdir) / f"page-{index}.png"
+                image.save(png_path)
+                try:
+                    result = subprocess.run(
+                        [tesseract, str(png_path), "stdout", "-l", "por", "--psm", "6"],
+                        capture_output=True,
+                        timeout=OCR_PAGE_TIMEOUT,
+                        check=True,
+                    )
+                except Exception:
+                    logger.warning("tesseract failed on page %d", index, exc_info=True)
+                    continue
+                page_texts.append(result.stdout.decode("utf-8", errors="replace"))
+    finally:
+        close = getattr(pdf, "close", None)
+        if callable(close):
+            close()
+
+    return "\n\n".join(page_texts)[:MAX_TEXT_CHARS], pages_rendered
+
+
+def _maybe_ocr(row: dict[str, Any], pdf_bytes: bytes) -> None:
+    """When `row['method']` is 'insufficient', tries OCR on the same bytes
+    and mutates `row` in place: promotes it to method='ocr' when OCR clears
+    the quality gate, otherwise marks chars=-1 as the "OCR already tried"
+    marker so the row isn't retried on a future run. No-op (and no marker)
+    when the tesseract binary isn't installed, so it's retried once it is."""
+    if row["method"] != "insufficient":
+        return
+    if shutil.which("tesseract") is None:
+        return
+
+    text, pages = ocr_pdf(pdf_bytes)
+    if pages and classify_extraction(text, pages) == "pypdf":
+        row["method"] = "ocr"
+        row["pages"] = pages
+        row["chars"] = len(text)
+        row["text"] = text
+    else:
+        row["chars"] = -1
+        row["text"] = None
 
 
 def pick_documents(conn: psycopg.Connection, procurement_id: int) -> list[dict[str, Any]]:
@@ -146,7 +239,13 @@ def extract_for_procurement(
         seq = doc.get("sequence")
 
         cached = existing.get(seq)
-        if cached is not None:
+        # method='insufficient' with chars=-1 means OCR was already tried and
+        # failed; anything else 'insufficient' (including a cache written
+        # before OCR support existed) falls through to re-download + OCR.
+        retry_with_ocr = (
+            cached is not None and cached["method"] == "insufficient" and cached["chars"] != -1
+        )
+        if cached is not None and not retry_with_ocr:
             results.append(
                 {
                     "sequence": seq,
@@ -204,6 +303,7 @@ def extract_for_procurement(
                         row["pages"] = pages
                         row["chars"] = len(text)
                         row["text"] = text
+                        _maybe_ocr(row, content)
 
         _upsert(conn, procurement_id, row)
         results.append({**row, "pdf_bytes": pdf_bytes})

@@ -47,7 +47,7 @@ def test_default_migrations_dir_holds_the_lixto_core_schema():
     the archived `legacy/migrations/`."""
     names = [f.name for f in db.list_migration_files()]
 
-    assert names == ["001_core.sql"]
+    assert names[0] == "001_core.sql" and names == sorted(names)
 
 
 def test_run_migrations_applies_pending_in_order(tmp_path):

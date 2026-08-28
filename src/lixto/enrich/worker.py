@@ -498,7 +498,7 @@ def enrich_one(
         prompt = build_prompt(row, items, docs, me_epp=me_epp)
 
         pdfs: list[dict[str, Any]] | None = None
-        if any(d.get("method") == "pypdf" for d in docs):
+        if any(d.get("method") in ("pypdf", "ocr") for d in docs):
             input_kind = "text"
         else:
             pdfs = _collect_pdfs(conn, procurement_id, docs, http_client)

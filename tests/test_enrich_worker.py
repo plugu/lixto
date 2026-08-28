@@ -244,6 +244,20 @@ def test_pypdf_doc_routes_to_cheap_text_tier(patched):
     conn.commit.assert_called()
 
 
+def test_ocr_doc_routes_to_cheap_text_tier(patched):
+    patched.docs = [_doc(method="ocr")]
+    conn, persist_cur = _conn([_item()])
+    llm = _llm()
+
+    status = enrich_one(conn, _row(), llm=llm, http_client=MagicMock())
+
+    assert status == "done"
+    llm.complete_json_pdf.assert_not_called()
+    assert llm.complete_json_text.call_args.kwargs["tier"] == "cheap"
+    params = _enrichment_params(persist_cur)
+    assert params["input_kind"] == "text"
+
+
 def test_insufficient_docs_route_to_pdf_tier(patched):
     patched.docs = [_doc(method="insufficient", text="", pdf_bytes=b"%PDF-1.4")]
     conn, persist_cur = _conn([])

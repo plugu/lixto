@@ -10,14 +10,18 @@ from unittest.mock import MagicMock
 
 import httpx
 import pytest
+from PIL import Image
 from pypdf import PdfWriter
 from pypdf.errors import PdfReadError
 
+from lixto.enrich import documents
 from lixto.enrich.documents import (
     MAX_DOCS,
+    MAX_OCR_PAGES,
     classify_extraction,
     extract_for_procurement,
     extract_text,
+    ocr_pdf,
     pick_documents,
 )
 
@@ -198,3 +202,187 @@ def test_pick_documents_orders_edital_first_and_filters_inactive():
     assert "type_id = 2" in sql
     assert "title ILIKE '%%edital%%'" in sql
     assert params == {"procurement_id": 42}
+
+
+# --- OCR --------------------------------------------------------------
+
+
+class _FakePage:
+    def render(self, scale=None):
+        return self
+
+    def to_pil(self):
+        return Image.new("RGB", (2, 2))
+
+
+class _FakePdfDocument:
+    def __init__(self, n_pages):
+        self._n_pages = n_pages
+        self.closed = False
+
+    def __iter__(self):
+        return iter(_FakePage() for _ in range(self._n_pages))
+
+    def close(self):
+        self.closed = True
+
+
+def _patch_pdfium(monkeypatch, n_pages):
+    monkeypatch.setattr(documents.pdfium, "PdfDocument", lambda _bytes: _FakePdfDocument(n_pages))
+
+
+def _patch_tesseract_present(monkeypatch):
+    monkeypatch.setattr(documents.shutil, "which", lambda name: "/usr/bin/tesseract")
+
+
+def _patch_tesseract_ok(monkeypatch, page_text="x" * 300):
+    _patch_tesseract_present(monkeypatch)
+
+    def _run(cmd, **kwargs):
+        result = MagicMock()
+        result.stdout = page_text.encode()
+        return result
+
+    monkeypatch.setattr(documents.subprocess, "run", _run)
+
+
+def _patch_tesseract_broken(monkeypatch):
+    _patch_tesseract_present(monkeypatch)
+
+    def _boom(cmd, **kwargs):
+        raise RuntimeError("tesseract crashed")
+
+    monkeypatch.setattr(documents.subprocess, "run", _boom)
+
+
+def test_ocr_pdf_missing_binary_returns_empty_without_touching_pdfium(monkeypatch):
+    monkeypatch.setattr(documents.shutil, "which", lambda name: None)
+    pdfium_called = MagicMock()
+    monkeypatch.setattr(documents.pdfium, "PdfDocument", pdfium_called)
+
+    text, pages = ocr_pdf(b"whatever")
+
+    assert (text, pages) == ("", 0)
+    pdfium_called.assert_not_called()
+
+
+def test_ocr_pdf_joins_page_text_with_blank_line(monkeypatch):
+    _patch_pdfium(monkeypatch, 2)
+    _patch_tesseract_ok(monkeypatch, page_text="texto em português")
+
+    text, pages = ocr_pdf(b"%PDF-1.4 fake")
+
+    assert pages == 2
+    assert text == "texto em português\n\ntexto em português"
+
+
+def test_ocr_pdf_respects_the_page_cap(monkeypatch):
+    _patch_pdfium(monkeypatch, MAX_OCR_PAGES + 5)
+    calls = []
+    _patch_tesseract_present(monkeypatch)
+
+    def _run(cmd, **kwargs):
+        calls.append(cmd)
+        result = MagicMock()
+        result.stdout = b"x" * 300
+        return result
+
+    monkeypatch.setattr(documents.subprocess, "run", _run)
+
+    _text, pages = ocr_pdf(b"%PDF-1.4 fake")
+
+    assert pages == MAX_OCR_PAGES
+    assert len(calls) == MAX_OCR_PAGES
+
+
+def test_extract_for_procurement_promotes_insufficient_to_ocr_on_success(monkeypatch):
+    _patch_pdfium(monkeypatch, 2)
+    _patch_tesseract_ok(monkeypatch)
+
+    conn, upsert_curs = _conn([_doc(1)], [])
+    client = _http_client({"https://pncp/doc1": _pdf_response(_blank_pdf_bytes(2))})
+
+    rows = extract_for_procurement(conn, 42, client)
+
+    assert rows[0]["method"] == "ocr"
+    assert rows[0]["chars"] > 0
+    assert rows[0]["pages"] == 2
+
+    upserted = [c for c in upsert_curs if c.execute.call_args is not None]
+    assert len(upserted) == 1
+    _, params = upserted[0].execute.call_args.args
+    assert params["method"] == "ocr"
+    assert params["chars"] > 0
+
+
+def test_extract_for_procurement_marks_ocr_failure_with_chars_negative_one(monkeypatch):
+    _patch_pdfium(monkeypatch, 1)
+    _patch_tesseract_broken(monkeypatch)
+
+    conn, upsert_curs = _conn([_doc(1)], [])
+    client = _http_client({"https://pncp/doc1": _pdf_response(_blank_pdf_bytes(1))})
+
+    rows = extract_for_procurement(conn, 42, client)
+
+    assert rows[0]["method"] == "insufficient"
+    assert rows[0]["chars"] == -1
+    assert rows[0]["text"] is None
+
+    upserted = [c for c in upsert_curs if c.execute.call_args is not None]
+    _, params = upserted[0].execute.call_args.args
+    assert params["method"] == "insufficient"
+    assert params["chars"] == -1
+
+
+def test_extract_for_procurement_missing_tesseract_leaves_insufficient_untouched(monkeypatch):
+    monkeypatch.setattr(documents.shutil, "which", lambda name: None)
+    pdfium_called = MagicMock()
+    monkeypatch.setattr(documents.pdfium, "PdfDocument", pdfium_called)
+
+    conn, upsert_curs = _conn([_doc(1)], [])
+    client = _http_client({"https://pncp/doc1": _pdf_response(_blank_pdf_bytes(1))})
+
+    rows = extract_for_procurement(conn, 42, client)
+
+    assert rows[0]["method"] == "insufficient"
+    assert rows[0]["chars"] == 0  # not the "already tried" marker
+    pdfium_called.assert_not_called()
+
+    upserted = [c for c in upsert_curs if c.execute.call_args is not None]
+    _, params = upserted[0].execute.call_args.args
+    assert params["chars"] == 0
+
+
+def test_extract_for_procurement_does_not_retry_ocr_already_tried(monkeypatch):
+    ocr_called = MagicMock()
+    monkeypatch.setattr(documents, "ocr_pdf", ocr_called)
+
+    cached = {"sequence": 1, "method": "insufficient", "pages": 1, "chars": -1, "text": None}
+    conn, upsert_curs = _conn([_doc(1)], [cached])
+    client = _http_client({})
+
+    rows = extract_for_procurement(conn, 42, client)
+
+    assert rows[0]["method"] == "insufficient"
+    assert rows[0]["chars"] == -1
+    client.get.assert_not_called()
+    ocr_called.assert_not_called()
+    assert all(c.execute.call_args is None for c in upsert_curs)
+
+
+def test_extract_for_procurement_retries_stale_insufficient_cache_through_ocr(monkeypatch):
+    """A cache written before OCR support existed (chars >= 0) is eligible
+    for one retry: the document is re-downloaded and OCR'd."""
+    _patch_pdfium(monkeypatch, 1)
+    _patch_tesseract_ok(monkeypatch, page_text="x" * 600)
+
+    cached = {"sequence": 1, "method": "insufficient", "pages": 1, "chars": 0, "text": ""}
+    conn, upsert_curs = _conn([_doc(1)], [cached])
+    client = _http_client({"https://pncp/doc1": _pdf_response(_blank_pdf_bytes(1))})
+
+    rows = extract_for_procurement(conn, 42, client)
+
+    assert client.get.call_count == 1
+    assert rows[0]["method"] == "ocr"
+    upserted = [c for c in upsert_curs if c.execute.call_args is not None]
+    assert len(upserted) == 1
