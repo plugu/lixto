@@ -173,7 +173,7 @@ def test_format_status_includes_the_enrichment_block():
     text = format_status(_report())
 
     assert "enrichment:" in text
-    assert "fence: fence: portals=[compras.gov.br] modalities=[6, 8] open_only=True" in text
+    assert "  fence: portals=[compras.gov.br] modalities=[6, 8] open_only=True" in text
     assert "today: 120 enriched (4 errors) / cap 1500" in text
     assert "pending in fence: 980" in text
     assert "llm today: 130 calls, 250000 prompt + 40000 completion tokens, est US$ 0.0452" in text

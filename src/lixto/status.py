@@ -215,7 +215,7 @@ def format_status(report: StatusReport) -> str:
     )
     lines += [
         "enrichment:",
-        f"  fence: {report.fence}",
+        f"  {report.fence}",
         today_line,
         f"  pending in fence: {report.fenced_pending}",
         llm_today_line,
