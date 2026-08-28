@@ -1,10 +1,9 @@
 # STATE — rewrite after every ticket completes; never append. ≤30 lines total.
 
 ## Now
-- Cycle 21 (cost-fenced go-live, mvp): tickets 100–106 done (1–2 attempts each), main green (pytest 361, vitest 415, tsc), pushed b5b6fcc. Prod: env set on lixto-cli + lixto-web (Gemini primary 3.5-flash-lite / 3.7-flash / embedding-001@1536, OpenAI fallback, fence top-3 × modalities 6,8 × open, cap 1500), both redeployed 2026-08-28 03:1xZ. `lixto backfill --days 45 --max-details 0` running detached in lixto-cli (log /tmp/backfill.log). Next: first `enrich run --limit 100` cost probe → to cap → enable schedules → approval 2/2.
+- Cycle 21 (cost-fenced go-live, mvp): tickets 100–106 done (1–2 attempts each), main green (pytest 361, vitest 415, tsc), pushed b5b6fcc. Prod: env set on lixto-cli + lixto-web (Gemini primary 3.5-flash-lite / 3.7-flash / embedding-001@1536, OpenAI fallback, fence top-3 × modalities 6,8 × open, cap 1500), both redeployed 2026-08-28 03:1xZ. `lixto backfill --days 45 --max-details 0` running detached in lixto-cli (log /tmp/backfill.log; relaunched with LIXTO_MIN_REQUEST_INTERVAL=0.6 — 0.25 caused ~1 in 3 requests to 429 with 30 s cooldowns; still ~1 in 6 at 0.6). Follower in container runs `enrich run --limit 100` + `lixto status` into /tmp/chain.log when backfill exits. Next: first `enrich run --limit 100` cost probe → to cap → enable schedules → approval 2/2.
 
 ## Next
-- Merge 100/101/104 into main (from main checkout) → 102 → {103 ∥ 105} → 106 → diff summary (approval 2/2).
 - Ops remaining: wait backfill details drain → `enrich run --limit 100` (read usage/$ in `lixto status`) → run to cap → enable schedules sync-incremental → enrich-run → enrich-embed → match-run → recommend-run → smoke digest for a test company.
 - Cycle 22 candidates: notifications (WhatsApp via Evolution); deep analysis (rung 2); more Tier-0 fields + doc-checklist enum; metadata-only/lazy edital read if cost > estimate.
 
