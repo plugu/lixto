@@ -24,6 +24,7 @@ from typing import Any
 
 import psycopg
 
+from lixto.fence import Fence, get_fence
 from lixto.pncp_client import PncpApiError, PncpClient
 from lixto.runs import RunCounters
 from lixto.sync import upsert_source_payload
@@ -41,10 +42,16 @@ BATCH_SIZE = 500
 # left NULL rather than guessed — the column has a CHECK constraint.
 _KIND_BY_MATERIAL_OR_SERVICE = {"M": "material", "S": "service"}
 
-_SELECT_PENDING_SQL = """
+# The fence fragment (` AND (...)`, empty when inactive) is inserted between
+# the WHERE and ORDER BY clauses, hence the split; the pending predicate is
+# parenthesized so `fence.sql()`'s leading ` AND` combines correctly.
+_SELECT_PENDING_WHERE_SQL = """
 SELECT id, source_id, agency_tax_id, year, sequence
 FROM procurements
-WHERE items_synced_at IS NULL OR documents_synced_at IS NULL
+WHERE (items_synced_at IS NULL OR documents_synced_at IS NULL)
+"""
+
+_SELECT_PENDING_ORDER_SQL = """
 ORDER BY
     -- open/upcoming first (that's the data users query for), closing-soonest
     -- first among them; closed history fills in afterwards, newest first
@@ -53,6 +60,8 @@ ORDER BY
          THEN proposal_closes_at END ASC NULLS LAST,
     published_at DESC
 """
+
+_SELECT_PENDING_SQL = _SELECT_PENDING_WHERE_SQL + _SELECT_PENDING_ORDER_SQL
 
 _STAMP_SQL = """
 UPDATE procurements
@@ -177,10 +186,11 @@ def upsert_document(cursor: psycopg.Cursor, procurement_id: int, dto: dict[str, 
 
 
 def _select_pending(
-    conn: psycopg.Connection, *, limit: int, offset: int = 0
+    conn: psycopg.Connection, *, limit: int, offset: int = 0, fence: Fence | None = None
 ) -> list[tuple[int, str, str, int, int]]:
-    sql = _SELECT_PENDING_SQL + " LIMIT %(limit)s"
-    params: dict[str, Any] = {"limit": limit}
+    fence_sql, fence_params = fence.sql() if fence is not None else ("", {})
+    sql = _SELECT_PENDING_WHERE_SQL + fence_sql + _SELECT_PENDING_ORDER_SQL + " LIMIT %(limit)s"
+    params: dict[str, Any] = {"limit": limit, **fence_params}
     if offset:
         sql += " OFFSET %(offset)s"
         params["offset"] = offset
@@ -195,8 +205,12 @@ def sync_details(
     limit: int | None = None,
     client: PncpClient | None = None,
     counters: RunCounters | None = None,
+    fence: Fence | None = None,
 ) -> int:
-    """Fetch items + documents for procurements missing either sync stamp.
+    """Fetch items + documents for procurements missing either sync stamp,
+    restricted to the cost fence (`fence=None` reads it from env via
+    `get_fence()`; an inactive fence drains the whole queue, same as before
+    the fence existed).
 
     The queue is drained in batches of `BATCH_SIZE`, never with one
     unbounded `fetchall()`: the backlog is routinely millions of rows and
@@ -207,6 +221,7 @@ def sync_details(
 
     Returns the number of procurements successfully processed (stamped).
     """
+    fence = fence if fence is not None else get_fence()
     # One client covers both PNCP APIs (the detail endpoints are absolute
     # URLs off `pncp_base_url`), so callers pass the same client they use for
     # the search API and both phases share one throttle/retry budget.
@@ -218,7 +233,7 @@ def sync_details(
     try:
         while remaining is None or remaining > 0:
             batch_size = BATCH_SIZE if remaining is None else min(BATCH_SIZE, remaining)
-            rows = _select_pending(conn, limit=batch_size, offset=left_on_queue)
+            rows = _select_pending(conn, limit=batch_size, offset=left_on_queue, fence=fence)
             if not rows:
                 break
 

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import UTC, date, datetime, timedelta
 
 import typer
 
@@ -14,7 +14,13 @@ from lixto.sync.procurements import ALL_MODALITIES
 _SINCE_OPTION = typer.Option(
     DEFAULT_SINCE.isoformat(),
     "--since",
-    help="YYYY-MM-DD, backfill start date. Default 2026-01-01.",
+    help="YYYY-MM-DD, backfill start date. Default 2026-01-01. Mutually exclusive with --days.",
+)
+_DAYS_OPTION = typer.Option(
+    None,
+    "--days",
+    help="Backfill the last N days (since = today - N, or until - N when "
+    "--until is set). Mutually exclusive with --since.",
 )
 _UNTIL_OPTION = typer.Option(
     None,
@@ -37,6 +43,7 @@ _MAX_DETAILS_OPTION = typer.Option(
 
 def backfill_cmd(
     since: str = _SINCE_OPTION,
+    days: int = _DAYS_OPTION,
     until: str = _UNTIL_OPTION,
     modality: list[int] = _MODALITY_OPTION,
     max_details: int = _MAX_DETAILS_OPTION,
@@ -44,14 +51,25 @@ def backfill_cmd(
     """Resumable backfill: every modality x 7-day date chunk from `--since`
     (default 2026-01-01) to `--until` (default today), then a bounded drain of
     items/documents. `--until`/`--modality` exist to bound test/probe runs; a
-    real full backfill is `lixto backfill` bare.
+    real full backfill is `lixto backfill` bare. `--days N` is shorthand for
+    `--since` computed as `--until` (or today) minus N days; the two options
+    are mutually exclusive.
     """
+    if days is not None and since != _SINCE_OPTION.default:
+        raise typer.BadParameter("--days and --since are mutually exclusive")
+
+    until_date = date.fromisoformat(until) if until else None
+    if days is not None:
+        since_date = (until_date or datetime.now(tz=UTC).date()) - timedelta(days=days)
+    else:
+        since_date = date.fromisoformat(since)
+
     conn = db.get_connection()
     try:
         result = run_backfill(
             conn,
-            since=date.fromisoformat(since),
-            until=date.fromisoformat(until) if until else None,
+            since=since_date,
+            until=until_date,
             modalities=modality or ALL_MODALITIES,
             max_details=None if max_details == 0 else max_details,
         )
