@@ -1,22 +1,21 @@
 # STATE — rewrite after every ticket completes; never append. ≤30 lines total.
 
 ## Now
-- Cycle 20 (query-time semantic search, mvp) implemented: tickets 96–99 done, 1 attempt each, main green (vitest 415, tsc, lint, next build). Commits 3a09d66..HEAD. Approved 2/2, pushed, lixto-web auto-deployed (29831ec, done 11:30Z). Dokploy enrich-embed cron set to 45 7,14,21 (disabled). Prod functional smoke pending: needs login + LIXTO_LLM_API_KEY + embedded rows.
+- Cycle 21 (cost-fenced go-live, mvp): plan approved (1/2). Tickets 100 (llm providers, opus), 101 (fence+details+backfill, sonnet), 104 (web embed dims, haiku) running in parallel worktrees ../lixto-wt-{100,101,104} on branches forge/{100,101,104}. 102, 103, 105, 106 todo.
 
 ## Next
-- Prod smoke (logged in): chat "material escolar para crianças" + `/procurements?q=...` shows Similar pill (needs LIXTO_LLM_API_KEY + embedded rows).
-- Operator: set LIXTO_LLM_API_KEY; enable ingestion schedules when ready (sync-incremental → enrich-run → enrich-embed → match-run → recommend-run).
-- Cycle 21 candidates: email/push digest; prepare/execute + approval; learning from feedback; plans/contracts in matching; per-page watermark for plans sync.
+- Merge 100/101/104 into main (from main checkout) → 102 → {103 ∥ 105} → 106 → diff summary (approval 2/2).
+- Ops after 106 (user OK'd running directly in prod): Dokploy env on lixto-cli + lixto-web — Gemini key from `.llm_keys` (GEMINI_API_KEY, prefix AQ.A — verify it works on the OpenAI-compat endpoint), OpenAI key from `~/dev/hackaview/.env` as fallback, base URL `https://generativelanguage.googleapis.com/v1beta/openai/`, models flash-lite/flash/embedding-001, fence top-3 portals + modalities 6,8, cap 1500; deploy both apps; `lixto backfill --days 45 --max-details 0`; `enrich run` to first cap; enable schedules sync-incremental → enrich-run → enrich-embed → match-run → recommend-run; `lixto status` shows cost.
+- Cycle 22 candidates: notifications (WhatsApp via Evolution); deep analysis (rung 2); more Tier-0 fields + doc-checklist enum; metadata-only/lazy edital read if cost > estimate.
 
 ## Decisions
-- Cycle 20 dispatch: sequential in place (only 97∥98 parallelizable; worktree cost > gain).
-- Cycle 20: hybrid retrieval = FTS ∪ pgvector top-200 (cosine ≥0.4), reciprocal-rank fusion k=60, structured filters hard in both branches; embedding failure → keyword-only fallback; facets stay keyword-only. No Python/schema change — `worker.py` already embeds inline, `enrich embed` backfills.
-- Cycle 19: single scoring implementation — batch match + recommendations run inside the web app behind token-guarded `/api/internal/*` routes; CLI and Dokploy schedules trigger them. Thresholds 40/70; GO/NO-GO cap 5/company/day; digest in-app only.
-- New DB `lixto`, zero data migration incl. tenants; plural English tables; raw in `source_payloads`; facet tables.
-- `vector` extension NOT trusted in pgvector image → superuser creates extensions per DB before `lixto db init`.
-- No prod ingestion until user re-reviews vision; all sync/enrich schedules created disabled.
-- Legacy kept reachable at its site.plugu.solutions host until decommission approved; lixto.com.br moved to lixto-web.
-- Data pulled only from PNCP; licinexus MCP was reference only.
+- Cycle 21 dispatch: parallel worktrees ×3 for {100,101,104}, then sequential/paired.
+- Cycle 21: list ingestion unfenced; details + enrichment fenced by env (`LIXTO_FENCE_PORTALS/MODALITIES/OPEN_ONLY`); hard `LIXTO_ENRICH_DAILY_CAP=1500` counting all enrichment rows today; Gemini primary for all tiers, OpenAI fallback provider per call (embeddings never fall back); PDF via chat-completions `file` parts; ME/EPP flags derived from `procurement_items.benefit_type_id` at enrichment-write time, removed from LLM schema; no DDL.
+- Legacy DB is reference only (volume stats), never a data source.
+- Cycle 20: hybrid search = FTS ∪ pgvector top-200 (≥0.4), RRF k=60; facets keyword-only.
+- Cycle 19: single scoring implementation behind `/api/internal/*`; thresholds 40/70; GO/NO-GO cap 5/company/day.
+- `vector` extension NOT trusted in pgvector image → superuser creates it per DB before `lixto db init`.
+- Legacy app kept reachable until decommission approved; lixto.com.br → lixto-web.
 
 ## Blockers
 - none.
