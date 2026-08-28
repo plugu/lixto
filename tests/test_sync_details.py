@@ -9,6 +9,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from lixto.fence import Fence
 from lixto.pncp_client import PncpApiError
 from lixto.sync import details as details_module
 from lixto.sync.details import (
@@ -236,6 +237,47 @@ def test_sync_details_applies_limit():
     executed_sql, executed_params = select_cursor.execute.call_args.args
     assert "LIMIT %(limit)s" in executed_sql
     assert executed_params["limit"] == 5
+
+
+def test_sync_details_active_fence_reaches_select_execute():
+    conn, select_cursor, _write_cursor = _conn_with_pending([])
+    fence = Fence(portals=("Compras.gov.br", "IPM Sistemas"), modalities=(6, 8), open_only=True)
+
+    sync_details(conn, client=_client(), fence=fence)
+
+    executed_sql, executed_params = select_cursor.execute.call_args.args
+    assert "origin_system = ANY(%(fence_portals)s)" in executed_sql
+    assert "modality_id = ANY(%(fence_modalities)s)" in executed_sql
+    assert "proposal_closes_at >= now() OR" in executed_sql
+    assert executed_params["fence_portals"] == ["Compras.gov.br", "IPM Sistemas"]
+    assert executed_params["fence_modalities"] == [6, 8]
+
+
+def test_sync_details_inactive_fence_leaves_sql_unchanged():
+    conn, select_cursor, _write_cursor = _conn_with_pending([])
+    inactive_fence = Fence(portals=(), modalities=(), open_only=False)
+
+    sync_details(conn, client=_client(), fence=inactive_fence)
+    with_explicit_inactive_sql, _ = select_cursor.execute.call_args.args
+
+    conn2, select_cursor2, _write_cursor2 = _conn_with_pending([])
+    sync_details(conn2, client=_client(), fence=None)
+    with_default_env_sql, _ = select_cursor2.execute.call_args.args
+
+    assert "origin_system" not in with_explicit_inactive_sql
+    assert "origin_system" not in with_default_env_sql
+
+
+def test_sync_details_defaults_to_get_fence_from_env(monkeypatch):
+    conn, select_cursor, _write_cursor = _conn_with_pending([])
+    env_fence = Fence(portals=("Compras.gov.br",), modalities=(), open_only=True)
+    monkeypatch.setattr(details_module, "get_fence", lambda: env_fence)
+
+    sync_details(conn, client=_client())
+
+    executed_sql, executed_params = select_cursor.execute.call_args.args
+    assert "origin_system = ANY(%(fence_portals)s)" in executed_sql
+    assert executed_params["fence_portals"] == ["Compras.gov.br"]
 
 
 def test_sync_details_without_limit_reads_the_queue_in_batches():

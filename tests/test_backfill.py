@@ -9,10 +9,14 @@ from datetime import date
 from unittest.mock import MagicMock
 
 import pytest
+from typer.testing import CliRunner
 
+from lixto.cli import backfill as cli_backfill_module
 from lixto.pncp_client import PncpApiError
 from lixto.sync import backfill as backfill_module
 from lixto.sync.backfill import backfill_unit_key, generate_chunks
+
+runner = CliRunner()
 
 # --- generate_chunks -------------------------------------------------------
 
@@ -239,3 +243,56 @@ def test_backfill_owns_and_closes_the_client_when_none_injected(monkeypatch):
     )
 
     fake_client.close.assert_called_once()
+
+
+# --- CLI: --days ------------------------------------------------------------
+
+
+def _cli_app():
+    import typer
+
+    app = typer.Typer()
+    cli_backfill_module.register(app)
+    return app
+
+
+def test_cli_backfill_days_computes_since_from_until(monkeypatch):
+    monkeypatch.setattr(cli_backfill_module.db, "get_connection", MagicMock())
+    run_backfill_mock = MagicMock(
+        return_value={
+            "units_total": 0,
+            "units_processed": 0,
+            "units_skipped": 0,
+            "units_failed": [],
+            "details_processed": 0,
+        }
+    )
+    monkeypatch.setattr(cli_backfill_module, "run_backfill", run_backfill_mock)
+
+    result = runner.invoke(_cli_app(), ["--days", "45", "--until", "2026-08-27"])
+
+    assert result.exit_code == 0, result.output
+    kwargs = run_backfill_mock.call_args.kwargs
+    assert kwargs["since"] == date(2026, 7, 13)
+    assert kwargs["until"] == date(2026, 8, 27)
+
+
+def test_cli_backfill_days_computes_since_from_today_when_until_absent(monkeypatch):
+    monkeypatch.setattr(cli_backfill_module.db, "get_connection", MagicMock())
+    run_backfill_mock = MagicMock(
+        return_value={
+            "units_total": 0,
+            "units_processed": 0,
+            "units_skipped": 0,
+            "units_failed": [],
+            "details_processed": 0,
+        }
+    )
+    monkeypatch.setattr(cli_backfill_module, "run_backfill", run_backfill_mock)
+
+    result = runner.invoke(_cli_app(), ["--days", "10"])
+
+    assert result.exit_code == 0, result.output
+    kwargs = run_backfill_mock.call_args.kwargs
+    assert kwargs["since"] is not None
+    assert kwargs["until"] is None
