@@ -8,7 +8,7 @@
 
 ## A/B local vs cloud (2026-08-31, 28 rows)
 - Text fields (summary/categories/keywords/concepts/requirements/booleans): local qwen ≈ cloud — same domains, correct concepts; low Jaccard (0.11–0.14) is wording variance, eyeball confirms equivalence. Booleans/complexity agree 75–79%.
-- **CNAE: local unreliable** — top-code overlap 7%, eyeballed rows show plausible-but-wrong subclasses (cosméticos/alimentos for dental/papelaria). CNAE = +35/+25 match weights → wrong codes create false-positive matches.
+- **CNAE: local unreliable** — top-code overlap 7%, eyeballed rows show plausible-but-wrong subclasses (cosméticos/alimentos for dental/papelaria). CNAE = +35/+25 match weights → wrong codes create false-positive matches. Damage scan: 1,155 local rows carry 3,169 CNAE codes, 1,429 (45%) absent from `cnae_codes` (hallucinated); the valid remainder is often the wrong subclass. Invalid codes can never match a company (harmless); valid-but-wrong ones can.
 
 ## Next
 - Monday: decide enrich-run (cloud) on/off; enable Gemini billing (paid tier) or stay on gpt-5-mini; rerun `lixto backfill --days 45` for the 8 failed units; fix stale "DISABLED" descriptions on match-run/recommend-run; verify a company's `/lixto` digest.
