@@ -1,31 +1,31 @@
 ---
-mode: mvp
+mode: production
 routing_profile: cloud
 parallel_default: parallel
 ---
 
-# Lixto — cost-fenced go-live (cycle 21)
+# Lixto — transactional email, self-hosted (cycle 22)
 
 ## What / why
-Cycles 18–20 built the whole pipeline (sync → enrich → match → recommend → digest → semantic search) but production has never ingested a row: all schedules are disabled and no LLM key is set. The blocker is cost uncertainty — enrichment is the only LLM spend, and today `lixto enrich run` would spend on every open procurement from 257 portals (~6,300/day nationally, ~$12/1k on OpenAI). This cycle turns production on with the spend fenced by construction, all data coming from PNCP ingestion (nothing from the legacy database).
+Lixto has no way to reach a user outside the browser. `users` already carries `email` and `invite_token_hash`/`invite_expires_at`, but nothing sends them: invites are dead on arrival, there is no password reset, and the cycle-19 digest only exists if someone opens `/lixto`. VISION §12 lists notifications as the highest-priority gap for the proactive loop. This cycle builds the whole path — persisted outbox, renderer, and a self-hosted MTA on `plugu-prod01` delivering direct-to-MX — so an opportunity found at 08:00 reaches the user's inbox without any third party.
 
-1. **Ingest everything, enrich a fence.** `sync incremental` keeps pulling all portals/modalities (HTTP + storage only). Details (items/documents) and enrichment run only for the **fence**: `origin_system` in top-3 portals (Compras.gov.br, ECustomize, IPM Sistemas), modality 6 (Pregão eletrônico) or 8 (Dispensa), and open/upcoming (`proposal_closes_at >= now() OR proposal_opens_at > now()`). Fence is config (env), not code.
-2. **45-day backfill from today backwards.** `lixto sync backfill --days 45` pages `/contratacoes/publicacao` per fenced modality, then details + enrichment drain the fenced open set closing-soonest first. Legacy run-rate says ≈ 8–10k rows one-off, ≈ 1,500/day after.
-3. **Hard daily cap + usage.** `LIXTO_ENRICH_DAILY_CAP=1500` rows/day across all runs; when reached the run stops and says so. Every LLM call records prompt/completion tokens, model and estimated USD in `agent_runs` counters; `lixto status` shows today's enriched / cap / tokens / est. $. Cap can't be exceeded by scheduling more runs.
-4. **Gemini for all tiers, OpenAI fallback.** Primary provider Gemini via the OpenAI-compatible endpoint: cheap = `gemini-2.5-flash-lite`, doc/strong = `gemini-2.5-flash`, embed = `gemini-embedding-001` at 1536 dims. Doc tier moves off the OpenAI Responses API to chat completions with inline PDFs. A second provider (`LIXTO_LLM_FALLBACK_BASE_URL/API_KEY/MODEL_*`) is used per call when the primary errors; embeddings never fall back across providers (vectors must share one model). Keys are an operator step at run time (Gemini key to be supplied; OpenAI key from hackiv's Dokploy env).
-5. **Tier-0 ME/EPP from items.** `me_epp_exclusive` / `me_epp_preference` derive deterministically from `procurement_items.benefit_type_id` (PNCP `tipoBeneficio`: 1 exclusive, 2 subcontracting, 3 reserved quota) when the enrichment row is written (same tables, no DDL); the LLM schema drops those two fields. Match engine and recommendations read the derived values.
-6. **Enable schedules** in order: sync-incremental → enrich-run → enrich-embed → match-run → recommend-run; plans/contracts stay disabled.
+1. **Outbox, not fire-and-forget.** New table `email_messages` (migration 003): `id`, `to_email`, `template`, `payload JSONB`, `subject`, `status` (`queued|sending|sent|failed|suppressed`), `attempts`, `last_error`, `provider_message_id`, `scheduled_for`, `sent_at`, plus `email_suppressions` (address, reason, created_at) for hard bounces and unsubscribes. Every send is enqueued in the same transaction as the business event, so a crash never loses or duplicates mail; a worker drains the queue with bounded retries and exponential backoff, and marks `failed` with the SMTP reply after the last attempt.
+2. **Four templates.** `welcome` (account created), `invite` (existing token → accept URL), `password_reset` (new short-lived token, single use), `daily_digest` (only when the company has new attention-scoring opportunities; reuses `digest-queries.ts` so in-app and email agree). Each renders HTML + text from one shared layout, in Portuguese, with a footer link that suppresses digest mail for that address. Account mail is transactional and not unsubscribable; digest mail is.
+3. **Self-hosted MTA.** Postfix + opendkim as a container on `plugu-prod01` (Hostinger BR, 187.127.16.246), reachable only on the internal Docker network for submission, delivering **direct-to-MX on port 25** (verified open; Hostinger caps outbound at 5 messages/minute, so the transport is rate-limited with `default_destination_rate_delay` and the queue absorbs bursts). Bounces are parsed back into `email_messages` / `email_suppressions`.
+4. **DNS as code.** `infra/terraform/` manages the Cloudflare zone `lixto.com.br`: `mail.lixto.com.br` A → VPS **grey-cloud (proxied = false)**, `MX 10 mail`, SPF replacing today's deny-all `v=spf1 -all`, DKIM selector TXT (public half only — the key is generated inside the MTA volume, never in Terraform state), DMARC `p=none` with a rua mailbox. Terraform owns exactly these records; nothing else. **Manual prerequisite** (no Hostinger provider): PTR for 187.127.16.246 must be changed from `srv1897779.hstgr.cloud` to `mail.lixto.com.br`, or Gmail/Outlook fail forward-confirmed rDNS.
+5. **Operational reality.** A cold IP still gets filtered until reputation builds, and bounce handling is ours. The env keeps a documented escape hatch — pointing Postfix's `relayhost` at an external submission service on 587/465 is a config line, not a code change — and `lixto status` gains an `email:` block (queued / sent 24 h / failed 24 h / suppressed) so silent non-delivery is visible.
+6. **Dispatch.** `lixto email worker` drains the outbox (Dokploy schedule, every 5 min); `lixto email digest` enqueues the daily digest per company after `recommend-run`. Both log to `agent_runs`.
 
 ## Primary user story
-As the operator, I turn ingestion on and know that Lixto will enrich at most 1,500 fenced open procurements per day on Gemini, see today's spend in `lixto status`, and within 24 h a test company's digest shows real opportunities — without ever touching the legacy database.
+As a user who just signed up (or was invited, or forgot my password, or has new matching opportunities), I receive a Portuguese email from Lixto in my normal inbox within minutes, with a working link — and if my address bounces, the system stops mailing it and shows me as failed instead of pretending it was delivered.
 
 ## Out of scope
-- Plans/contracts sync (per-page watermark), results sync enablement
-- Notifications (email/WhatsApp), prepare/execute, learning loop
-- Metadata-only / two-stage enrichment (edital read at recommend time)
-- Other Tier-0 fields (lot structure, deadline pressure, judging criterion), doc-checklist enum, schema v1.1
-- Mistral OCR or any provider beyond Gemini + OpenAI fallback
-- Local/Ollama lane
+- WhatsApp/push notifications (Evolution API stays for a later cycle)
+- Marketing/bulk email, campaigns, open/click tracking
+- Inbound email (parsing replies), mailbox hosting for humans
+- Per-user notification preferences beyond digest unsubscribe
+- Warm-up automation or reputation dashboards
+- Terraform for anything beyond those Cloudflare records (MTA config, PTR, Dokploy objects stay as they are)
 
 ## Success demo
-Done when schedules are enabled in Dokploy and, 24 h later, `lixto status` in prod shows fenced open procurements enriched on Gemini with tokens and estimated $ under the 1,500/day cap, a test company's `/lixto` digest lists real opportunities, and their ME/EPP flags come from `benefit_type_id` rather than the LLM.
+Done when signing up a test company delivers the welcome mail to a real Gmail inbox (not spam) with SPF, DKIM and DMARC all passing, the next morning's digest arrives only because that company has new attention-scoring opportunities, `email_messages` shows `queued → sent` with the MTA's message-id, and a deliberately invalid address ends `failed` with the SMTP reason and lands in `email_suppressions`.
