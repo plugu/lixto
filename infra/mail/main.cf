@@ -1,0 +1,76 @@
+# Lixto MTA — send-only Postfix (direct-to-MX on port 25).
+#
+# This file is the baked-in baseline. entrypoint.sh overrides a small set of
+# values from the environment (myhostname, mydomain, mynetworks, relayhost) so
+# the same image can run in dev and on plugu-prod01 without a rebuild.
+
+compatibility_level = 3.6
+
+# --- identity -----------------------------------------------------------
+myhostname = mail.lixto.com.br
+mydomain = lixto.com.br
+myorigin = $myhostname
+
+# Send-only: this host is the final destination for nothing and never runs
+# local delivery. Anything addressed to it is bounced, not written to a mbox.
+mydestination =
+local_recipient_maps =
+local_transport = error:5.1.1 local delivery is disabled on this host
+alias_maps =
+alias_database =
+
+# Direct-to-MX. Set RELAYHOST (e.g. [smtp.provider.tld]:587) to fall back to an
+# external submission service without touching code — see PRODUCT.md §5.
+relayhost =
+
+# --- who may inject mail ------------------------------------------------
+# Listens on all interfaces because the container is published only on the
+# internal Docker network; authorisation is done by client network, not by SASL.
+inet_interfaces = all
+inet_protocols = ipv4
+
+# The Dokploy/compose overlay subnet. Overridden by $MYNETWORKS at boot.
+mynetworks = 127.0.0.0/8 [::1]/128 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16
+
+smtpd_client_restrictions =
+    permit_mynetworks
+    reject
+smtpd_relay_restrictions =
+    permit_mynetworks
+    reject_unauth_destination
+smtpd_recipient_restrictions =
+    permit_mynetworks
+    reject
+smtpd_helo_required = yes
+disable_vrfy_command = yes
+smtpd_delay_reject = yes
+
+message_size_limit = 10485760
+
+# --- outbound TLS and DNS ----------------------------------------------
+smtp_tls_security_level = may
+smtp_tls_loglevel = 1
+smtp_tls_CApath = /etc/ssl/certs
+smtp_tls_session_cache_database = btree:${data_directory}/smtp_scache
+smtp_dns_support_level = dnssec
+
+# --- Hostinger outbound cap --------------------------------------------
+# Port 25 is open on 187.127.16.246 but capped at 5 messages/minute.
+# 1 concurrent delivery with a 15s gap per destination is ~4 msg/min; the
+# queue absorbs bursts and retries for up to 3 days.
+default_destination_rate_delay = 15s
+default_destination_concurrency_limit = 1
+initial_destination_concurrency = 1
+default_process_limit = 10
+maximal_queue_lifetime = 3d
+bounce_queue_lifetime = 1d
+maximal_backoff_time = 1h
+minimal_backoff_time = 5m
+queue_run_delay = 5m
+
+# --- opendkim milter ----------------------------------------------------
+# opendkim runs in this same container on 127.0.0.1:8891.
+smtpd_milters = inet:localhost:8891
+non_smtpd_milters = $smtpd_milters
+milter_default_action = accept
+milter_protocol = 6

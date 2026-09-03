@@ -11,3 +11,10 @@ web/uploads/
 
 # local secrets
 .llm_keys
+
+# terraform (state holds the Cloudflare API token; tfvars holds secrets)
+infra/terraform/*.tfstate*
+infra/terraform/.terraform/
+infra/terraform/.terraform.lock.hcl
+*.tfvars
+*.tfplan
