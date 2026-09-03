@@ -92,10 +92,13 @@ WHERE (p.proposal_closes_at >= now() OR p.proposal_opens_at > now())
 
 # The `email:` block (ticket 113). One statement over `email_messages` /
 # `email_suppressions` (migration 003) — silent non-delivery has to be cheap
-# to look at.
+# to look at. `sending` is in here because a queue stranded mid-flight (worker
+# killed after the claim) otherwise reads as empty; the web worker's
+# `requeueStale` is what drains it.
 _EMAIL_STATS_SQL = """
 SELECT
     count(*) FILTER (WHERE status = 'queued') AS queued,
+    count(*) FILTER (WHERE status = 'sending') AS sending,
     count(*) FILTER (WHERE status = 'sent'
                        AND sent_at >= now() - interval '24 hours') AS sent_24h,
     count(*) FILTER (WHERE status = 'failed'
@@ -179,9 +182,9 @@ def get_status(conn: psycopg.Connection) -> StatusReport:
         (has_email_messages,) = cur.fetchone()
         if has_email_messages:
             cur.execute(_EMAIL_STATS_SQL)
-            queued, sent_24h, failed_24h, suppressed = cur.fetchone()
+            queued, sending, sent_24h, failed_24h, suppressed = cur.fetchone()
         else:
-            queued = sent_24h = failed_24h = suppressed = 0
+            queued = sending = sent_24h = failed_24h = suppressed = 0
 
     return StatusReport(
         table_counts=table_counts,
@@ -206,6 +209,7 @@ def get_status(conn: psycopg.Connection) -> StatusReport:
         fenced_pending=fenced_pending,
         email={
             "queued": queued,
+            "sending": sending,
             "sent_24h": sent_24h,
             "failed_24h": failed_24h,
             "suppressed": suppressed,
@@ -258,6 +262,7 @@ def format_status(report: StatusReport) -> str:
     lines += [
         "email:",
         f"  queued: {email.get('queued', 0)}",
+        f"  sending: {email.get('sending', 0)}",
         f"  sent (24h): {email.get('sent_24h', 0)}",
         f"  failed (24h): {email.get('failed_24h', 0)}",
         f"  suppressed: {email.get('suppressed', 0)}",

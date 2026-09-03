@@ -29,7 +29,7 @@ def _conn(
     llm_7d=(0,),
     fenced_pending=0,
     email_messages_exists=True,
-    email_stats=(0, 0, 0, 0),
+    email_stats=(0, 0, 0, 0, 0),
 ):
     cur = MagicMock()
     fetchone_results = (
@@ -149,16 +149,28 @@ def test_get_status_defaults_daily_cap_to_unlimited(monkeypatch):
 
 
 def test_get_status_reads_email_stats_when_email_messages_exists():
-    conn, _cur = _conn(email_messages_exists=True, email_stats=(3, 12, 2, 1))
+    conn, _cur = _conn(email_messages_exists=True, email_stats=(3, 4, 12, 2, 1))
 
     report = get_status(conn)
 
     assert report.email == {
         "queued": 3,
+        "sending": 4,
         "sent_24h": 12,
         "failed_24h": 2,
         "suppressed": 1,
     }
+
+
+def test_get_status_counts_in_flight_messages():
+    """A queue stranded in 'sending' must not read as empty."""
+    conn, cur = _conn(email_messages_exists=True, email_stats=(0, 9, 0, 0, 0))
+
+    report = get_status(conn)
+
+    assert report.email["sending"] == 9
+    executed_sql = " ".join(str(c.args[0]) for c in cur.execute.call_args_list)
+    assert "count(*) FILTER (WHERE status = 'sending') AS sending" in executed_sql
 
 
 def test_get_status_reports_zero_email_stats_on_a_pre_003_database():
@@ -168,6 +180,7 @@ def test_get_status_reports_zero_email_stats_on_a_pre_003_database():
 
     assert report.email == {
         "queued": 0,
+        "sending": 0,
         "sent_24h": 0,
         "failed_24h": 0,
         "suppressed": 0,
@@ -202,7 +215,13 @@ def _report(**overrides):
         },
         "llm_last_7d_est_usd_micros": 810000,
         "fenced_pending": 980,
-        "email": {"queued": 5, "sent_24h": 40, "failed_24h": 2, "suppressed": 3},
+        "email": {
+            "queued": 5,
+            "sending": 1,
+            "sent_24h": 40,
+            "failed_24h": 2,
+            "suppressed": 3,
+        },
     }
     defaults.update(overrides)
     return StatusReport(**defaults)
@@ -227,23 +246,44 @@ def test_format_status_shows_unlimited_when_cap_is_zero():
 
 def test_format_status_includes_the_email_block():
     text = format_status(
-        _report(email={"queued": 5, "sent_24h": 40, "failed_24h": 2, "suppressed": 3})
+        _report(
+            email={
+                "queued": 5,
+                "sending": 7,
+                "sent_24h": 40,
+                "failed_24h": 2,
+                "suppressed": 3,
+            }
+        )
     )
 
     assert "email:" in text
     assert "  queued: 5" in text
+    assert "  sending: 7" in text
     assert "  sent (24h): 40" in text
     assert "  failed (24h): 2" in text
     assert "  suppressed: 3" in text
+    # `sending` reads right after `queued`: the two halves of the backlog.
+    lines = text.splitlines()
+    assert lines[lines.index("  queued: 5") + 1] == "  sending: 7"
 
 
 def test_format_status_shows_zeros_for_the_email_block_on_a_pre_003_database():
     text = format_status(
-        _report(email={"queued": 0, "sent_24h": 0, "failed_24h": 0, "suppressed": 0})
+        _report(
+            email={
+                "queued": 0,
+                "sending": 0,
+                "sent_24h": 0,
+                "failed_24h": 0,
+                "suppressed": 0,
+            }
+        )
     )
 
     assert "email:" in text
     assert "  queued: 0" in text
+    assert "  sending: 0" in text
     assert "  sent (24h): 0" in text
     assert "  failed (24h): 0" in text
     assert "  suppressed: 0" in text
