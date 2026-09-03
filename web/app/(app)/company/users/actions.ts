@@ -9,12 +9,6 @@ import { createInvite, removeUser, updateRole } from "@/lib/user-queries";
 
 const APP_URL = process.env.LIXTO_APP_URL ?? "https://lixto.com.br";
 
-/** `createInvite` (user-queries.ts) hardcodes `now() + interval '7 days'`
- * and does not return the expiry, nor does it come back from `getInvite`
- * (only id/name/email/companyLegalName) — both out of this ticket's file
- * scope. Mirrored here rather than re-queried. */
-const INVITE_EXPIRY_DAYS = 7;
-
 export type CreateInviteState = {
   token?: string;
   error?: string;
@@ -23,18 +17,18 @@ export type CreateInviteState = {
 /** Payload for the invite mail — split out so it is testable without
  * invoking the full server action (which pulls in `@/lib/auth`'s
  * `requireAdmin`, a session/cookie dependency). `async` because this file is
- * `"use server"`: every top-level export must be a Server Action. */
+ * `"use server"`: every top-level export must be a Server Action.
+ *
+ * `expiresAt` is the real `invite_expires_at` persisted by `createInvite`
+ * (via its `onCommitted` hook), not re-derived here. */
 export async function buildInviteEmailInput(input: {
   inviterName: string;
   companyName: string;
   email: string;
   token: string;
   companyId: number;
+  expiresAt: Date;
 }): Promise<EnqueueInput> {
-  const expiresAt = new Date(
-    Date.now() + INVITE_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
-  ).toISOString();
-
   return {
     toEmail: input.email,
     template: "invite",
@@ -42,7 +36,7 @@ export async function buildInviteEmailInput(input: {
       inviterName: input.inviterName,
       companyName: input.companyName,
       acceptUrl: `${APP_URL}/invite/${input.token}`,
-      expiresAt,
+      expiresAt: input.expiresAt.toISOString(),
     },
     companyId: input.companyId,
   };
@@ -65,27 +59,27 @@ export async function createInviteAction(
   }
 
   try {
-    const { token } = await createInvite(session.company.id, {
-      name,
-      email,
-      role: role as Role,
-    });
-
-    try {
-      await enqueue(
-        await buildInviteEmailInput({
-          inviterName: session.user.name,
-          companyName: session.company.tradeName ?? session.company.legalName,
-          email,
-          token,
-          companyId: session.company.id,
-        }),
-      );
-    } catch (err) {
-      // A mail failure must never fail invite creation — the copy-link UI
-      // still works even if the email doesn't arrive.
-      console.error("[createInviteAction] failed to enqueue invite email", err);
-    }
+    // Enqueued inside the transaction, before COMMIT (ADR 002 D1): a
+    // rejecting enqueue rolls the invite back instead of leaving a pending
+    // user with no invite mail — the admin simply retries.
+    const { token } = await createInvite(
+      session.company.id,
+      { name, email, role: role as Role },
+      async ({ client, token: rawToken, expiresAt }) => {
+        await enqueue(
+          await buildInviteEmailInput({
+            inviterName: session.user.name,
+            companyName:
+              session.company.tradeName ?? session.company.legalName,
+            email,
+            token: rawToken,
+            companyId: session.company.id,
+            expiresAt,
+          }),
+          client,
+        );
+      },
+    );
 
     revalidatePath("/company/users");
     return { token };

@@ -6,6 +6,7 @@
 
 import crypto from "node:crypto";
 import { pool } from "./db";
+import type { Queryable } from "./email/outbox";
 import type { Role, User } from "./types";
 
 export type SqlQuery = {
@@ -87,30 +88,60 @@ export type NewInvite = {
   role: Role;
 };
 
+/** Invoked inside the transaction, after the insert and before COMMIT — the
+ * hook that lets a caller enqueue the invite mail atomically with the row
+ * that justifies it (ADR 002 D1), using the real persisted `invite_expires_at`
+ * rather than a value re-derived in the caller. A throwing hook rolls back
+ * the invite. */
+export type OnInviteCommitted = (ctx: {
+  client: Queryable;
+  userId: number;
+  token: string;
+  expiresAt: Date;
+}) => Promise<void>;
+
 /** Creates a pending user row (password_hash NULL) and returns the raw
  * (un-hashed) invite token — only the sha256 hash is stored. */
 export async function createInvite(
   companyId: number,
   { email, name, role }: NewInvite,
+  onCommitted?: OnInviteCommitted,
 ): Promise<{ token: string }> {
   const token = crypto.randomBytes(32).toString("base64url");
   const tokenHash = hashToken(token);
 
+  const client = await pool.connect();
   try {
-    await pool.query(
+    await client.query("BEGIN");
+
+    const { rows } = await client.query<{
+      id: string;
+      invite_expires_at: Date;
+    }>(
       `INSERT INTO users
          (company_id, email, name, role, invite_token_hash, invite_expires_at, password_hash)
-       VALUES ($1, $2, $3, $4, $5, now() + interval '7 days', NULL)`,
+       VALUES ($1, $2, $3, $4, $5, now() + interval '7 days', NULL)
+       RETURNING id, invite_expires_at`,
       [companyId, email.trim().toLowerCase(), name, role, tokenHash],
     );
+    const userId = Number(rows[0].id);
+    const expiresAt = rows[0].invite_expires_at;
+
+    if (onCommitted) {
+      await onCommitted({ client, userId, token, expiresAt });
+    }
+
+    await client.query("COMMIT");
+    return { token };
   } catch (err) {
+    await client.query("ROLLBACK");
     if (isUniqueViolation(err)) {
       throw new Error("E-mail já cadastrado.");
     }
     throw err;
+  } finally {
+    client.release();
   }
-
-  return { token };
 }
 
 export type InviteInfo = {
