@@ -241,6 +241,11 @@ describe("POST /email/unsubscribe", () => {
   });
 });
 
+/** Sentinel standing in for the `PoolClient` a real transaction would hand
+ * the hook — distinct from `pool` so tests can assert `enqueue` was called
+ * with *this*, not the default pool. */
+const TX_CLIENT = { query: vi.fn(), __brand: "tx-client" };
+
 function signupFormData(): FormData {
   const fd = new FormData();
   fd.set("taxId", "12345678000199");
@@ -258,15 +263,30 @@ function signupFormData(): FormData {
 
 describe("signupAction", () => {
   beforeEach(() => {
-    mock(createCompanyWithAdmin).mockResolvedValue({
-      companyId: 42,
-      userId: 7,
-    });
+    // Stands in for the real transaction: invokes the `onCommitted` hook
+    // signup/actions.ts passes to `createCompanyWithAdmin`, with `TX_CLIENT`
+    // as the ctx's client — same as the real hook getting the open
+    // `PoolClient` before COMMIT.
+    mock(createCompanyWithAdmin).mockImplementation(
+      async (
+        _input: unknown,
+        onCommitted?: (ctx: {
+          client: typeof TX_CLIENT;
+          companyId: number;
+          userId: number;
+        }) => Promise<void>,
+      ) => {
+        if (onCommitted) {
+          await onCommitted({ client: TX_CLIENT, companyId: 42, userId: 7 });
+        }
+        return { companyId: 42, userId: 7 };
+      },
+    );
     mock(createSession).mockResolvedValue("session-token");
     mock(setSessionCookie).mockResolvedValue(undefined);
   });
 
-  it("enqueues one welcome email with the created ids", async () => {
+  it("enqueues one welcome email through the transaction client, with the created ids", async () => {
     mock(enqueue).mockResolvedValue({ id: 1 });
 
     await expect(
@@ -274,30 +294,35 @@ describe("signupAction", () => {
     ).rejects.toThrow("NEXT_REDIRECT");
 
     expect(enqueue).toHaveBeenCalledTimes(1);
-    expect(enqueue).toHaveBeenCalledWith({
-      toEmail: "maria@example.com",
-      template: "welcome",
-      payload: {
-        userName: "Maria Silva",
-        companyName: "Alfa",
-        appUrl: expect.stringContaining("/lixto"),
+    expect(enqueue).toHaveBeenCalledWith(
+      {
+        toEmail: "maria@example.com",
+        template: "welcome",
+        payload: {
+          userName: "Maria Silva",
+          companyName: "Alfa",
+          appUrl: expect.stringContaining("/lixto"),
+        },
+        companyId: 42,
+        userId: 7,
       },
-      companyId: 42,
-      userId: 7,
-    });
+      TX_CLIENT,
+    );
     expect(redirect).toHaveBeenCalledWith("/company");
   });
 
-  it("still creates the session and redirects when enqueue rejects", async () => {
+  it("propagates a rejecting enqueue instead of swallowing it — signup rolls back", async () => {
     mock(enqueue).mockRejectedValue(new Error("smtp down"));
 
     await expect(
       signupAction({ error: null }, signupFormData()),
-    ).rejects.toThrow("NEXT_REDIRECT");
+    ).rejects.toThrow("smtp down");
 
-    expect(createSession).toHaveBeenCalledWith(7);
-    expect(redirect).toHaveBeenCalledWith("/company");
-    expect(console.error).toHaveBeenCalled();
+    // The transaction rolled back before COMMIT — no session was created
+    // and no redirect happened for a user that (in reality) was never
+    // persisted.
+    expect(createSession).not.toHaveBeenCalled();
+    expect(redirect).not.toHaveBeenCalled();
   });
 });
 
@@ -328,20 +353,48 @@ const SESSION = {
   company: { id: 9, legalName: "Beta Ltda", tradeName: "Beta", taxId: "12345678000199" },
 };
 
+const DB_INVITE_EXPIRES_AT = new Date("2026-09-10T00:00:00.000Z");
+
 describe("createInviteAction", () => {
   beforeEach(() => {
     mock(requireAdmin).mockResolvedValue(SESSION);
-    mock(createInvite).mockResolvedValue({ token: "raw-invite-token" });
+    // Stands in for the real transaction: invokes the `onCommitted` hook
+    // company/users/actions.ts passes to `createInvite`, with `TX_CLIENT` as
+    // the ctx's client and the DB-persisted `invite_expires_at` — same as
+    // the real hook getting the open `PoolClient` and row before COMMIT.
+    mock(createInvite).mockImplementation(
+      async (
+        _companyId: number,
+        _data: unknown,
+        onCommitted?: (ctx: {
+          client: typeof TX_CLIENT;
+          userId: number;
+          token: string;
+          expiresAt: Date;
+        }) => Promise<void>,
+      ) => {
+        if (onCommitted) {
+          await onCommitted({
+            client: TX_CLIENT,
+            userId: 3,
+            token: "raw-invite-token",
+            expiresAt: DB_INVITE_EXPIRES_AT,
+          });
+        }
+        return { token: "raw-invite-token" };
+      },
+    );
   });
 
-  it("enqueues one invite email whose acceptUrl carries the raw token, and still returns { token }", async () => {
+  it("enqueues one invite email through the transaction client, whose acceptUrl carries the raw token and expiresAt comes from the persisted row, and still returns { token }", async () => {
     mock(enqueue).mockResolvedValue({ id: 5 });
 
     const result = await createInviteAction({}, inviteFormData());
 
     expect(result).toEqual({ token: "raw-invite-token" });
     expect(enqueue).toHaveBeenCalledTimes(1);
-    const call = mock(enqueue).mock.calls[0][0];
+    const [call, client] = mock(enqueue).mock.calls[0];
+    expect(client).toBe(TX_CLIENT);
     expect(call.toEmail).toBe("joao@example.com");
     expect(call.template).toBe("invite");
     expect(call.companyId).toBe(9);
@@ -349,31 +402,28 @@ describe("createInviteAction", () => {
       inviterName: "Admin",
       companyName: "Beta",
       acceptUrl: expect.stringContaining("/invite/raw-invite-token"),
+      expiresAt: DB_INVITE_EXPIRES_AT.toISOString(),
     });
-    expect(typeof call.payload.expiresAt).toBe("string");
-    expect(Number.isNaN(Date.parse(call.payload.expiresAt as string))).toBe(
-      false,
-    );
   });
 
-  it("still returns { token } when enqueue rejects", async () => {
+  it("propagates a rejecting enqueue instead of swallowing it — the invite rolls back", async () => {
     mock(enqueue).mockRejectedValue(new Error("smtp down"));
 
     const result = await createInviteAction({}, inviteFormData());
 
-    expect(result).toEqual({ token: "raw-invite-token" });
-    expect(console.error).toHaveBeenCalled();
+    expect(result).toEqual({ error: "smtp down" });
   });
 });
 
 describe("buildInviteEmailInput", () => {
-  it("shapes the invite payload with a future ISO expiry", async () => {
+  it("shapes the invite payload using the given expiresAt, not a locally re-derived one", async () => {
     const input = await buildInviteEmailInput({
       inviterName: "Admin",
       companyName: "Beta",
       email: "joao@example.com",
       token: "tok",
       companyId: 9,
+      expiresAt: DB_INVITE_EXPIRES_AT,
     });
     expect(input).toMatchObject({
       toEmail: "joao@example.com",
@@ -381,6 +431,6 @@ describe("buildInviteEmailInput", () => {
       companyId: 9,
     });
     const expiresAt = (input.payload as { expiresAt: string }).expiresAt;
-    expect(Date.parse(expiresAt)).toBeGreaterThan(Date.now());
+    expect(expiresAt).toBe(DB_INVITE_EXPIRES_AT.toISOString());
   });
 });

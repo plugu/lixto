@@ -199,36 +199,54 @@ export async function signupAction(
 
   let result;
   try {
-    result = await createCompanyWithAdmin({
-      company: {
-        taxId,
-        legalName,
-        tradeName: tradeName || null,
-        legalNature: legalNature || null,
-        size,
-        simplesOptant,
-        stateRegistration: stateRegistration || null,
-        municipalRegistration: municipalRegistration || null,
-        postalCode: postalCode || null,
-        street: street || null,
-        streetNumber: streetNumber || null,
-        addressLine2: addressLine2 || null,
-        district: district || null,
-        cityName: cityName || null,
-        state: stateValue,
-        phone: companyPhone || null,
-        email: companyEmail || null,
+    result = await createCompanyWithAdmin(
+      {
+        company: {
+          taxId,
+          legalName,
+          tradeName: tradeName || null,
+          legalNature: legalNature || null,
+          size,
+          simplesOptant,
+          stateRegistration: stateRegistration || null,
+          municipalRegistration: municipalRegistration || null,
+          postalCode: postalCode || null,
+          street: street || null,
+          streetNumber: streetNumber || null,
+          addressLine2: addressLine2 || null,
+          district: district || null,
+          cityName: cityName || null,
+          state: stateValue,
+          phone: companyPhone || null,
+          email: companyEmail || null,
+        },
+        cnaes,
+        user: {
+          name,
+          email,
+          passwordHash,
+          cpf: cpf || null,
+          phone: phone || null,
+          jobTitle: jobTitle || null,
+        },
       },
-      cnaes,
-      user: {
-        name,
-        email,
-        passwordHash,
-        cpf: cpf || null,
-        phone: phone || null,
-        jobTitle: jobTitle || null,
+      // Enqueued inside the transaction, before COMMIT (ADR 002 D1): a
+      // rejecting enqueue rolls the signup back instead of leaving a user
+      // with no welcome mail — the user simply retries.
+      async ({ client, companyId, userId }) => {
+        await enqueue(
+          await buildWelcomeEmailInput({
+            name,
+            email,
+            tradeName,
+            legalName,
+            companyId,
+            userId,
+          }),
+          client,
+        );
       },
-    });
+    );
   } catch (err) {
     const pgErr = err as { code?: string; constraint?: string } | null;
     if (pgErr?.code === "23505") {
@@ -242,22 +260,6 @@ export async function signupAction(
       return { error: "CNPJ ou e-mail já cadastrado." };
     }
     throw err;
-  }
-
-  try {
-    await enqueue(
-      await buildWelcomeEmailInput({
-        name,
-        email,
-        tradeName,
-        legalName,
-        companyId: result.companyId,
-        userId: result.userId,
-      }),
-    );
-  } catch (err) {
-    // A mail failure must never fail signup — the account is already created.
-    console.error("[signupAction] failed to enqueue welcome email", err);
   }
 
   const token = await createSession(result.userId);

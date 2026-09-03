@@ -7,6 +7,7 @@
 import { onlyDigits } from "./br-validators";
 import { normalizeCnaeCode } from "./company-queries";
 import { pool } from "./db";
+import type { Queryable } from "./email/outbox";
 import type { CompanySize } from "./types";
 
 export type SqlQuery = {
@@ -140,11 +141,22 @@ export function buildInsertUser(
   };
 }
 
+/** Invoked inside the transaction, after the inserts and before COMMIT — the
+ * hook that lets a caller enqueue the welcome mail atomically with the row
+ * that justifies it (ADR 002 D1). A throwing hook rolls back the signup. */
+export type OnCompanyCommitted = (ctx: {
+  client: Queryable;
+  companyId: number;
+  userId: number;
+}) => Promise<void>;
+
 /** Creates the company + CNAEs + first admin user in a single transaction.
  * Rolls back on any error (e.g. unique violation on companies.tax_id or
- * users.email — surfaced to the caller as a pg error with code 23505). */
+ * users.email — surfaced to the caller as a pg error with code 23505, or a
+ * rejecting `onCommitted` hook). */
 export async function createCompanyWithAdmin(
   input: SignupInput,
+  onCommitted?: OnCompanyCommitted,
 ): Promise<SignupResult> {
   const client = await pool.connect();
   try {
@@ -168,6 +180,10 @@ export async function createCompanyWithAdmin(
       userQuery.values,
     );
     const userId = Number(userResult.rows[0].id);
+
+    if (onCommitted) {
+      await onCommitted({ client, companyId, userId });
+    }
 
     await client.query("COMMIT");
     return { companyId, userId };
