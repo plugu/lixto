@@ -15,6 +15,11 @@ const PUBLIC_PREFIXES = [
   "/favicon.ico",
   // Internal batch routes authenticate with LIXTO_INTERNAL_TOKEN, not a session.
   "/api/internal",
+  // The digest footer link is followed from an inbox, with no session and no
+  // way to obtain one; it authenticates with its own HMAC token
+  // (lib/email/unsubscribe.ts). Redirecting it to /login would also drop
+  // ?email=&token= on the `url.search = ""` below.
+  "/email/unsubscribe",
 ];
 
 export function proxy(request: NextRequest) {

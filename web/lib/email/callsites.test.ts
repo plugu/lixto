@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // vi.mock hoists above these imports; every dependency the two server
 // actions touch (DB-backed query modules, auth/session, navigation) is
@@ -8,6 +8,12 @@ vi.mock("@/lib/email/outbox", () => ({
   enqueue: vi.fn(),
   suppress: vi.fn(),
 }));
+// The unsubscribe route (an app/ file) legitimately imports through "@/",
+// which vitest cannot resolve without a config alias; point those two
+// specifiers at the *real* modules so the route runs against real HTML
+// escaping and real token verification.
+vi.mock("@/lib/email/layout", async () => await import("./layout"));
+vi.mock("@/lib/email/unsubscribe", async () => await import("./unsubscribe"));
 vi.mock("@/lib/auth", () => ({
   createSession: vi.fn(),
   hashPassword: vi.fn(),
@@ -37,9 +43,10 @@ vi.mock("next/navigation", () => ({
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
 import { createSession, setSessionCookie, requireAdmin } from "@/lib/auth";
-import { enqueue } from "@/lib/email/outbox";
+import { enqueue, suppress } from "@/lib/email/outbox";
 import { createCompanyWithAdmin } from "@/lib/signup-queries";
 import { createInvite } from "@/lib/user-queries";
+import { NextRequest } from "next/server";
 import { redirect } from "next/navigation";
 
 import {
@@ -47,9 +54,14 @@ import {
   buildInviteEmailInput,
 } from "../../app/(app)/company/users/actions";
 import {
+  GET as unsubscribeGET,
+  POST as unsubscribePOST,
+} from "../../app/(app)/email/unsubscribe/route";
+import {
   signupAction,
   buildWelcomeEmailInput,
 } from "../../app/(app)/signup/actions";
+import { proxy } from "../../proxy";
 import {
   buildUnsubscribeUrl,
   unsubscribeToken,
@@ -61,6 +73,12 @@ const mock = <T>(fn: T) => fn as unknown as ReturnType<typeof vi.fn>;
 beforeEach(() => {
   vi.clearAllMocks();
   vi.spyOn(console, "error").mockImplementation(() => {});
+  // The signing key is read at call time, so stubbing it here is enough.
+  vi.stubEnv("LIXTO_UNSUBSCRIBE_SECRET", "test-unsubscribe-secret");
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
 });
 
 describe("unsubscribeToken / verifyUnsubscribeToken", () => {
@@ -95,6 +113,131 @@ describe("unsubscribeToken / verifyUnsubscribeToken", () => {
     expect(email).toBe("user@example.com");
     expect(token).toBeTruthy();
     expect(verifyUnsubscribeToken("user@example.com", token!)).toBe(true);
+  });
+
+  it("refuses to mint a token when the secret is unset, instead of signing with an empty key", () => {
+    const signed = unsubscribeToken("user@example.com");
+    vi.stubEnv("LIXTO_UNSUBSCRIBE_SECRET", "");
+    expect(() => unsubscribeToken("user@example.com")).toThrow(
+      /LIXTO_UNSUBSCRIBE_SECRET/,
+    );
+    expect(() => buildUnsubscribeUrl("user@example.com")).toThrow();
+    // And nothing verifies — not even a token that was valid a moment ago.
+    expect(verifyUnsubscribeToken("user@example.com", signed)).toBe(false);
+    expect(verifyUnsubscribeToken("user@example.com", "")).toBe(false);
+  });
+
+  it("does not fall back to LIXTO_INTERNAL_TOKEN", () => {
+    vi.stubEnv("LIXTO_UNSUBSCRIBE_SECRET", "");
+    vi.stubEnv("LIXTO_INTERNAL_TOKEN", "internal-token");
+    expect(() => unsubscribeToken("user@example.com")).toThrow();
+  });
+});
+
+describe("proxy: /email/unsubscribe is reachable logged out", () => {
+  const request = (url: string) => new NextRequest(new Request(url));
+
+  it("passes a session-less unsubscribe request through with its query intact", () => {
+    const url =
+      "http://localhost:3000/email/unsubscribe?email=user%40example.com&token=abc";
+    const response = proxy(request(url));
+
+    expect(response.headers.get("location")).toBeNull();
+    expect(response.headers.get("x-middleware-next")).toBe("1");
+  });
+
+  it("still redirects a session-less request to a private path", () => {
+    const response = proxy(request("http://localhost:3000/dashboard"));
+    expect(response.headers.get("location")).toContain("/login");
+  });
+});
+
+describe("GET /email/unsubscribe", () => {
+  const url = (email: string, token: string) =>
+    `http://localhost:3000/email/unsubscribe?${new URLSearchParams({
+      email,
+      token,
+    })}`;
+
+  it("renders the confirmation form and suppresses nothing", async () => {
+    const email = "user@example.com";
+    const response = await unsubscribeGET(
+      new Request(url(email, unsubscribeToken(email))),
+    );
+    const html = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(html).toContain('<form method="post"');
+    expect(html).toContain('name="token"');
+    expect(html).toContain(email);
+    expect(suppress).not.toHaveBeenCalled();
+  });
+
+  it("400s an invalid token without suppressing", async () => {
+    const response = await unsubscribeGET(
+      new Request(url("user@example.com", "forged")),
+    );
+    expect(response.status).toBe(400);
+    expect(suppress).not.toHaveBeenCalled();
+  });
+});
+
+describe("POST /email/unsubscribe", () => {
+  const path = "http://localhost:3000/email/unsubscribe";
+
+  function form(email: string, token: string): Request {
+    return new Request(path, {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ email, token }).toString(),
+    });
+  }
+
+  it("suppresses once for a valid token posted as a form body", async () => {
+    const email = "user@example.com";
+    const response = await unsubscribePOST(
+      form(email, unsubscribeToken(email)),
+    );
+
+    expect(response.status).toBe(200);
+    expect(suppress).toHaveBeenCalledTimes(1);
+    expect(suppress).toHaveBeenCalledWith(email, "unsubscribe");
+  });
+
+  it("accepts the credentials from the query string (one-click senders)", async () => {
+    const email = "user@example.com";
+    const query = new URLSearchParams({
+      email,
+      token: unsubscribeToken(email),
+    });
+    const response = await unsubscribePOST(
+      new Request(`${path}?${query}`, {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        body: "List-Unsubscribe=One-Click",
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(suppress).toHaveBeenCalledTimes(1);
+  });
+
+  it("400s a forged token and suppresses nothing", async () => {
+    const response = await unsubscribePOST(form("user@example.com", "forged"));
+
+    expect(response.status).toBe(400);
+    expect(suppress).not.toHaveBeenCalled();
+  });
+
+  it("400s when the secret is unset, even with a previously valid token", async () => {
+    const email = "user@example.com";
+    const token = unsubscribeToken(email);
+    vi.stubEnv("LIXTO_UNSUBSCRIBE_SECRET", "");
+
+    const response = await unsubscribePOST(form(email, token));
+
+    expect(response.status).toBe(400);
+    expect(suppress).not.toHaveBeenCalled();
   });
 });
 
