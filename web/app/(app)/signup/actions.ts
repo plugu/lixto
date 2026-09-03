@@ -10,8 +10,11 @@ import {
   onlyDigits,
 } from "@/lib/br-validators";
 import { lookupCNPJ } from "@/lib/cnpj-lookup";
+import { enqueue, type EnqueueInput } from "@/lib/email/outbox";
 import { createCompanyWithAdmin } from "@/lib/signup-queries";
 import { COMPANY_SIZES, UF_LIST, type CompanySize } from "@/lib/types";
+
+const APP_URL = process.env.LIXTO_APP_URL ?? "https://lixto.com.br";
 
 export type SignupState = {
   error: string | null;
@@ -65,6 +68,31 @@ export async function lookupAction(
       description: c.description,
       isPrimary: c.isPrimary,
     })),
+  };
+}
+
+/** Payload for the post-signup welcome mail — split out so it is testable
+ * without invoking the full server action (which pulls in `next/navigation`,
+ * `@/lib/auth` and DB-backed query modules). `async` because this file is
+ * `"use server"`: every top-level export must be a Server Action. */
+export async function buildWelcomeEmailInput(input: {
+  name: string;
+  email: string;
+  tradeName: string;
+  legalName: string;
+  companyId: number;
+  userId: number;
+}): Promise<EnqueueInput> {
+  return {
+    toEmail: input.email,
+    template: "welcome",
+    payload: {
+      userName: input.name,
+      companyName: input.tradeName || input.legalName,
+      appUrl: `${APP_URL}/lixto`,
+    },
+    companyId: input.companyId,
+    userId: input.userId,
   };
 }
 
@@ -214,6 +242,22 @@ export async function signupAction(
       return { error: "CNPJ ou e-mail já cadastrado." };
     }
     throw err;
+  }
+
+  try {
+    await enqueue(
+      await buildWelcomeEmailInput({
+        name,
+        email,
+        tradeName,
+        legalName,
+        companyId: result.companyId,
+        userId: result.userId,
+      }),
+    );
+  } catch (err) {
+    // A mail failure must never fail signup — the account is already created.
+    console.error("[signupAction] failed to enqueue welcome email", err);
   }
 
   const token = await createSession(result.userId);
