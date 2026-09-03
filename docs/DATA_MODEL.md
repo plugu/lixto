@@ -264,6 +264,22 @@ Learning loop feedback capture (cycle 19).
 - **Notable indexes**: `(opportunity_id, created_at DESC)`, `(user_id, created_at DESC)`
 - **Purpose**: Capture user feedback (dismissals, interest, outcomes) for ranking and model improvement. Moves `opportunities.state` to `analyzed`/`dismissed`.
 
+## Email (Cycle 22)
+
+### `email_messages`
+Transactional outbox for account invites, password reset, welcome, and daily digest.
+- **Key**: `id` (BIGSERIAL) PK
+- **Notable columns**: `to_email` (TEXT), `template` (welcome|invite|password_reset|daily_digest), `payload` (JSONB: vars like `appUrl`, `resetUrl`, `opportunities` for digest), `subject`, `status` (queued|sending|sent|failed|suppressed), `attempts` (INT), `last_error` (TEXT), `provider_message_id` (MTA's message-id), `scheduled_for` (TIMESTAMPTZ, when to send; NULL=immediate), `sent_at` (when actually sent), `created_at`, `updated_at`
+- **Notable indexes**: `status` (filter queued), partial unique `(to_email, template, dedupe_key)` for idempotence, `created_at DESC` for retention
+- **Purpose**: Persist every send; survive crashes without data loss or duplication. Worker drains queued rows with bounded retries.
+
+### `email_suppressions`
+Hard bounces and digest unsubscribes.
+- **Key**: `address` (TEXT, lowercased email) PK
+- **Notable columns**: `reason` (bounce|unsubscribe), `created_at`
+- **Notable indexes**: PK only
+- **Purpose**: Block future sends to bounced addresses and digest unsubscribes. Account email (welcome/invite/reset) is transactional and not suppressible.
+
 ## Legacy → New Naming Map
 
 | Legacy | New |

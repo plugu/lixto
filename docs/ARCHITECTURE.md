@@ -194,6 +194,67 @@ Every newly enriched procurement is automatically evaluated against every compan
 - **Visibility**: Dismissed opportunities hidden from digest; chat tools (`list_opportunities`, `explain_opportunity`) expose same data
 - **Single scoring**: Match engine used by both batch and conversational (no duplication)
 
+## Transactional email
+
+**Model**: Persisted outbox (idempotent, never lose or duplicate mail). Every send enqueued in the same transaction as the business event; worker drains queue with bounded retries and exponential backoff.
+
+### Outbox
+
+`email_messages` table:
+- `id`, `to_email`, `template`, `payload JSONB`, `subject`, `status` (queued|sending|sent|failed|suppressed), `attempts`, `last_error`, `provider_message_id`, `scheduled_for`, `sent_at`, `created_at`, `updated_at`
+- Unique index on `(to_email, template, dedupe_key)` for idempotency
+
+`email_suppressions` table:
+- `address`, `reason` (bounce|unsubscribe), `created_at`
+- Suppress future sends to hard-bounce addresses and digest unsubscribes
+
+### Templates
+
+| Template | Use | Unsubscribable |
+|---|---|---|
+| `welcome` | Account created | No (transactional) |
+| `invite` | User invite (existing token) | No (transactional) |
+| `password_reset` | Password reset (short-lived token) | No (transactional) |
+| `daily_digest` | New attention-scoring opportunities | Yes (footer link) |
+
+### Dispatch
+
+- **`lixto email worker`** (Dokploy schedule every 5 min): Drain `email_messages` with status=queued up to `--limit` (default 20). Send via SMTP, parse bounces into `email_suppressions`, mark status=sent/failed/suppressed.
+- **`lixto email digest`** (Dokploy schedule 8:30 AM): Enqueue daily digest per company after `recommend-run` completes. Digest only sends if company has new opportunities (score ≥ 70 with attention=true).
+
+### MTA (Self-Hosted)
+
+**Container**: Postfix + opendkim on `plugu-prod01` (Hostinger BR, 187.127.16.246).
+
+**Configuration**:
+- Submission port 25 only (internal Docker network, no TLS needed)
+- Direct-to-MX delivery (verified port 25 open)
+- Rate-limited below Hostinger's 5 msg/min cap
+- DKIM selector configured in volume
+- Bounces parsed and written to `email_suppressions`
+
+**DNS**: Managed by Terraform (`infra/terraform/`):
+- `mail.lixto.com.br` A record (grey-cloud, non-proxied)
+- MX 10 mail.lixto.com.br
+- SPF replacing old deny-all
+- DKIM selector TXT (public half; private key in volume, never in state)
+- DMARC rua=mailto:dmarc@lixto.com.br (policy=none for initial reputation building)
+
+**PTR**: Manual (Hostinger hPanel): 187.127.16.246 → mail.lixto.com.br (required for Gmail/Outlook forward-confirmed rDNS).
+
+**Escape hatch**: If IP reputation fails, change `relayhost` in Postfix config to point at external submission service on 587/465 (no code changes).
+
+### Status
+
+`lixto status` includes email block:
+```
+email:
+  queued: <n>
+  sent (24h): <n>
+  failed (24h): <n>
+  suppressed: <n>
+```
+
 ## Enrichment Schema
 
 `procurement_enrichments` (one per open procurement):

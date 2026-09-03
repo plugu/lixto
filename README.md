@@ -172,6 +172,86 @@ Dokploy project `lixto`, app `lixto-cli`, timezone `America/Sao_Paulo`:
 
 Dates `0 0 31 2 *` (Feb 31st) never fire; use for manual-only schedules.
 
+## Transactional email
+
+Lixto sends transactional email (account invites, password reset, welcome, daily digest) via a self-hosted Postfix MTA on `plugu-prod01`.
+
+### Outbox Model
+
+New table `email_messages` persists all outbound mail:
+- `id`, `to_email`, `template` (welcome|invite|password_reset|daily_digest), `payload JSONB`, `subject`, `status` (queued|sending|sent|failed|suppressed), `attempts`, `last_error`, `provider_message_id`, `scheduled_for`, `sent_at`
+- `email_suppressions` tracks hard bounces and unsubscribes (address, reason, created_at)
+
+### Templates
+
+| Template | Purpose | Unsubscribable |
+|---|---|---|
+| `welcome` | Account created | No (transactional) |
+| `invite` | Accept invite link | No (transactional) |
+| `password_reset` | Reset token + link | No (transactional) |
+| `daily_digest` | New attention-scoring opportunities | Yes (footer link suppresses future digests) |
+
+All render HTML + text from a shared Portuguese layout with unsubscribe footer (digest only).
+
+### CLI Commands
+
+```bash
+# Drain outbox (sends up to N messages; default 20)
+lixto email worker [--limit N]
+
+# Enqueue digest for a company (runs after `lixto recommend run`)
+lixto email digest [--company-id N]
+```
+
+### Dokploy Schedules (on `lixto-cli`)
+
+| Schedule | Cron | Command |
+|---|---|---|
+| `email-worker` | `*/5 * * * *` | `lixto email worker --limit 20` |
+| `email-digest` | `30 8 * * *` | `lixto email digest` |
+
+### Status Monitoring
+
+`lixto status` includes an email block:
+```
+email:
+  queued: <n>
+  sent (24h): <n>
+  failed (24h): <n>
+  suppressed: <n>
+```
+
+### Deploy Runbook (First-Time Setup)
+
+1. **Provision DNS records** (Terraform):
+   ```bash
+   terraform -chdir=infra/terraform apply
+   ```
+   Creates `mail.lixto.com.br` A record (grey-cloud, no proxying), MX, SPF, DKIM (public half), DMARC on Cloudflare.
+
+2. **Deploy MTA container**:
+   - Create `lixto-mail` app in Dokploy from `infra/mail/Dockerfile`
+   - Service runs Postfix + opendkim, reachable on internal Docker network (submission port 25 only)
+   - On startup, generates DKIM keypair in volume at `/var/db/dkim/{selector}.private`
+
+3. **Extract and apply DKIM public key**:
+   - Read DKIM public key from MTA container logs
+   - Update `LIXTO_MAIL_DKIM_PUBLIC_KEY` in Terraform variables
+   - Re-run `terraform -chdir=infra/terraform apply` to publish DNS record
+
+4. **Set PTR record** (manual, via Hostinger hPanel):
+   - IP: `187.127.16.246`
+   - Hostname: `mail.lixto.com.br`
+   - (No Hostinger Terraform provider; this must be done out-of-band)
+
+5. **Send test email** and verify:
+   - Create a test user and invite
+   - Check inbox (not spam) for SPF, DKIM, DMARC headers
+   - View in Gmail "Show original" — all three should pass
+   - Note: Hostinger caps outbound at 5 msg/min; Postfix rate-limits below this
+
+**Escape hatch**: If the IP reputation causes filtering (Gmail/Outlook), point Postfix `relayhost` at an external submission service on 587/465 (config change only, no code changes).
+
 ## Go-live runbook
 
 When moving Lixto to production ingestion:

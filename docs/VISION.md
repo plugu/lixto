@@ -748,7 +748,7 @@ AI procurement operator.**
 | vision item | status | notes |
 |---|---|---|
 | HTML parsing (§5.2) | skipped | PNCP attachments are PDFs; revisit if other portals ingested |
-| Email/WhatsApp/push notifications for new opportunities | not built | digest is in-app only; notifications planned for cycle 20 |
+| WhatsApp/push notifications for new opportunities | not built | email built (cycle 22); WhatsApp/push still open |
 | Prepare / execute / human-approval workflow (§13, MVP 13) | not built | `agent_actions` table placeholder exists for cycle 20 |
 | Additional tools: `search_items`, `get_documents`, `compare_procurements`, `check_company_eligibility`, `list_missing_documents`, `prepare_participation` (§11) | not built | 5 of 12 listed tools exist |
 | Learning from feedback: ranking improvements based on acceptance/dismissal patterns (§14) | not built | feedback captured in `opportunity_feedback`; model retraining not yet implemented |
@@ -785,6 +785,19 @@ AI procurement operator.**
 - Cost reporting: `lixto status` shows today's tokens/USD and last 7 days' total (§3)
 - Go-live runbook: `lixto backfill --days 45 → enrich run (cap) → enable schedules in order` (README.md)
 - Prod ingestion schedules enabled (user decision in Dokploy; §6)
+
+### Cycle 22 — Transactional email (built)
+
+**Completed**:
+- Persisted outbox: `email_messages` table with idempotent send, status tracking (queued|sending|sent|failed|suppressed), bounded retries + backoff
+- Four templates: welcome (account created), invite (token accept), password_reset (token + link), daily_digest (opportunities only when score ≥70)
+- Worker dispatch: `lixto email worker [--limit N]` drains outbox; digest enqueue via `lixto email digest [--company-id N]`
+- Hard bounce suppression: `email_suppressions` table blocks future sends to bounced addresses; digest unsubscribe via footer link
+- Self-hosted MTA: Postfix + opendkim on plugu-prod01 (187.127.16.246) delivering direct-to-MX; rate-limited below Hostinger's 5 msg/min cap
+- DNS as code: Terraform manages Cloudflare zone (mail.lixto.com.br A, MX, SPF, DKIM, DMARC); PTR set manually
+- Status visibility: `lixto status` email block shows queued, sent (24h), failed (24h), suppressed
+- Deploy runbook: Terraform → deploy MTA → extract DKIM → re-apply → set PTR → test (README.md)
+- Escape hatch: `relayhost` on 587/465 for external submission if IP reputation issues
 
 ### Cycle 20+ roadmap
 

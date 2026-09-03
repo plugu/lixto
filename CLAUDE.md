@@ -55,15 +55,20 @@ Key facts:
 | `LIXTO_IBGE_CNAE_URL` | CNAE seed source | `https://concla.ibge.gov.br/export/tabelas/ascii/subclasses.txt` |
 | `LIXTO_MIN_REQUEST_INTERVAL` | Seconds between PNCP requests | `0.5` |
 | `UPLOADS_DIR` | Document storage | `./uploads` (dev), `/app/uploads` (prod) |
+| `LIXTO_SMTP_HOST` | SMTP server (transactional email) | `lixto-mail` (prod, Docker network), `localhost` (dev) |
+| `LIXTO_SMTP_PORT` | SMTP port | `25` |
+| `LIXTO_EMAIL_FROM` | Sender name + address | `Lixto <nao-responda@lixto.com.br>` |
+| `LIXTO_EMAIL_REPLY_TO` | Reply-To header (optional) | — |
+| `LIXTO_APP_URL` | Web app base URL (used in email links) | `https://lixto.com.br` (prod), `http://localhost:3000` (dev) |
 
-**Note**: All `LIXTO_*` vars are read by Python (CLI); `web` also reads LLM + embedding vars via `.env.local`.
+**Note**: All `LIXTO_*` vars are read by Python (CLI); `web` also reads LLM, embedding, and email vars via `.env.local`.
 
 ### Production Deployment
 
 **Dokploy**:
 - Project: `lixto` (renamed from `plataforma-licitante`)
-- Apps: `lixto-web` (Next.js) + `lixto-cli` (Python, sleeps forever on `ENTRYPOINT ["sleep", "infinity"]`)
-- Schedules on `lixto-cli` (enabled in cycle 21; before that, run manually):
+- Apps: `lixto-web` (Next.js) + `lixto-cli` (Python, sleeps forever on `ENTRYPOINT ["sleep", "infinity"]`) + `lixto-mail` (Postfix + opendkim MTA, from `infra/mail/Dockerfile`)
+- Schedules on `lixto-cli` (enabled in cycle 21+):
   - `sync-incremental` — `0 6,13,20 * * *` (pull fenced procurements)
   - `results-sync` — `0 3 * * *` (homologated results)
   - `plans-sync` — `0 4 * * *` (disabled; manual only)
@@ -72,6 +77,8 @@ Key facts:
   - `match-run` — `0 8,15,22 * * *` (score procurements vs profiles)
   - `recommend-run` — `15 8 * * *` (GO/NO-GO for top opportunities)
   - `enrich-embed` — `45 7,14,21 * * *` (backfill vector embeddings; 15 min after `enrich-run`)
+  - `email-worker` — `*/5 * * * *` (drain outbox every 5 min)
+  - `email-digest` — `30 8 * * *` (enqueue digest at 8:30 AM)
   - `db-init` — manual only (`0 0 31 2 *`)
 
 **Note on schedules**: Date `0 0 31 2 *` never fires (Feb 31st). Use for "manual only" jobs.
