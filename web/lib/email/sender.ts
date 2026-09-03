@@ -22,7 +22,14 @@ import nodemailer from "nodemailer";
 import type SMTPPool from "nodemailer/lib/smtp-pool";
 import type Mail from "nodemailer/lib/mailer";
 
-import { claimBatch, markFailed, markSent, suppress } from "./outbox";
+import {
+  claimBatch,
+  isSuppressed,
+  markFailed,
+  markSent,
+  requeueStale,
+  suppress,
+} from "./outbox";
 import type { EmailMessage, EmailTemplate } from "./outbox";
 import { renderTemplate } from "./templates";
 import type { TemplatePayloads } from "./templates";
@@ -75,6 +82,9 @@ export type EmailWorkerResult = {
   sent: number;
   failed: number;
   suppressed: number;
+  /** Stale 'sending' rows swept back to 'queued' (or failed for good) by
+   * `requeueStale` before this pass claimed anything. */
+  requeued: number;
 };
 
 /**
@@ -213,9 +223,17 @@ function buildMessage(
 
   // Only the digest is unsubscribable (PRODUCT §2): account mail is
   // transactional, and advertising a List-Unsubscribe on it would be a lie.
+  // Gmail/Yahoo's bulk-sender rules require the pair — a bare
+  // List-Unsubscribe without List-Unsubscribe-Post is not one-click
+  // compliant — and the URL is the POST-capable route (ticket 115).
   if (row.template === "daily_digest") {
     const url = unsubscribeUrlOf(row);
-    if (url) message.headers = { "List-Unsubscribe": `<${url}>` };
+    if (url) {
+      message.headers = {
+        "List-Unsubscribe": `<${url}>`,
+        "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+      };
+    }
   }
 
   return message;
@@ -232,6 +250,21 @@ export async function sendOne(
 ): Promise<SendOutcome> {
   let transport: MailTransport | undefined;
   try {
+    // `br-validators.ts`'s email regex accepts "a@b.com,c.d" — a comma- or
+    // semicolon-joined string nodemailer would happily split into multiple
+    // recipients. Reject it here rather than loosen the shared validator.
+    if (/[,;]/.test(row.to_email)) {
+      const message = `to_email is not a single address: "${row.to_email}"`;
+      await markFailed(row.id, message, { retryable: false });
+      return {
+        id: row.id,
+        status: "failed",
+        retryable: false,
+        suppressed: false,
+        error: message,
+      };
+    }
+
     // `payload` is JSONB: typed on the way in (ticket 112), plain on the way
     // out. A stale template name throws here and settles as non-retryable.
     const rendered = renderTemplate(
@@ -239,10 +272,25 @@ export async function sendOne(
       row.payload as TemplatePayloads[EmailTemplate],
     );
     transport = deps.transport ?? getTransport();
+
+    // The atomic insert (`enqueue`) and `requeueStale` both check suppression
+    // at their own moment, but a claimed row can sit for seconds before this
+    // line runs — long enough for the unsubscribe route to commit in between.
+    // Re-check right before the network call so that race never mails anyone.
+    if (await isSuppressed(row.to_email)) {
+      const message = "recipient became suppressed after claim";
+      await markFailed(row.id, message, { retryable: false });
+      return {
+        id: row.id,
+        status: "failed",
+        retryable: false,
+        suppressed: true,
+        error: message,
+      };
+    }
+
     const info = await transport.sendMail(buildMessage(row, rendered));
-    // The subject lives only in the render; `markSent` writes no subject and
-    // outbox.ts is ticket 108's, so the column stays as enqueued.
-    await markSent(row.id, info?.messageId ?? null);
+    await markSent(row.id, info?.messageId ?? null, rendered.subject);
     return { id: row.id, status: "sent", retryable: false, suppressed: false };
   } catch (err) {
     const { retryable, hardBounce, message } = classifyError(err);
@@ -296,6 +344,10 @@ export async function runEmailWorker(
   options: EmailWorkerOptions = {},
 ): Promise<EmailWorkerResult> {
   const limit = clampLimit(options.limit);
+
+  // Recover anything a previous pass abandoned mid-send before claiming a
+  // fresh batch, so a crashed runner's messages aren't invisible forever.
+  const { requeued } = await requeueStale();
   const rows = await claimBatch(limit);
 
   const result: EmailWorkerResult = {
@@ -303,6 +355,7 @@ export async function runEmailWorker(
     sent: 0,
     failed: 0,
     suppressed: 0,
+    requeued,
   };
   if (rows.length === 0) return result;
 

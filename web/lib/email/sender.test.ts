@@ -21,10 +21,19 @@ vi.mock("./outbox", () => ({
   markSent: vi.fn(),
   markFailed: vi.fn(),
   suppress: vi.fn(),
+  isSuppressed: vi.fn(),
+  requeueStale: vi.fn(),
 }));
 
 import { POST } from "../../app/api/internal/email/send/route";
-import { claimBatch, markFailed, markSent, suppress } from "./outbox";
+import {
+  claimBatch,
+  isSuppressed,
+  markFailed,
+  markSent,
+  requeueStale,
+  suppress,
+} from "./outbox";
 import type { EmailMessage } from "./outbox";
 import { classifyError, getTransport, runEmailWorker, sendOne } from "./sender";
 
@@ -87,6 +96,8 @@ beforeEach(() => {
   mock(markSent).mockResolvedValue(null);
   mock(markFailed).mockResolvedValue(null);
   mock(suppress).mockResolvedValue({ email: "x", suppressedMessages: 0 });
+  mock(isSuppressed).mockResolvedValue(false);
+  mock(requeueStale).mockResolvedValue({ requeued: 0, failed: 0 });
   delete process.env.LIXTO_INTERNAL_TOKEN;
 });
 
@@ -125,11 +136,15 @@ describe("sendOne", () => {
     expect(message.html).toContain("Alfa Ltda");
     expect(message.text).toContain("https://app.lixto.com.br");
 
-    expect(markSent).toHaveBeenCalledWith(1, "<abc123@mail.lixto.com.br>");
+    expect(markSent).toHaveBeenCalledWith(
+      1,
+      "<abc123@mail.lixto.com.br>",
+      "Bem-vindo ao Lixto, Maria",
+    );
     expect(markFailed).not.toHaveBeenCalled();
   });
 
-  it("adds List-Unsubscribe only to the digest", async () => {
+  it("adds both List-Unsubscribe headers only to the digest", async () => {
     const transport = { sendMail: nm.sendMail };
 
     await sendOne(row(), { transport });
@@ -139,7 +154,50 @@ describe("sendOne", () => {
     expect(nm.sendMail.mock.calls[1][0].headers).toEqual({
       "List-Unsubscribe":
         "<https://app.lixto.com.br/email/unsubscribe?t=abc>",
+      "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
     });
+  });
+
+  it("re-checks suppression right before sending and does not mail a newly suppressed address", async () => {
+    mock(isSuppressed).mockResolvedValueOnce(true);
+
+    const outcome = await sendOne(row(), {
+      transport: { sendMail: nm.sendMail },
+    });
+
+    expect(isSuppressed).toHaveBeenCalledWith("maria@empresa.com.br");
+    expect(nm.sendMail).not.toHaveBeenCalled();
+    expect(markSent).not.toHaveBeenCalled();
+    expect(outcome).toMatchObject({
+      id: 1,
+      status: "failed",
+      retryable: false,
+      suppressed: true,
+    });
+    expect(markFailed).toHaveBeenCalledWith(1, expect.any(String), {
+      retryable: false,
+    });
+  });
+
+  it("rejects a comma-joined address without sending, non-retryably", async () => {
+    const outcome = await sendOne(
+      row({ to_email: "a@b.com,c.d" }),
+      { transport: { sendMail: nm.sendMail } },
+    );
+
+    expect(nm.sendMail).not.toHaveBeenCalled();
+    expect(outcome).toMatchObject({
+      id: 1,
+      status: "failed",
+      retryable: false,
+      suppressed: false,
+    });
+    expect(markFailed).toHaveBeenCalledWith(
+      1,
+      expect.stringContaining("a@b.com,c.d"),
+      { retryable: false },
+    );
+    expect(markSent).not.toHaveBeenCalled();
   });
 
   it("suppresses the address on a 550 user unknown", async () => {
@@ -230,10 +288,35 @@ describe("runEmailWorker", () => {
 
     const result = await runEmailWorker();
 
-    expect(result).toEqual({ claimed: 2, sent: 2, failed: 0, suppressed: 0 });
+    expect(result).toEqual({
+      claimed: 2,
+      sent: 2,
+      failed: 0,
+      suppressed: 0,
+      requeued: 0,
+    });
     expect(claimBatch).toHaveBeenCalledWith(20);
     expect(nm.createTransport).toHaveBeenCalledTimes(1);
     expect(nm.close).toHaveBeenCalledTimes(1);
+  });
+
+  it("sweeps stale 'sending' rows before claiming and surfaces the count", async () => {
+    mock(requeueStale).mockResolvedValueOnce({ requeued: 3, failed: 1 });
+    mock(claimBatch).mockResolvedValue([]);
+
+    const result = await runEmailWorker();
+
+    expect(result).toEqual({
+      claimed: 0,
+      sent: 0,
+      failed: 0,
+      suppressed: 0,
+      requeued: 3,
+    });
+    expect(requeueStale).toHaveBeenCalledTimes(1);
+    const requeueOrder = mock(requeueStale).mock.invocationCallOrder[0];
+    const claimOrder = mock(claimBatch).mock.invocationCallOrder[0];
+    expect(requeueOrder).toBeLessThan(claimOrder);
   });
 
   it("keeps going after a row throws out of the outbox", async () => {
@@ -243,7 +326,13 @@ describe("runEmailWorker", () => {
 
     const result = await runEmailWorker();
 
-    expect(result).toEqual({ claimed: 2, sent: 1, failed: 1, suppressed: 0 });
+    expect(result).toEqual({
+      claimed: 2,
+      sent: 1,
+      failed: 1,
+      suppressed: 0,
+      requeued: 0,
+    });
     expect(nm.sendMail).toHaveBeenCalledTimes(2);
     spy.mockRestore();
   });
@@ -256,7 +345,29 @@ describe("runEmailWorker", () => {
 
     const result = await runEmailWorker();
 
-    expect(result).toEqual({ claimed: 1, sent: 0, failed: 1, suppressed: 1 });
+    expect(result).toEqual({
+      claimed: 1,
+      sent: 0,
+      failed: 1,
+      suppressed: 1,
+      requeued: 0,
+    });
+  });
+
+  it("counts a row suppressed between claim and send as suppressed, not sent", async () => {
+    mock(claimBatch).mockResolvedValue([row()]);
+    mock(isSuppressed).mockResolvedValueOnce(true);
+
+    const result = await runEmailWorker();
+
+    expect(result).toEqual({
+      claimed: 1,
+      sent: 0,
+      failed: 1,
+      suppressed: 1,
+      requeued: 0,
+    });
+    expect(nm.sendMail).not.toHaveBeenCalled();
   });
 
   it("never throws when the transport cannot be built", async () => {
@@ -268,7 +379,13 @@ describe("runEmailWorker", () => {
 
     const result = await runEmailWorker();
 
-    expect(result).toEqual({ claimed: 2, sent: 0, failed: 2, suppressed: 0 });
+    expect(result).toEqual({
+      claimed: 2,
+      sent: 0,
+      failed: 2,
+      suppressed: 0,
+      requeued: 0,
+    });
     expect(markFailed).toHaveBeenCalledTimes(2);
     expect(markFailed).toHaveBeenLastCalledWith(
       2,
@@ -281,7 +398,13 @@ describe("runEmailWorker", () => {
   it("does not open a transport for an empty queue", async () => {
     const result = await runEmailWorker({ limit: 5 });
 
-    expect(result).toEqual({ claimed: 0, sent: 0, failed: 0, suppressed: 0 });
+    expect(result).toEqual({
+      claimed: 0,
+      sent: 0,
+      failed: 0,
+      suppressed: 0,
+      requeued: 0,
+    });
     expect(claimBatch).toHaveBeenCalledWith(5);
     expect(nm.createTransport).not.toHaveBeenCalled();
   });
@@ -320,6 +443,7 @@ describe("POST /api/internal/email/send", () => {
       sent: 1,
       failed: 0,
       suppressed: 0,
+      requeued: 0,
     });
     expect(claimBatch).toHaveBeenCalledWith(3);
   });
