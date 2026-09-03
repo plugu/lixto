@@ -5,12 +5,16 @@
 // module is the only place that writes the queue, and every value from the
 // outside world is bound as $n — never interpolated into SQL.
 //
-// Two invariants shape the API:
+// Three invariants shape the API:
 //   1. `enqueue(input, client)` accepts a caller's transaction client, so mail
 //      is written in the same transaction as the business event (signup,
-//      invite). Either both land or neither does.
+//      invite). Either both land or neither does. Its suppression test lives
+//      inside the INSERT, so an unsubscribe can never slip in between.
 //   2. `claimBatch` flips rows to 'sending' with FOR UPDATE SKIP LOCKED, so two
 //      workers on the same schedule never take the same message.
+//   3. Every 'sending' row is eventually settled: whatever the worker fails to
+//      finish, `requeueStale` returns to the queue (or fails for good). No
+//      message is stranded by a crash.
 //
 // See docs/adr/002-transactional-email.md.
 
@@ -89,9 +93,19 @@ export type EmailMessage = {
 
 export type EmailStats = {
   queued: number;
+  /** In flight right now. A number that only grows means stranded rows —
+   * `requeueStale` is what brings them back. */
+  sending: number;
   sent24h: number;
   failed24h: number;
   suppressed: number;
+};
+
+/** What `requeueStale` did: rows put back in the queue, and rows that had
+ * already burned every attempt and are now terminally `failed`. */
+export type RequeueStaleResult = {
+  requeued: number;
+  failed: number;
 };
 
 /** Minutes to wait before attempt n+1, indexed by the attempt that just
@@ -100,6 +114,11 @@ export const BACKOFF_MINUTES = [1, 5, 30, 120] as const;
 
 /** After this many attempts a message is `failed` for good. */
 export const MAX_ATTEMPTS = 5;
+
+/** How long a row may sit in 'sending' before we assume its runner died. The
+ * worker's own ceiling is `maxDuration = 300` s, so anything older than this
+ * cannot still be in flight. */
+export const STALE_SENDING_MINUTES = 15;
 
 /** Addresses are compared case-insensitively everywhere (suppressions are
  * keyed by the lowercased address), so normalize once at the boundary. */
@@ -162,10 +181,16 @@ export async function isSuppressed(
  * Queues one message. Pass `client` to write it inside the caller's
  * transaction — the whole point of the outbox.
  *
- * Two silent skips, both by design: a suppressed address (checked first, so we
- * never store mail we would refuse to send) and a repeated `dedupeKey`
- * (`ON CONFLICT ... DO NOTHING` on the partial unique index; the predicate is
- * repeated in the conflict target so Postgres can infer that index).
+ * Two silent skips, both by design: a suppressed address and a repeated
+ * `dedupeKey`. Both are decided by *one* statement, because a separate
+ * "is it suppressed?" SELECT could be overtaken by an unsubscribe committing
+ * between the read and the INSERT, leaving a deliverable row for an address
+ * that just opted out. `SELECT ... WHERE NOT EXISTS` re-evaluates the
+ * suppression inside the insert itself; `ON CONFLICT ... DO NOTHING` repeats
+ * the partial index's predicate so Postgres can infer that index.
+ *
+ * Which of the two skips happened is only interesting when nothing was
+ * inserted, so the suppression lookup runs then and only then.
  */
 export async function enqueue(
   input: EnqueueInput,
@@ -173,14 +198,14 @@ export async function enqueue(
 ): Promise<EnqueueResult> {
   const toEmail = normalizeEmail(input.toEmail);
 
-  if (await isSuppressed(toEmail, client)) {
-    return { id: null, skipped: "suppressed" };
-  }
-
   const { rows } = await client.query<{ id: string | number }>(
     `INSERT INTO email_messages
          (to_email, company_id, user_id, template, payload, dedupe_key, scheduled_for)
-     VALUES ($1, $2, $3, $4, $5::jsonb, $6, COALESCE($7::timestamptz, now()))
+     SELECT $1::text, $2::bigint, $3::bigint, $4::text, $5::jsonb, $6::text,
+            COALESCE($7::timestamptz, now())
+      WHERE NOT EXISTS (
+            SELECT 1 FROM email_suppressions WHERE email = $1::text
+      )
      ON CONFLICT (dedupe_key) WHERE dedupe_key IS NOT NULL DO NOTHING
      RETURNING id`,
     [
@@ -194,7 +219,10 @@ export async function enqueue(
     ],
   );
 
-  if (rows.length === 0) return { id: null, skipped: "duplicate" };
+  if (rows.length === 0) {
+    const suppressed = await isSuppressed(toEmail, client);
+    return { id: null, skipped: suppressed ? "suppressed" : "duplicate" };
+  }
   return { id: Number(rows[0].id) };
 }
 
@@ -228,22 +256,76 @@ export async function claimBatch(
   return rows.map(mapMessage);
 }
 
-/** Terminal success: the MTA accepted the message and gave us a Message-ID. */
+/**
+ * Recovers rows stranded in 'sending'. `claimBatch` flips a row to 'sending'
+ * and nothing flips it back if the runner dies first — a container kill, the
+ * route's `maxDuration` cut-off, a DB blip after the claim. Such a row is
+ * invisible to every later claim and the message is simply never delivered.
+ *
+ * A row is stale when it has been 'sending' longer than `olderThanMinutes`
+ * (its `updated_at` is the moment of the claim). It goes back to 'queued' —
+ * with `attempts` already counted, so the retry budget still shrinks — unless
+ * that budget is gone, in which case it becomes terminally 'failed' and says
+ * so in `last_error`. One statement; the `RETURNING` tells us which happened.
+ *
+ * Idempotent and safe to run concurrently with the worker: the interval is
+ * far longer than any live send, and a row another transaction is settling is
+ * simply not matched.
+ */
+export async function requeueStale(
+  options: { olderThanMinutes?: number; client?: Queryable } = {},
+): Promise<RequeueStaleResult> {
+  const { olderThanMinutes = STALE_SENDING_MINUTES, client = pool } = options;
+
+  const { rows } = await client.query<{ status: EmailStatus }>(
+    `UPDATE email_messages
+        SET status = CASE WHEN attempts >= $2::int THEN 'failed' ELSE 'queued' END,
+            last_error = CASE
+                WHEN attempts >= $2::int
+                THEN 'stale after ' || attempts || ' attempts'
+                ELSE last_error
+            END,
+            updated_at = now()
+      WHERE status = 'sending'
+        AND updated_at < now() - make_interval(mins => $1::int)
+    RETURNING status`,
+    [olderThanMinutes, MAX_ATTEMPTS],
+  );
+
+  let requeued = 0;
+  let failed = 0;
+  for (const row of rows) {
+    if (row.status === "failed") failed += 1;
+    else requeued += 1;
+  }
+  return { requeued, failed };
+}
+
+/**
+ * Terminal success: the MTA accepted the message and gave us a Message-ID.
+ *
+ * `subject` is optional and positioned before `client` so existing two- and
+ * three-argument calls keep working; it is the rendered subject, which only
+ * the sender knows, and `COALESCE` means passing nothing leaves whatever the
+ * column already held rather than blanking it.
+ */
 export async function markSent(
   id: number,
   messageId: string | null,
+  subject?: string | null,
   client: Queryable = pool,
 ): Promise<EmailMessage | null> {
   const { rows } = await client.query<RawMessage>(
     `UPDATE email_messages
         SET status = 'sent',
             message_id = $2,
+            subject = COALESCE($3::text, subject),
             last_error = NULL,
             sent_at = now(),
             updated_at = now()
       WHERE id = $1
     RETURNING ${MESSAGE_COLUMNS}`,
-    [id, messageId],
+    [id, messageId, subject ?? null],
   );
   return rows.length === 0 ? null : mapMessage(rows[0]);
 }
@@ -333,12 +415,14 @@ export async function suppress(
 export async function emailStats(client: Queryable = pool): Promise<EmailStats> {
   const { rows } = await client.query<{
     queued: string | number;
+    sending: string | number;
     sent24h: string | number;
     failed24h: string | number;
     suppressed: string | number;
   }>(
     `SELECT
         count(*) FILTER (WHERE status = 'queued') AS queued,
+        count(*) FILTER (WHERE status = 'sending') AS sending,
         count(*) FILTER (WHERE status = 'sent'
                            AND sent_at >= now() - interval '24 hours') AS sent24h,
         count(*) FILTER (WHERE status = 'failed'
@@ -350,6 +434,7 @@ export async function emailStats(client: Queryable = pool): Promise<EmailStats> 
   const row = rows[0];
   return {
     queued: Number(row?.queued ?? 0),
+    sending: Number(row?.sending ?? 0),
     sent24h: Number(row?.sent24h ?? 0),
     failed24h: Number(row?.failed24h ?? 0),
     suppressed: Number(row?.suppressed ?? 0),

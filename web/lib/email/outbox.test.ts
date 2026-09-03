@@ -16,6 +16,8 @@ import {
   MAX_ATTEMPTS,
   nextRetryMinutes,
   normalizeEmail,
+  requeueStale,
+  STALE_SENDING_MINUTES,
   suppress,
 } from "./outbox";
 
@@ -85,9 +87,7 @@ describe("nextRetryMinutes", () => {
 
 describe("enqueue", () => {
   it("lowercases the address and binds every value", async () => {
-    query
-      .mockResolvedValueOnce(result([])) // suppression check
-      .mockResolvedValueOnce(result([{ id: "42" }]));
+    query.mockResolvedValueOnce(result([{ id: "42" }]));
 
     const scheduledFor = new Date("2026-09-04T09:00:00Z");
     const out = await enqueue({
@@ -101,10 +101,9 @@ describe("enqueue", () => {
     });
 
     expect(out).toEqual({ id: 42 });
-    expect(values(0)[0]).toBe("alex@example.com");
-    expect(sql(1)).toContain("INSERT INTO email_messages");
-    expect(sql(1)).not.toContain("alex@example.com");
-    expect(values(1)).toEqual([
+    expect(sql(0)).toContain("INSERT INTO email_messages");
+    expect(sql(0)).not.toContain("alex@example.com");
+    expect(values(0)).toEqual([
       "alex@example.com",
       3,
       11,
@@ -115,31 +114,50 @@ describe("enqueue", () => {
     ]);
   });
 
+  it("decides suppression inside the insert, in one statement", async () => {
+    query.mockResolvedValueOnce(result([{ id: "42" }]));
+
+    await enqueue({ toEmail: "a@b.com", template: "welcome" });
+
+    // A separate SELECT would let an unsubscribe commit in between.
+    expect(query).toHaveBeenCalledTimes(1);
+    const text = sql(0).replace(/\s+/g, " ");
+    expect(text).toContain("INSERT INTO email_messages");
+    expect(text).toContain("SELECT $1::text");
+    expect(text).toContain(
+      "WHERE NOT EXISTS ( SELECT 1 FROM email_suppressions WHERE email = $1::text )",
+    );
+    expect(text).toContain(
+      "ON CONFLICT (dedupe_key) WHERE dedupe_key IS NOT NULL DO NOTHING",
+    );
+  });
+
   it("defaults payload, ids, dedupe key and schedule", async () => {
-    query
-      .mockResolvedValueOnce(result([]))
-      .mockResolvedValueOnce(result([{ id: 1 }]));
+    query.mockResolvedValueOnce(result([{ id: 1 }]));
 
     await enqueue({ toEmail: "a@b.com", template: "invite" });
 
-    expect(values(1)).toEqual(["a@b.com", null, null, "invite", "{}", null, null]);
-    expect(sql(1)).toContain("COALESCE($7::timestamptz, now())");
+    expect(values(0)).toEqual(["a@b.com", null, null, "invite", "{}", null, null]);
+    expect(sql(0)).toContain("COALESCE($7::timestamptz, now())");
   });
 
-  it("skips a suppressed address without inserting", async () => {
-    query.mockResolvedValueOnce(result([{ email: "a@b.com" }]));
+  it("reports a suppressed address when the insert wrote nothing", async () => {
+    query
+      .mockResolvedValueOnce(result([])) // WHERE NOT EXISTS filtered the row out
+      .mockResolvedValueOnce(result([{ email: "a@b.com" }])); // why: suppressed
 
     const out = await enqueue({ toEmail: "A@B.com", template: "daily_digest" });
 
     expect(out).toEqual({ id: null, skipped: "suppressed" });
-    expect(query).toHaveBeenCalledTimes(1);
-    expect(sql(0)).toContain("FROM email_suppressions");
+    expect(query).toHaveBeenCalledTimes(2);
+    expect(sql(1)).toContain("FROM email_suppressions");
+    expect(values(1)).toEqual(["a@b.com"]);
   });
 
   it("reports a repeated dedupe key as a duplicate", async () => {
     query
-      .mockResolvedValueOnce(result([]))
-      .mockResolvedValueOnce(result([])); // ON CONFLICT DO NOTHING → no row
+      .mockResolvedValueOnce(result([])) // ON CONFLICT DO NOTHING → no row
+      .mockResolvedValueOnce(result([])); // not suppressed → it was the key
 
     const out = await enqueue({
       toEmail: "a@b.com",
@@ -149,24 +167,35 @@ describe("enqueue", () => {
 
     expect(out).toEqual({ id: null, skipped: "duplicate" });
     // Partial index → the predicate must be repeated for inference.
-    expect(sql(1)).toContain(
+    expect(sql(0)).toContain(
       "ON CONFLICT (dedupe_key) WHERE dedupe_key IS NOT NULL DO NOTHING",
     );
-    expect(values(1)[5]).toBe("daily_digest:3:2026-09-03");
+    expect(values(0)[5]).toBe("daily_digest:3:2026-09-03");
   });
 
   it("uses the caller's transaction client when given one", async () => {
     const client = {
-      query: vi
-        .fn()
-        .mockResolvedValueOnce(result([]))
-        .mockResolvedValueOnce(result([{ id: "9" }])),
+      query: vi.fn().mockResolvedValueOnce(result([{ id: "9" }])),
     };
 
     const out = await enqueue({ toEmail: "a@b.com", template: "welcome" }, client);
 
     expect(out).toEqual({ id: 9 });
-    expect(client.query).toHaveBeenCalledTimes(2);
+    expect(client.query).toHaveBeenCalledTimes(1);
+    expect(query).not.toHaveBeenCalled();
+  });
+
+  it("asks the caller's client, not the pool, why nothing was inserted", async () => {
+    const client = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce(result([]))
+        .mockResolvedValueOnce(result([{ email: "a@b.com" }])),
+    };
+
+    const out = await enqueue({ toEmail: "a@b.com", template: "welcome" }, client);
+
+    expect(out).toEqual({ id: null, skipped: "suppressed" });
     expect(query).not.toHaveBeenCalled();
   });
 });
@@ -199,6 +228,58 @@ describe("claimBatch", () => {
   });
 });
 
+describe("requeueStale", () => {
+  it("targets only rows stuck in 'sending' past the interval", async () => {
+    query.mockResolvedValueOnce(result([{ status: "queued" }, { status: "queued" }]));
+
+    const out = await requeueStale();
+
+    expect(sql(0)).toContain("status = 'sending'");
+    expect(sql(0)).toContain("updated_at < now() - make_interval(mins => $1::int)");
+    expect(values(0)).toEqual([STALE_SENDING_MINUTES, MAX_ATTEMPTS]);
+    expect(out).toEqual({ requeued: 2, failed: 0 });
+  });
+
+  it("takes a custom age (a 20-minute-old row is stale at 15)", async () => {
+    query.mockResolvedValueOnce(result([{ status: "queued" }]));
+
+    const out = await requeueStale({ olderThanMinutes: 20 });
+
+    expect(values(0)[0]).toBe(20);
+    expect(out).toEqual({ requeued: 1, failed: 0 });
+  });
+
+  it("flips exhausted rows to failed and says why", async () => {
+    query.mockResolvedValueOnce(
+      result([{ status: "failed" }, { status: "queued" }, { status: "failed" }]),
+    );
+
+    const out = await requeueStale();
+
+    const text = sql(0).replace(/\s+/g, " ");
+    expect(text).toContain(
+      "status = CASE WHEN attempts >= $2::int THEN 'failed' ELSE 'queued' END",
+    );
+    expect(text).toContain("'stale after ' || attempts || ' attempts'");
+    expect(out).toEqual({ requeued: 1, failed: 2 });
+  });
+
+  it("reports zeros when nothing is stuck", async () => {
+    query.mockResolvedValueOnce(result([]));
+
+    expect(await requeueStale()).toEqual({ requeued: 0, failed: 0 });
+  });
+
+  it("uses the caller's client when given one", async () => {
+    const client = { query: vi.fn().mockResolvedValueOnce(result([])) };
+
+    await requeueStale({ client });
+
+    expect(client.query).toHaveBeenCalledTimes(1);
+    expect(query).not.toHaveBeenCalled();
+  });
+});
+
 describe("markSent", () => {
   it("stores the MTA message id and stamps sent_at", async () => {
     query.mockResolvedValueOnce(
@@ -209,8 +290,40 @@ describe("markSent", () => {
 
     expect(sql(0)).toContain("status = 'sent'");
     expect(sql(0)).toContain("sent_at = now()");
-    expect(values(0)).toEqual([7, "<abc@mail.lixto.com.br>"]);
+    expect(values(0)).toEqual([7, "<abc@mail.lixto.com.br>", null]);
     expect(row?.message_id).toBe("<abc@mail.lixto.com.br>");
+  });
+
+  it("persists the rendered subject when given one", async () => {
+    query.mockResolvedValueOnce(
+      result([rawMessage({ status: "sent", subject: "Bem-vindo à Lixto" })]),
+    );
+
+    const row = await markSent(7, "<abc@mail.lixto.com.br>", "Bem-vindo à Lixto");
+
+    expect(sql(0)).toContain("subject = COALESCE($3::text, subject)");
+    expect(values(0)).toEqual([7, "<abc@mail.lixto.com.br>", "Bem-vindo à Lixto"]);
+    expect(row?.subject).toBe("Bem-vindo à Lixto");
+  });
+
+  it("keeps the stored subject when none is passed", async () => {
+    query.mockResolvedValueOnce(result([rawMessage({ status: "sent" })]));
+
+    await markSent(7, null);
+
+    // COALESCE with a null bind is a no-op on the column.
+    expect(values(0)[2]).toBe(null);
+  });
+
+  it("accepts a client after the subject", async () => {
+    const client = {
+      query: vi.fn().mockResolvedValueOnce(result([rawMessage({ status: "sent" })])),
+    };
+
+    await markSent(7, null, "Subject", client);
+
+    expect(client.query).toHaveBeenCalledTimes(1);
+    expect(query).not.toHaveBeenCalled();
   });
 
   it("returns null for an unknown id", async () => {
@@ -323,19 +436,24 @@ describe("isSuppressed", () => {
 });
 
 describe("emailStats", () => {
-  it("returns the four counters as numbers", async () => {
+  it("returns the five counters as numbers", async () => {
     query.mockResolvedValueOnce(
-      result([{ queued: "2", sent24h: "10", failed24h: "1", suppressed: "3" }]),
+      result([
+        { queued: "2", sending: "4", sent24h: "10", failed24h: "1", suppressed: "3" },
+      ]),
     );
 
     expect(await emailStats()).toEqual({
       queued: 2,
+      sending: 4,
       sent24h: 10,
       failed24h: 1,
       suppressed: 3,
     });
     expect(sql(0)).toContain("FROM email_messages");
     expect(sql(0)).toContain("FROM email_suppressions");
+    // Without this, a queue stranded in 'sending' looks empty.
+    expect(sql(0)).toContain("count(*) FILTER (WHERE status = 'sending') AS sending");
   });
 
   it("falls back to zeros on an empty result", async () => {
@@ -343,6 +461,7 @@ describe("emailStats", () => {
 
     expect(await emailStats()).toEqual({
       queued: 0,
+      sending: 0,
       sent24h: 0,
       failed24h: 0,
       suppressed: 0,
