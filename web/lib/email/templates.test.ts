@@ -1,0 +1,174 @@
+import { describe, expect, it } from "vitest";
+import { renderTemplate, type TemplatePayloads } from "./templates";
+
+describe("renderTemplate", () => {
+  it("renders the welcome subject and CTA", () => {
+    const payload: TemplatePayloads["welcome"] = {
+      userName: "Maria",
+      companyName: "Acme Ltda",
+      appUrl: "https://app.lixto.com.br",
+    };
+    const email = renderTemplate("welcome", payload);
+    expect(email.subject).toBe("Bem-vindo ao Lixto, Maria");
+    expect(email.html).toContain("Acme Ltda");
+    expect(email.html).toContain(`href="${payload.appUrl}"`);
+    expect(email.text.length).toBeGreaterThan(0);
+  });
+
+  it("renders the invite subject and CTA", () => {
+    const payload: TemplatePayloads["invite"] = {
+      inviterName: "João",
+      companyName: "Beta S/A",
+      acceptUrl: "https://app.lixto.com.br/invite/abc123",
+      expiresAt: "2026-09-10T12:00:00.000Z",
+    };
+    const email = renderTemplate("invite", payload);
+    expect(email.subject).toBe("João convidou você para o Lixto");
+    expect(email.html).toContain("Beta S/A");
+    expect(email.html).toContain(`href="${payload.acceptUrl}"`);
+    expect(email.text.length).toBeGreaterThan(0);
+  });
+
+  it("renders the password_reset subject and CTA", () => {
+    const payload: TemplatePayloads["password_reset"] = {
+      userName: "Ana",
+      resetUrl: "https://app.lixto.com.br/reset/xyz",
+      expiresMinutes: 30,
+    };
+    const email = renderTemplate("password_reset", payload);
+    expect(email.subject).toBe("Redefinição de senha — Lixto");
+    expect(email.html).toContain(`href="${payload.resetUrl}"`);
+    expect(email.text.length).toBeGreaterThan(0);
+  });
+
+  it("escapes XSS in payload fields for html but leaves text raw", () => {
+    const payload: TemplatePayloads["welcome"] = {
+      userName: '<script>alert(1)</script>',
+      companyName: "Acme Ltda",
+      appUrl: "https://app.lixto.com.br",
+    };
+    const email = renderTemplate("welcome", payload);
+    expect(email.html).not.toContain("<script>alert(1)</script>");
+    expect(email.html).toContain(
+      "&lt;script&gt;alert(1)&lt;/script&gt;",
+    );
+    expect(email.text).toContain("<script>alert(1)</script>");
+  });
+
+  it("uses the attentionCount subject and renders up to 5 cards", () => {
+    const attention: TemplatePayloads["daily_digest"]["attention"] = Array.from(
+      { length: 7 },
+      (_, i) => ({
+        sourceId: `src-${i}`,
+        description: `Pregão eletrônico número ${i} para aquisição de materiais diversos`,
+        agency: "Prefeitura de Exemplo",
+        state: "SP",
+        score: 80 + i,
+        closesAt: "2026-09-15T00:00:00.000Z",
+        url: `https://app.lixto.com.br/procurement/src-${i}`,
+      }),
+    );
+    const payload: TemplatePayloads["daily_digest"] = {
+      companyName: "Acme Ltda",
+      appUrl: "https://app.lixto.com.br",
+      unsubscribeUrl: "https://app.lixto.com.br/unsubscribe/token",
+      newCount: 20,
+      matchedCount: 10,
+      attentionCount: 7,
+      attention,
+    };
+    const email = renderTemplate("daily_digest", payload);
+    expect(email.subject).toBe("7 oportunidade(s) merecem sua atenção hoje");
+    const cardMatches = email.html.match(/procurement\/src-/g) ?? [];
+    expect(cardMatches.length).toBe(5);
+    expect(email.html).toContain(payload.unsubscribeUrl);
+    expect(email.text.length).toBeGreaterThan(0);
+  });
+
+  it("truncates long descriptions to 120 characters", () => {
+    const longDescription = "A".repeat(200);
+    const payload: TemplatePayloads["daily_digest"] = {
+      companyName: "Acme Ltda",
+      appUrl: "https://app.lixto.com.br",
+      unsubscribeUrl: "https://app.lixto.com.br/unsubscribe/token",
+      newCount: 1,
+      matchedCount: 1,
+      attentionCount: 1,
+      attention: [
+        {
+          sourceId: "src-1",
+          description: longDescription,
+          agency: null,
+          state: null,
+          score: 90,
+          closesAt: null,
+          url: "https://app.lixto.com.br/procurement/src-1",
+        },
+      ],
+    };
+    const email = renderTemplate("daily_digest", payload);
+    expect(email.html).not.toContain(longDescription);
+    expect(email.html).toContain(`${"A".repeat(119)}…`);
+  });
+
+  it("falls back to the matchedCount subject and renders no cards when attention is empty", () => {
+    const payload: TemplatePayloads["daily_digest"] = {
+      companyName: "Acme Ltda",
+      appUrl: "https://app.lixto.com.br",
+      unsubscribeUrl: "https://app.lixto.com.br/unsubscribe/token",
+      newCount: 4,
+      matchedCount: 3,
+      attentionCount: 0,
+      attention: [],
+    };
+    const email = renderTemplate("daily_digest", payload);
+    expect(email.subject).toBe("Resumo Lixto: 3 licitações compatíveis hoje");
+    expect(email.html).not.toContain('href="https://app.lixto.com.br/procurement');
+    expect(email.html).toContain("Nenhuma oportunidade exigiu atenção hoje.");
+  });
+
+  it("renders the unsubscribe footer only for daily_digest", () => {
+    const digest = renderTemplate("daily_digest", {
+      companyName: "Acme Ltda",
+      appUrl: "https://app.lixto.com.br",
+      unsubscribeUrl: "https://app.lixto.com.br/unsubscribe/token",
+      newCount: 1,
+      matchedCount: 1,
+      attentionCount: 1,
+      attention: [],
+    });
+    expect(digest.html).toContain("https://app.lixto.com.br/unsubscribe/token");
+
+    const welcome = renderTemplate("welcome", {
+      userName: "Maria",
+      companyName: "Acme Ltda",
+      appUrl: "https://app.lixto.com.br",
+    });
+    expect(welcome.html).not.toContain("unsubscribe");
+
+    const invite = renderTemplate("invite", {
+      inviterName: "João",
+      companyName: "Acme Ltda",
+      acceptUrl: "https://app.lixto.com.br/invite/abc",
+      expiresAt: "2026-09-10T12:00:00.000Z",
+    });
+    expect(invite.html).not.toContain("unsubscribe");
+
+    const reset = renderTemplate("password_reset", {
+      userName: "Ana",
+      resetUrl: "https://app.lixto.com.br/reset/xyz",
+      expiresMinutes: 15,
+    });
+    expect(reset.html).not.toContain("unsubscribe");
+  });
+
+  it("throws on an unknown template name", () => {
+    expect(() =>
+      renderTemplate(
+        // @ts-expect-error deliberate unknown template name
+        "not_a_real_template",
+        {},
+      ),
+    ).toThrow();
+  });
+});
