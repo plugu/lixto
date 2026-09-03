@@ -1,6 +1,6 @@
 ---
 id: 111
-status: todo
+status: doing
 model: opus
 depends_on: [108, 110]
 max_attempts: 4
@@ -16,7 +16,7 @@ A worker drains the outbox through the local MTA: renders, sends over SMTP, reco
 
 ## Context
 
-Ticket 108 provides `web/lib/email/outbox.ts` (`claimBatch`, `markSent`, `markFailed`, `suppress`, `enqueue`); ticket 110 provides `renderTemplate`. Internal endpoints follow `web/app/api/internal/match/run/route.ts`: `isInternalRequest(request)` guard from `@/lib/internal-auth`, `runtime = "nodejs"`, `dynamic = "force-dynamic"`, `maxDuration = 300`, JSON body optional.
+Ticket 108 (merged) provides `web/lib/email/outbox.ts`: `claimBatch(limit, client?)`, `markSent(id, messageId|null, client?)`, `markFailed(id, error, {retryable}?, client?)`, `suppress(email, reason, detail?, client?)`, `enqueue(input, client?)`, `isSuppressed`, `emailStats`, `nextRetryMinutes`, `normalizeEmail`, `BACKOFF_MINUTES`, `MAX_ATTEMPTS`, and types `EmailMessage` (snake_case fields; the id column for the MTA id is **`message_id`**), `EmailTemplate`, `EmailStatus`, `SuppressionReason`. Ticket 110 (merged) provides `renderTemplate(template, payload)`, `TemplatePayloads`, `RenderedEmail` from `web/lib/email/templates.ts`. Note `enqueue` stores no subject — the worker sets it from the render (persist it on the row when marking sent, or leave it; do not change outbox.ts). Internal endpoints follow `web/app/api/internal/match/run/route.ts`: `isInternalRequest(request)` guard from `@/lib/internal-auth`, `runtime = "nodejs"`, `dynamic = "force-dynamic"`, `maxDuration = 300`, JSON body optional.
 
 Add `nodemailer` (+ `@types/nodemailer` dev) via `npm i` in `web/`.
 
@@ -33,7 +33,7 @@ Add `nodemailer` (+ `@types/nodemailer` dev) via `npm i` in `web/`.
 Tests (mock nodemailer transport + the outbox module): a queued row is rendered and sent, `markSent` gets the transport's `messageId`; a 550 "user unknown" marks failed non-retryable **and** suppresses the address; `ECONNREFUSED` marks failed retryable; `List-Unsubscribe` present only for `daily_digest`; the worker keeps going after one row throws; a 401 when `isInternalRequest` is false.
 
 ## Checks (run in order — cheapest first)
-1. `cd web && npm run lint`
+1. `cd web && npx next typegen && npm run lint`
 2. `cd web && npx tsc --noEmit`
 3. `cd web && npx vitest run lib/email/sender.test.ts`
 4. `cd web && npm test`
