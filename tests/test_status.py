@@ -13,7 +13,8 @@ from lixto.status import StatusReport, format_status, get_status
 # get_status runs one `with conn.cursor() as cur:` block and issues, in
 # order: N table counts, by-modality, lifecycle, pending details, watermarks,
 # newest source_global_updated_at, enriched-today, llm-today, llm-7d,
-# fenced-pending.
+# fenced-pending, the email_messages regclass guard and (when it exists) the
+# email stats query.
 _TABLE_COUNT_QUERIES = 13  # len(COUNTED_TABLES)
 
 
@@ -27,6 +28,8 @@ def _conn(
     llm_today=(0, 0, 0, 0),
     llm_7d=(0,),
     fenced_pending=0,
+    email_messages_exists=True,
+    email_stats=(0, 0, 0, 0),
 ):
     cur = MagicMock()
     fetchone_results = (
@@ -39,8 +42,11 @@ def _conn(
             llm_today,
             llm_7d,
             (fenced_pending,),
+            (email_messages_exists,),
         ]
     )
+    if email_messages_exists:
+        fetchone_results.append(email_stats)
     cur.fetchone.side_effect = fetchone_results
     cur.fetchall.side_effect = [
         list((by_modality or {}).items()),
@@ -115,7 +121,10 @@ def test_get_status_splices_fence_params_into_fenced_pending_query(monkeypatch):
 
     get_status(conn)
 
-    sql, params = cur.execute.call_args_list[-1].args
+    fenced_pending_call = next(
+        c for c in cur.execute.call_args_list if "p.origin_system = ANY" in str(c.args[0])
+    )
+    sql, params = fenced_pending_call.args
     assert "p.origin_system = ANY(%(fence_portals)s)" in sql
     assert params["fence_portals"] == ["compras.gov.br"]
     assert params["fence_modalities"] == [6]
@@ -137,6 +146,35 @@ def test_get_status_defaults_daily_cap_to_unlimited(monkeypatch):
     report = get_status(conn)
 
     assert report.enrich_daily_cap == 0
+
+
+def test_get_status_reads_email_stats_when_email_messages_exists():
+    conn, _cur = _conn(email_messages_exists=True, email_stats=(3, 12, 2, 1))
+
+    report = get_status(conn)
+
+    assert report.email == {
+        "queued": 3,
+        "sent_24h": 12,
+        "failed_24h": 2,
+        "suppressed": 1,
+    }
+
+
+def test_get_status_reports_zero_email_stats_on_a_pre_003_database():
+    conn, cur = _conn(email_messages_exists=False)
+
+    report = get_status(conn)
+
+    assert report.email == {
+        "queued": 0,
+        "sent_24h": 0,
+        "failed_24h": 0,
+        "suppressed": 0,
+    }
+    # The stats query must never run against a database without the table.
+    executed_sql = " ".join(str(c.args[0]) for c in cur.execute.call_args_list)
+    assert "FROM email_messages" not in executed_sql
 
 
 # --- format_status ---------------------------------------------------------
@@ -164,6 +202,7 @@ def _report(**overrides):
         },
         "llm_last_7d_est_usd_micros": 810000,
         "fenced_pending": 980,
+        "email": {"queued": 5, "sent_24h": 40, "failed_24h": 2, "suppressed": 3},
     }
     defaults.update(overrides)
     return StatusReport(**defaults)
@@ -184,6 +223,30 @@ def test_format_status_shows_unlimited_when_cap_is_zero():
     text = format_status(_report(enrich_daily_cap=0))
 
     assert "cap unlimited" in text
+
+
+def test_format_status_includes_the_email_block():
+    text = format_status(
+        _report(email={"queued": 5, "sent_24h": 40, "failed_24h": 2, "suppressed": 3})
+    )
+
+    assert "email:" in text
+    assert "  queued: 5" in text
+    assert "  sent (24h): 40" in text
+    assert "  failed (24h): 2" in text
+    assert "  suppressed: 3" in text
+
+
+def test_format_status_shows_zeros_for_the_email_block_on_a_pre_003_database():
+    text = format_status(
+        _report(email={"queued": 0, "sent_24h": 0, "failed_24h": 0, "suppressed": 0})
+    )
+
+    assert "email:" in text
+    assert "  queued: 0" in text
+    assert "  sent (24h): 0" in text
+    assert "  failed (24h): 0" in text
+    assert "  suppressed: 0" in text
 
 
 def test_format_status_still_includes_existing_sections():

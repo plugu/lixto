@@ -90,6 +90,20 @@ WHERE (p.proposal_closes_at >= now() OR p.proposal_opens_at > now())
       )
 """
 
+# The `email:` block (ticket 113). One statement over `email_messages` /
+# `email_suppressions` (migration 003) — silent non-delivery has to be cheap
+# to look at.
+_EMAIL_STATS_SQL = """
+SELECT
+    count(*) FILTER (WHERE status = 'queued') AS queued,
+    count(*) FILTER (WHERE status = 'sent'
+                       AND sent_at >= now() - interval '24 hours') AS sent_24h,
+    count(*) FILTER (WHERE status = 'failed'
+                       AND updated_at >= now() - interval '24 hours') AS failed_24h,
+    (SELECT count(*) FROM email_suppressions) AS suppressed
+FROM email_messages
+"""
+
 
 @dataclass
 class StatusReport:
@@ -108,6 +122,7 @@ class StatusReport:
     llm_today: dict[str, int] = field(default_factory=dict)
     llm_last_7d_est_usd_micros: int = 0
     fenced_pending: int = 0
+    email: dict[str, int] = field(default_factory=dict)
 
 
 def get_status(conn: psycopg.Connection) -> StatusReport:
@@ -157,6 +172,17 @@ def get_status(conn: psycopg.Connection) -> StatusReport:
         cur.execute(_FENCED_PENDING_SQL + fence_fragment, fence_params)
         (fenced_pending,) = cur.fetchone()
 
+        # Guarded: `lixto status` must still work on a database that predates
+        # migration 003 (email_messages/email_suppressions) — report zeros
+        # rather than fail the whole report.
+        cur.execute("SELECT to_regclass('email_messages') IS NOT NULL")
+        (has_email_messages,) = cur.fetchone()
+        if has_email_messages:
+            cur.execute(_EMAIL_STATS_SQL)
+            queued, sent_24h, failed_24h, suppressed = cur.fetchone()
+        else:
+            queued = sent_24h = failed_24h = suppressed = 0
+
     return StatusReport(
         table_counts=table_counts,
         by_modality=by_modality,
@@ -178,6 +204,12 @@ def get_status(conn: psycopg.Connection) -> StatusReport:
         },
         llm_last_7d_est_usd_micros=llm_last_7d_est_usd_micros,
         fenced_pending=fenced_pending,
+        email={
+            "queued": queued,
+            "sent_24h": sent_24h,
+            "failed_24h": failed_24h,
+            "suppressed": suppressed,
+        },
     )
 
 
@@ -220,5 +252,14 @@ def format_status(report: StatusReport) -> str:
         f"  pending in fence: {report.fenced_pending}",
         llm_today_line,
         f"  llm last 7 days: est US$ {llm_7d_usd:.2f}",
+    ]
+
+    email = report.email
+    lines += [
+        "email:",
+        f"  queued: {email.get('queued', 0)}",
+        f"  sent (24h): {email.get('sent_24h', 0)}",
+        f"  failed (24h): {email.get('failed_24h', 0)}",
+        f"  suppressed: {email.get('suppressed', 0)}",
     ]
     return "\n".join(lines)

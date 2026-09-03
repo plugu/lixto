@@ -1,15 +1,19 @@
 """Thin sync HTTP client for the web app's internal batch endpoints.
 
-The scoring/recommendation logic lives once, in the web app (tickets 90/91):
-`POST /api/internal/match/run` and `POST /api/internal/recommend/run`,
+The scoring/recommendation/email logic lives once, in the web app (tickets
+90/91/113): `POST /api/internal/match/run`, `POST /api/internal/recommend/run`,
+`POST /api/internal/email/send` and `POST /api/internal/email/digest`,
 authenticated with a shared secret header `x-lixto-internal-token`. The CLI
-(`lixto match run`, `lixto recommend run`) is a thin trigger so operators and
-Dokploy schedules keep a single CLI surface — no scoring in Python.
+(`lixto match run`, `lixto recommend run`, `lixto email worker`, `lixto email
+digest`) is a thin trigger so operators and Dokploy schedules keep a single
+CLI surface — no scoring/rendering/SMTP in Python.
 
 Contract:
-- request: JSON body, both fields optional
+- request: JSON body, all fields optional
   - match: `{"companyId"?: int, "since"?: ISO string}`
   - recommend: `{"companyId"?: int, "limit"?: int}`
+  - email worker: `{"limit"?: int}`
+  - email digest: `{"companyId"?: int}`
 - response: `200` with the parsed JSON counters, or a non-2xx (401 on a bad
   token, 500 `{"error": ...}` on failure) — surfaced as `InternalApiError`.
 """
@@ -89,3 +93,21 @@ class InternalApi:
         if limit is not None:
             body["limit"] = limit
         return self._post("/api/internal/recommend/run", body)
+
+    def email_send(self, *, limit: int | None = None) -> dict[str, Any]:
+        """`POST /api/internal/email/send` → one outbox worker pass:
+        `{claimed, sent, failed, suppressed}`.
+        """
+        body: dict[str, Any] = {}
+        if limit is not None:
+            body["limit"] = limit
+        return self._post("/api/internal/email/send", body)
+
+    def email_digest(self, *, company_id: int | None = None) -> dict[str, Any]:
+        """`POST /api/internal/email/digest` → enqueues today's daily digest:
+        `{companies, enqueued, skipped}`.
+        """
+        body: dict[str, Any] = {}
+        if company_id is not None:
+            body["companyId"] = company_id
+        return self._post("/api/internal/email/digest", body)
