@@ -1,8 +1,10 @@
-# Lixto MTA — send-only Postfix (direct-to-MX on port 25).
+# Lixto MTA — outbound Postfix (direct-to-MX on port 25), plus one inbound
+# mailbox for our own bounces.
 #
 # This file is the baked-in baseline. entrypoint.sh overrides a small set of
-# values from the environment (myhostname, mydomain, mynetworks, relayhost) so
-# the same image can run in dev and on plugu-prod01 without a rebuild.
+# values from the environment (myhostname, mydomain, mynetworks, relayhost,
+# and the bounce address/maildir) so the same image can run in dev and on
+# plugu-prod01 without a rebuild.
 
 compatibility_level = 3.6
 
@@ -11,13 +13,46 @@ myhostname = mail.lixto.com.br
 mydomain = lixto.com.br
 myorigin = $myhostname
 
-# Send-only: this host is the final destination for nothing and never runs
-# local delivery. Anything addressed to it is bounced, not written to a mbox.
+# No local (Unix account) delivery, ever: this host is the final destination
+# for nothing in $mydestination and has no /etc/aliases. The single exception
+# is the bounce mailbox below, which is a *virtual* mailbox, not a local one.
 mydestination =
 local_recipient_maps =
 local_transport = error:5.1.1 local delivery is disabled on this host
 alias_maps =
 alias_database =
+
+# --- inbound: our own DSNs, and nothing else ----------------------------
+# Why this host receives mail at all (ticket 120, PRODUCT §3): Postfix accepts
+# a message on the local hop and delivers direct-to-MX minutes later, so a
+# rejection by the recipient's MX comes back *asynchronously* as a DSN — one
+# this host generates itself after the remote 5xx, or one a remote MTA mails
+# back to the envelope sender. Those DSNs are addressed to the bounce address
+# ($LIXTO_BOUNCE_ADDRESS, default bounces@$mydomain) or to nao-responda@
+# $mydomain, the From:/Return-Path the app actually sends with
+# (web/lib/email/sender.ts). With `mydestination =` and `MX 10 mail` pointing
+# here (infra/terraform/dns.tf) every one of them was rejected and the bounce
+# was lost — a dead address stayed 'sent' forever.
+#
+# $mydomain therefore becomes a virtual mailbox domain whose ONLY valid
+# recipients are those two addresses (entrypoint.sh writes the map); every
+# other lixto.com.br recipient still gets 550, and since this host is the
+# domain's MX they were never deliverable anywhere else either.
+#
+# Delivery is a maildir on the same persistent volume as the DKIM key, owned
+# by $BOUNCE_UID:$BOUNCE_GID (default 1000:1000 = `node` in web/Dockerfile)
+# because the web container reads those files and moves them out of new/
+# (web/lib/email/bounces.ts, $LIXTO_BOUNCE_MAILDIR). virtual(8) writes
+# messages mode 0600 as that uid, so the uid has to match the reader's.
+virtual_mailbox_domains = $mydomain
+virtual_mailbox_base = /var/db/mail
+virtual_mailbox_maps = hash:/etc/postfix/virtual_mailbox
+virtual_transport = virtual
+virtual_uid_maps = static:1000
+virtual_gid_maps = static:1000
+virtual_minimum_uid = 100
+# One DSN is a few KB; anything near this is not a bounce.
+virtual_mailbox_limit = 10485760
 
 # Direct-to-MX. Set RELAYHOST (e.g. [smtp.provider.tld]:587) to fall back to an
 # external submission service without touching code — see PRODUCT.md §5.
@@ -45,22 +80,43 @@ inet_protocols = ipv4
 # anything wider than a /16.
 mynetworks = 127.0.0.0/8 [::1]/128 10.0.1.0/24
 
+# The client check can no longer be "reject everything that is not ours": a
+# DSN for a message we sent is delivered by the *recipient's* MTA, from an
+# address we cannot know in advance. What used to be enforced by client
+# address is now enforced one step later, per recipient: a stranger may
+# connect and may hand us mail for the two bounce addresses, and nothing else.
+# reject_unauth_destination still makes relaying impossible for them, so the
+# widened client check cannot turn this host into an open relay.
 smtpd_client_restrictions =
     permit_mynetworks
-    reject
+    permit
 smtpd_relay_restrictions =
     permit_mynetworks
     reject_unauth_destination
 smtpd_recipient_restrictions =
     permit_mynetworks
+    check_recipient_access hash:/etc/postfix/bounce_recipients
     reject
 
+# Cheap ceiling on what a stranger can now do with that open door: floods of
+# fake "bounces" would otherwise fill the maildir. $mynetworks is exempt by
+# default (smtpd_client_event_limit_exceptions), so app submission is
+# untouched.
+anvil_rate_time_unit = 60s
+smtpd_client_connection_rate_limit = 30
+smtpd_client_message_rate_limit = 30
+smtpd_recipient_limit = 100
+
 # Second lock, independent of the client address: the envelope sender must be a
-# $mydomain address. Even a client that ends up inside $mynetworks (a
-# mis-sized subnet, a docker-proxy rewrite) cannot get DKIM-signed mail out
-# under someone else's domain. The map is rebuilt from $MAIL_DOMAIN at boot by
-# entrypoint.sh; the empty sender (<>, DSNs we generate ourselves) never passes
-# through smtpd.
+# $mydomain address, or the null sender <> of a DSN. Even a client that ends up
+# inside $mynetworks (a mis-sized subnet, a docker-proxy rewrite) cannot get
+# DKIM-signed mail out under someone else's domain. The map is rebuilt from
+# $MAIL_DOMAIN at boot by entrypoint.sh.
+#
+# `<> OK` is what lets an incoming bounce through — every RFC 3464 DSN carries
+# the null sender, which is exactly why it must be paired with the recipient
+# access map above: <> plus a non-bounce recipient is still rejected, and <>
+# plus a remote recipient is still not relayed.
 smtpd_sender_restrictions =
     check_sender_access hash:/etc/postfix/sender_access
     reject

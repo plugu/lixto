@@ -2,11 +2,12 @@
 
 The scoring/recommendation/email logic lives once, in the web app (tickets
 90/91/113): `POST /api/internal/match/run`, `POST /api/internal/recommend/run`,
-`POST /api/internal/email/send` and `POST /api/internal/email/digest`,
-authenticated with a shared secret header `x-lixto-internal-token`. The CLI
-(`lixto match run`, `lixto recommend run`, `lixto email worker`, `lixto email
-digest`) is a thin trigger so operators and Dokploy schedules keep a single
-CLI surface — no scoring/rendering/SMTP in Python.
+`POST /api/internal/email/send`, `POST /api/internal/email/digest` and
+`POST /api/internal/email/bounces`, authenticated with a shared secret header
+`x-lixto-internal-token`. The CLI (`lixto match run`, `lixto recommend run`,
+`lixto email worker`, `lixto email digest`, `lixto email bounces`) is a thin
+trigger so operators and Dokploy schedules keep a single CLI surface — no
+scoring/rendering/SMTP in Python.
 
 Contract:
 - request: JSON body, all fields optional
@@ -14,6 +15,7 @@ Contract:
   - recommend: `{"companyId"?: int, "limit"?: int}`
   - email worker: `{"limit"?: int}`
   - email digest: `{"companyId"?: int}`
+  - email bounces: `{}`
 - response: `200` with the parsed JSON counters, or a non-2xx (401 on a bad
   token, 500 `{"error": ...}` on failure) — surfaced as `InternalApiError`.
 """
@@ -111,3 +113,12 @@ class InternalApi:
         if company_id is not None:
             body["companyId"] = company_id
         return self._post("/api/internal/email/digest", body)
+
+    def email_bounces(self) -> dict[str, Any]:
+        """`POST /api/internal/email/bounces` → one pass over the MTA's DSN
+        maildir: `{files, hard, soft, unparsed}`.
+
+        No body: the maildir is `LIXTO_BOUNCE_MAILDIR` on the web container,
+        never a caller-supplied path.
+        """
+        return self._post("/api/internal/email/bounces", {})

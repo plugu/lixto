@@ -9,6 +9,20 @@ DKIM_KEY_DIR="${DKIM_KEY_DIR:-/var/db/dkim}"
 RELAYHOST="${RELAYHOST:-}"
 MYNETWORKS="${MYNETWORKS:-}"
 
+# Bounce mailbox (ticket 120). LIXTO_BOUNCE_ADDRESS is the address we want DSNs
+# to be sent to; nao-responda@ is added alongside it because that is the
+# From:/Return-Path the app sends with today (web/lib/email/sender.ts's
+# LIXTO_EMAIL_FROM default), and a DSN follows the envelope sender, not our
+# preference. LIXTO_BOUNCE_MAILDIR must match the web container's env of the
+# same name — both containers mount the volume that holds it.
+LIXTO_BOUNCE_ADDRESS="${LIXTO_BOUNCE_ADDRESS:-bounces@${MAIL_DOMAIN}}"
+LIXTO_BOUNCE_MAILDIR="${LIXTO_BOUNCE_MAILDIR:-/var/db/mail/bounces}"
+NOREPLY_ADDRESS="${NOREPLY_ADDRESS:-nao-responda@${MAIL_DOMAIN}}"
+# virtual(8) writes each message mode 0600 as this uid, and the web container
+# reads and moves them: 1000:1000 is `node` in web/Dockerfile.
+BOUNCE_UID="${BOUNCE_UID:-1000}"
+BOUNCE_GID="${BOUNCE_GID:-1000}"
+
 DKIM_PRIVATE_KEY="${DKIM_KEY_DIR}/${DKIM_SELECTOR}.private"
 DKIM_PUBLIC_RECORD="${DKIM_KEY_DIR}/${DKIM_SELECTOR}.txt"
 
@@ -141,11 +155,58 @@ check_mynetworks() {
 }
 
 # MAIL FROM allow-list backing smtpd_sender_restrictions in main.cf. Only
-# $MAIL_DOMAIN (and its subdomains, via the leading-dot form) may inject mail.
+# $MAIL_DOMAIN (and its subdomains, via the leading-dot form) may inject mail —
+# plus the null sender <>, which every incoming DSN uses (see main.cf). <> is
+# harmless on its own: the recipient access map below still limits it to the
+# bounce addresses, and reject_unauth_destination still refuses to relay it.
 write_sender_access() {
-    printf '%s\tOK\n.%s\tOK\n' "$MAIL_DOMAIN" "$MAIL_DOMAIN" \
+    printf '%s\tOK\n.%s\tOK\n<>\tOK\n' "$MAIL_DOMAIN" "$MAIL_DOMAIN" \
         >/etc/postfix/sender_access
     postmap hash:/etc/postfix/sender_access
+}
+
+# The two halves of the bounce mailbox (ticket 120):
+#   - bounce_recipients: the RCPT TO allow-list, the only reason a stranger's
+#     connection is accepted at all (smtpd_recipient_restrictions).
+#   - virtual_mailbox: where those recipients are written. The trailing slash
+#     on the value is what makes it a maildir instead of an mbox.
+# Both are rebuilt at boot so $LIXTO_BOUNCE_ADDRESS / $MAIL_DOMAIN can change
+# without a rebuild.
+write_bounce_maps() {
+    bounce_base=$(dirname "$LIXTO_BOUNCE_MAILDIR")
+    bounce_leaf=$(basename "$LIXTO_BOUNCE_MAILDIR")
+
+    : >/etc/postfix/bounce_recipients
+    : >/etc/postfix/virtual_mailbox
+    for address in "$LIXTO_BOUNCE_ADDRESS" "$NOREPLY_ADDRESS"; do
+        # A duplicate key makes postmap warn and keeps only one entry; the two
+        # addresses are identical whenever the operator sets
+        # LIXTO_BOUNCE_ADDRESS to the no-reply one.
+        if grep -qxF "${address}	OK" /etc/postfix/bounce_recipients; then
+            continue
+        fi
+        printf '%s\tOK\n' "$address" >>/etc/postfix/bounce_recipients
+        printf '%s\t%s/\n' "$address" "$bounce_leaf" >>/etc/postfix/virtual_mailbox
+    done
+
+    postmap hash:/etc/postfix/bounce_recipients
+    postmap hash:/etc/postfix/virtual_mailbox
+
+    postconf -e "virtual_mailbox_base = ${bounce_base}"
+    postconf -e "virtual_uid_maps = static:${BOUNCE_UID}"
+    postconf -e "virtual_gid_maps = static:${BOUNCE_GID}"
+
+    # Maildir skeleton, plus the failed/ drawer the ingester moves unparseable
+    # blobs into. Created here (not by virtual(8), which would create them as
+    # needed) so the volume is usable by the web container from the first boot,
+    # before any bounce has ever arrived.
+    for sub in tmp new cur failed; do
+        mkdir -p "${LIXTO_BOUNCE_MAILDIR}/${sub}"
+    done
+    chown -R "${BOUNCE_UID}:${BOUNCE_GID}" "$LIXTO_BOUNCE_MAILDIR"
+    chmod -R 0770 "$LIXTO_BOUNCE_MAILDIR"
+
+    log "bounce mailbox: ${LIXTO_BOUNCE_ADDRESS}, ${NOREPLY_ADDRESS} -> ${LIXTO_BOUNCE_MAILDIR} (uid ${BOUNCE_UID}:${BOUNCE_GID})"
 }
 
 configure_postfix() {
@@ -163,6 +224,7 @@ configure_postfix() {
     log "mail injection allowed from: $(postconf -h mynetworks)"
 
     write_sender_access
+    write_bounce_maps
 
     # Documented escape hatch: relay through an external submission service
     # instead of delivering direct-to-MX.

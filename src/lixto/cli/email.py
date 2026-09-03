@@ -1,4 +1,4 @@
-"""`lixto email` — trigger the web app's outbox worker and daily digest.
+"""`lixto email` — trigger the web app's outbox worker, digest and bounce ingest.
 
 The outbox/render/SMTP logic is a single implementation in the web app
 (tickets 108/110/111/113); this CLI is a thin HTTP trigger so operators and
@@ -57,3 +57,25 @@ def digest_cmd(company_id: int = _COMPANY_ID_OPTION) -> None:
     typer.echo(f"companies: {result.get('companies')}")
     typer.echo(f"enqueued: {result.get('enqueued')}")
     typer.echo(f"skipped: {result.get('skipped')}")
+
+
+@app.command("bounces")
+def bounces_cmd() -> None:
+    """Ingest the MTA's DSN maildir: hard bounces become failed messages and
+    suppressions (`POST /api/internal/email/bounces` on the web app).
+
+    The maildir is `LIXTO_BOUNCE_MAILDIR` on the web container, not an option
+    here — a path is infrastructure, not an operator's choice. A web container
+    without that volume mounted reports zeros instead of failing.
+    """
+    try:
+        with InternalApi(get_web_internal_url(), get_internal_token()) as client:
+            result = client.email_bounces()
+    except (InternalApiError, httpx.HTTPError, RuntimeError) as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(code=1) from None
+
+    typer.echo(f"files: {result.get('files')}")
+    typer.echo(f"hard: {result.get('hard')}")
+    typer.echo(f"soft: {result.get('soft')}")
+    typer.echo(f"unparsed: {result.get('unparsed')}")

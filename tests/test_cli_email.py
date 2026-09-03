@@ -1,6 +1,6 @@
-"""Unit tests for `lixto email worker` / `lixto email digest`
+"""Unit tests for `lixto email worker` / `digest` / `bounces`
 (src/lixto/cli/email.py) — thin CLI triggers for the web app's
-`/api/internal/email/*` batch endpoints (ticket 113).
+`/api/internal/email/*` batch endpoints (tickets 113, 120).
 
 `InternalApi` (network-facing, tested against httpx.MockTransport in
 tests/test_internal_api.py) is stubbed here so these tests only exercise CLI
@@ -28,7 +28,12 @@ def _env(monkeypatch):
 
 def _make_stub(result=None, exc=None):
     """Build a fake InternalApi class recording constructor/call args."""
-    calls: dict = {"init": None, "email_send": None, "email_digest": None}
+    calls: dict = {
+        "init": None,
+        "email_send": None,
+        "email_digest": None,
+        "email_bounces": 0,
+    }
 
     class _Stub:
         def __init__(self, base_url, token, timeout=600):
@@ -48,6 +53,12 @@ def _make_stub(result=None, exc=None):
 
         def email_digest(self, *, company_id=None):
             calls["email_digest"] = {"company_id": company_id}
+            if exc is not None:
+                raise exc
+            return result
+
+        def email_bounces(self):
+            calls["email_bounces"] += 1
             if exc is not None:
                 raise exc
             return result
@@ -154,3 +165,62 @@ def test_email_digest_help_lists_company_id_option():
 
     assert result.exit_code == 0
     assert "--company-id" in result.output
+
+
+# --------------------------------------------------------------- email bounces
+
+
+def test_email_bounces_prints_counters(monkeypatch):
+    stub, calls = _make_stub(result={"files": 3, "hard": 1, "soft": 1, "unparsed": 1})
+    monkeypatch.setattr(email_module, "InternalApi", stub)
+
+    result = runner.invoke(app, ["email", "bounces"])
+
+    assert result.exit_code == 0
+    assert calls["init"] == {"base_url": "http://web.internal", "token": "secret-token"}
+    assert calls["email_bounces"] == 1
+    assert "files: 3" in result.output
+    assert "hard: 1" in result.output
+    assert "soft: 1" in result.output
+    assert "unparsed: 1" in result.output
+
+
+def test_email_bounces_reports_zeros_when_maildir_missing(monkeypatch):
+    # A web container without the MTA volume mounted is a no-op, not a failure:
+    # the Dokploy schedule must not go red every five minutes.
+    stub, _calls = _make_stub(result={"files": 0, "hard": 0, "soft": 0, "unparsed": 0})
+    monkeypatch.setattr(email_module, "InternalApi", stub)
+
+    result = runner.invoke(app, ["email", "bounces"])
+
+    assert result.exit_code == 0
+    assert "files: 0" in result.output
+
+
+def test_email_bounces_error_exits_1_without_traceback(monkeypatch):
+    stub, _calls = _make_stub(exc=InternalApiError(500, '{"error": "boom"}'))
+    monkeypatch.setattr(email_module, "InternalApi", stub)
+
+    result = runner.invoke(app, ["email", "bounces"])
+
+    assert result.exit_code == 1
+    assert "500" in result.output
+    assert "Traceback" not in result.output
+
+
+def test_email_bounces_connection_error_exits_1(monkeypatch):
+    stub, _calls = _make_stub(exc=httpx.ConnectError("connection refused"))
+    monkeypatch.setattr(email_module, "InternalApi", stub)
+
+    result = runner.invoke(app, ["email", "bounces"])
+
+    assert result.exit_code == 1
+    assert "connection refused" in result.output
+    assert "Traceback" not in result.output
+
+
+def test_email_bounces_takes_no_options():
+    result = runner.invoke(app, ["email", "bounces", "--help"])
+
+    assert result.exit_code == 0
+    assert "LIXTO_BOUNCE_MAILDIR" in result.output
