@@ -13,8 +13,9 @@ web/uploads/
 .llm_keys
 
 # terraform (state holds the Cloudflare API token; tfvars holds secrets)
+# .terraform.lock.hcl is deliberately NOT ignored: it pins the provider
+# checksums so every apply uses the same cloudflare provider build. Commit it.
 infra/terraform/*.tfstate*
 infra/terraform/.terraform/
-infra/terraform/.terraform.lock.hcl
 *.tfvars
 *.tfplan

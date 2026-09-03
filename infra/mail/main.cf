@@ -29,8 +29,21 @@ relayhost =
 inet_interfaces = all
 inet_protocols = ipv4
 
-# The Dokploy/compose overlay subnet. Overridden by $MYNETWORKS at boot.
-mynetworks = 127.0.0.0/8 [::1]/128 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16
+# ONLY the app's own Docker subnet may inject mail. This host shares
+# dokploy-network with every other container on plugu-prod01, so the old
+# "10.0.0.0/8 172.16.0.0/12 192.168.0.0/16" made the MTA an open relay for all
+# of them — and for the whole internet the moment port 25 is published, because
+# docker-proxy rewrites the client address to the bridge gateway (172.17.0.1).
+#
+# 10.0.1.0/24 is the dokploy-network overlay subnet on plugu-prod01. Confirm it
+# on the host before deploying, and pass $MYNETWORKS if it differs:
+#
+#   docker network inspect dokploy-network \
+#     -f '{{range .IPAM.Config}}{{.Subnet}} {{end}}'
+#
+# entrypoint.sh refuses to start on an unbounded value (0.0.0.0/0) and warns on
+# anything wider than a /16.
+mynetworks = 127.0.0.0/8 [::1]/128 10.0.1.0/24
 
 smtpd_client_restrictions =
     permit_mynetworks
@@ -41,6 +54,17 @@ smtpd_relay_restrictions =
 smtpd_recipient_restrictions =
     permit_mynetworks
     reject
+
+# Second lock, independent of the client address: the envelope sender must be a
+# $mydomain address. Even a client that ends up inside $mynetworks (a
+# mis-sized subnet, a docker-proxy rewrite) cannot get DKIM-signed mail out
+# under someone else's domain. The map is rebuilt from $MAIL_DOMAIN at boot by
+# entrypoint.sh; the empty sender (<>, DSNs we generate ourselves) never passes
+# through smtpd.
+smtpd_sender_restrictions =
+    check_sender_access hash:/etc/postfix/sender_access
+    reject
+
 smtpd_helo_required = yes
 disable_vrfy_command = yes
 smtpd_delay_reject = yes
@@ -56,8 +80,17 @@ smtp_dns_support_level = dnssec
 
 # --- Hostinger outbound cap --------------------------------------------
 # Port 25 is open on 187.127.16.246 but capped at 5 messages/minute.
-# 1 concurrent delivery with a 15s gap per destination is ~4 msg/min; the
-# queue absorbs bursts and retries for up to 3 days.
+#
+# *_destination_rate_delay is per destination domain, so it alone does NOT cap
+# the host: ten recipient domains would deliver in parallel. The global cap is
+# transport_rate_delay ("regardless of destination"), which Postfix enforces
+# per delivery agent *process* — hence smtp/maxproc=1 in master.cf. Both are
+# load-bearing; changing either raises the real rate.
+#
+# Worst case, whatever the mix of destination domains: 1 message per 15s =
+# 4 msg/min, under Hostinger's 5 msg/min. The queue absorbs bursts and retries
+# for up to 3 days.
+default_transport_rate_delay = 15s
 default_destination_rate_delay = 15s
 default_destination_concurrency_limit = 1
 initial_destination_concurrency = 1
@@ -70,7 +103,12 @@ queue_run_delay = 5m
 
 # --- opendkim milter ----------------------------------------------------
 # opendkim runs in this same container on 127.0.0.1:8891.
+#
+# tempfail, not accept: if the milter is down we would rather defer mail in the
+# queue than emit unsigned mail that fails DMARC and burns the IP's reputation.
+# entrypoint.sh additionally waits for the milter socket before starting
+# Postfix, so a redeploy cannot leak unsigned mail in its first seconds.
 smtpd_milters = inet:localhost:8891
 non_smtpd_milters = $smtpd_milters
-milter_default_action = accept
+milter_default_action = tempfail
 milter_protocol = 6

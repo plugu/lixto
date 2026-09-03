@@ -20,7 +20,9 @@ resource "cloudflare_dns_record" "mail_a" {
 }
 
 # 2. Inbound routing for the apex. Replaces the current null MX ("MX 0 .")
-#    that forbids mail for the domain.
+#    that forbids mail for the domain. Like the SPF record, the existing MX has
+#    to be imported or deleted first: "MX 0 ." alongside "MX 10 mail" is a null
+#    MX plus a real one, which receivers may read as "domain accepts no mail".
 resource "cloudflare_dns_record" "apex_mx" {
   zone_id  = var.zone_id
   name     = var.domain
@@ -31,8 +33,10 @@ resource "cloudflare_dns_record" "apex_mx" {
   comment  = "lixto MTA (terraform: infra/terraform)"
 }
 
-# 3. SPF. Replaces today's deny-all "v=spf1 -all"; Terraform will report that
-#    change on the first plan, and that is intended. Only the MTA host may send.
+# 3. SPF. Replaces today's deny-all "v=spf1 -all". The existing record MUST be
+#    imported (or deleted) before the first apply — see README.md "Mandatory
+#    pre-apply import". Two apex SPF records is an SPF permerror, which fails
+#    DMARC for every message. Only the MTA host may send.
 resource "cloudflare_dns_record" "apex_spf" {
   zone_id = var.zone_id
   name    = var.domain
@@ -55,11 +59,17 @@ resource "cloudflare_dns_record" "dkim" {
 
 # 5. DMARC in monitoring mode. p=none until the cold IP's reputation is built;
 #    tighten to quarantine/reject once aggregate reports look clean.
+#
+#    No "fo=1": fo only selects when *forensic* (ruf=) reports are generated,
+#    and we publish no ruf= — it was pure noise in the record. The aggregate
+#    destination (rua) must be a mailbox on a domain that actually accepts
+#    inbound mail; var.dmarc_rua defaults to one outside var.domain, because
+#    this zone's only MX is a send-only host that rejects everything inbound.
 resource "cloudflare_dns_record" "dmarc" {
   zone_id = var.zone_id
   name    = "_dmarc.${var.domain}"
   type    = "TXT"
-  content = "v=DMARC1; p=none; rua=${var.dmarc_rua}; fo=1"
+  content = "v=DMARC1; p=none; rua=${var.dmarc_rua}"
   ttl     = local.ttl
   comment = "lixto DMARC (terraform: infra/terraform)"
 }
