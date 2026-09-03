@@ -59,6 +59,8 @@ Key facts:
 | `LIXTO_SMTP_PORT` | SMTP port | `25` |
 | `LIXTO_EMAIL_FROM` | Sender name + address | `Lixto <nao-responda@lixto.com.br>` |
 | `LIXTO_EMAIL_REPLY_TO` | Reply-To header (optional) | — |
+| `LIXTO_BOUNCE_MAILDIR` | DSN maildir shared by `lixto-mail` and `lixto-web` | `/var/db/mail/bounces` |
+| `LIXTO_BOUNCE_ADDRESS` | Address the MTA accepts DSNs for | `bounces@lixto.com.br` |
 | `LIXTO_APP_URL` | Web app base URL (used in email links) | `https://lixto.com.br` (prod), `http://localhost:3000` (dev) |
 
 **Note**: All `LIXTO_*` vars are read by Python (CLI); `web` also reads LLM, embedding, and email vars via `.env.local`.
@@ -78,6 +80,7 @@ Key facts:
   - `recommend-run` — `15 8 * * *` (GO/NO-GO for top opportunities)
   - `enrich-embed` — `45 7,14,21 * * *` (backfill vector embeddings; 15 min after `enrich-run`)
   - `email-worker` — `*/5 * * * *` (drain outbox every 5 min)
+  - `email-bounces` — `2-57/5 * * * *` (ingest DSN maildir, offset 2 min from worker)
   - `email-digest` — `30 8 * * *` (enqueue digest at 8:30 AM)
   - `db-init` — manual only (`0 0 31 2 *`)
 

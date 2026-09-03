@@ -201,6 +201,9 @@ lixto email worker [--limit N]
 
 # Enqueue digest for a company (runs after `lixto recommend run`)
 lixto email digest [--company-id N]
+
+# Ingest asynchronous DSNs from the MTA's bounce maildir
+lixto email bounces
 ```
 
 ### Dokploy Schedules (on `lixto-cli`)
@@ -208,6 +211,7 @@ lixto email digest [--company-id N]
 | Schedule | Cron | Command |
 |---|---|---|
 | `email-worker` | `*/5 * * * *` | `lixto email worker --limit 20` |
+| `email-bounces` | `2-57/5 * * * *` | `lixto email bounces` |
 | `email-digest` | `30 8 * * *` | `lixto email digest` |
 
 ### Status Monitoring
@@ -246,6 +250,7 @@ email:
      ```
      e.g. `MYNETWORKS="127.0.0.0/8 [::1]/128 10.0.1.0/24"`. The entrypoint refuses to start on `0.0.0.0/0`, on a whole RFC1918 block, or on anything wider than a `/16`; envelope senders are additionally restricted to `@lixto.com.br` by `smtpd_sender_restrictions`
    - On startup, generates DKIM keypair in volume at `/var/db/dkim/{selector}.private`
+   - **Mount the bounce maildir on `lixto-web` too**: the MTA writes incoming DSNs to `/var/db/mail/bounces` (same volume as the DKIM key, `LIXTO_BOUNCE_MAILDIR`); `lixto-web` must mount that volume at the same path — the ingester (`lixto email bounces` → `POST /api/internal/email/bounces`) reads and moves those files as uid 1000 (`node`). Without the mount every pass reports zeros and asynchronous bounces are never suppressed
 
 4. **Extract and apply DKIM public key**:
    - Read DKIM public key from MTA container logs (`docker logs lixto-mail | grep -A4 'DKIM public record'`)

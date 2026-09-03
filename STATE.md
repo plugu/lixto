@@ -5,7 +5,7 @@
 - Cycle 21 still live in prod: local enrichment loop (`lixto-qwen` on the Mac, US$ 0) drains the fenced backlog at ~22 rows/h; ~2.3k rows enriched, ~6.4k pending in fence. Cloud `enrich-run` schedule stays OFF (OpenAI credits exhausted, Gemini key is free-tier). Cycle-21 diff still awaiting its own approval.
 
 ## Next
-- Cycle 22 ops after 114: `terraform apply` (Cloudflare) → deploy `lixto-mail` Dokploy app from infra/mail → paste DKIM public key → re-apply → **manual PTR 187.127.16.246 → mail.lixto.com.br in Hostinger hPanel** → schedules `email-worker` (*/5) + `email-digest` (30 8) → Gmail smoke with SPF/DKIM/DMARC passing.
+- Cycle 22 ops after 114: `terraform apply` (Cloudflare) → deploy `lixto-mail` Dokploy app from infra/mail → paste DKIM public key → re-apply → **manual PTR 187.127.16.246 → mail.lixto.com.br in Hostinger hPanel** → mount the mail volume on `lixto-web` (`LIXTO_BOUNCE_MAILDIR=/var/db/mail/bounces`) → schedules `email-worker` (*/5) + `email-bounces` (2-57/5) + `email-digest` (30 8) → Gmail smoke with SPF/DKIM/DMARC passing.
 - Cycle 21 open decisions: CNAE cleanup (drop the 3,169 local-model CNAE rows, 45% hallucinated) + validate codes against `cnae_codes`; Gemini billing or OpenAI top-up; enable cloud `enrich-run`; retry the 8 failed backfill units.
 - Cycle 23 candidates: deterministic CNAE (FTS/embeddings over `cnae_codes`), password-reset flow, WhatsApp via Evolution, deep analysis (rung 2).
 

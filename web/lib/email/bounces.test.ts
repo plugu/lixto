@@ -161,12 +161,24 @@ describe("ingestBounces", () => {
 
     const result = await ingestBounces({ dir, deps: { client: db } });
 
-    expect(result).toEqual({ files: 1, hard: 1, soft: 0, unparsed: 0 });
+    expect(result).toEqual({
+      files: 1,
+      hard: 1,
+      soft: 0,
+      unparsed: 0,
+      unmatched: 0,
+      errored: 0,
+    });
 
-    // Matched by Message-ID, not by "newest sent to that address".
+    // Matched by Message-ID *and* recipient, not by "newest sent to that
+    // address" — a forged report quoting a real Message-ID must not settle a
+    // row addressed to someone else.
     expect(db.calls).toHaveBeenCalledTimes(1);
     expect(db.calls.mock.calls[0][0]).toContain("message_id");
-    expect(db.calls.mock.calls[0][1]).toEqual(["outbox-42@mail.lixto.com.br"]);
+    expect(db.calls.mock.calls[0][1]).toEqual([
+      "outbox-42@mail.lixto.com.br",
+      "naoexiste@gmail.com",
+    ]);
 
     expect(mock(markFailed)).toHaveBeenCalledWith(
       42,
@@ -201,19 +213,27 @@ describe("ingestBounces", () => {
     );
   });
 
-  it("still suppresses when no outbox row can be found at all", async () => {
+  it("ignores a hard DSN that matches no outbox row (forged-suppression guard)", async () => {
+    // The bounce address accepts mail from the whole internet, so a DSN for
+    // an address we never wrote to is an unauthenticated claim — acting on it
+    // would let anyone suppress an arbitrary address.
     await drop("gmail-550", HARD_BOUNCE);
     const db = client([], []);
 
     const result = await ingestBounces({ dir, deps: { client: db } });
 
-    expect(result.hard).toBe(1);
+    expect(result).toEqual({
+      files: 1,
+      hard: 0,
+      soft: 0,
+      unparsed: 0,
+      unmatched: 1,
+      errored: 0,
+    });
     expect(mock(markFailed)).not.toHaveBeenCalled();
-    expect(mock(suppress)).toHaveBeenCalledWith(
-      "naoexiste@gmail.com",
-      "hard_bounce",
-      expect.any(String),
-    );
+    expect(mock(suppress)).not.toHaveBeenCalled();
+    // Kept for a human, out of new/ so it is not re-counted every pass.
+    expect(await readdir(path.join(dir, "failed"))).toEqual(["gmail-550"]);
   });
 
   it("changes nothing on a 4.x.x", async () => {
@@ -222,7 +242,14 @@ describe("ingestBounces", () => {
 
     const result = await ingestBounces({ dir, deps: { client: db } });
 
-    expect(result).toEqual({ files: 1, hard: 0, soft: 1, unparsed: 0 });
+    expect(result).toEqual({
+      files: 1,
+      hard: 0,
+      soft: 1,
+      unparsed: 0,
+      unmatched: 0,
+      errored: 0,
+    });
     expect(db.calls).not.toHaveBeenCalled();
     expect(mock(markFailed)).not.toHaveBeenCalled();
     expect(mock(suppress)).not.toHaveBeenCalled();
@@ -235,7 +262,14 @@ describe("ingestBounces", () => {
 
     const result = await ingestBounces({ dir, deps: { client: db } });
 
-    expect(result).toEqual({ files: 1, hard: 0, soft: 0, unparsed: 1 });
+    expect(result).toEqual({
+      files: 1,
+      hard: 0,
+      soft: 0,
+      unparsed: 1,
+      unmatched: 0,
+      errored: 0,
+    });
     expect(mock(markFailed)).not.toHaveBeenCalled();
     expect(mock(suppress)).not.toHaveBeenCalled();
     expect(await readdir(path.join(dir, "failed"))).toEqual(["garbage"]);
@@ -249,7 +283,14 @@ describe("ingestBounces", () => {
 
     const result = await ingestBounces({ dir, deps: { client: db } });
 
-    expect(result).toEqual({ files: 3, hard: 1, soft: 1, unparsed: 1 });
+    expect(result).toEqual({
+      files: 3,
+      hard: 1,
+      soft: 1,
+      unparsed: 1,
+      unmatched: 0,
+      errored: 0,
+    });
     expect(mock(suppress)).toHaveBeenCalledTimes(1);
     expect(await readdir(path.join(dir, "new"))).toEqual([]);
   });
@@ -261,7 +302,14 @@ describe("ingestBounces", () => {
 
     const result = await ingestBounces({ dir, deps: { client: db } });
 
-    expect(result).toEqual({ files: 2, hard: 0, soft: 1, unparsed: 1 });
+    expect(result).toEqual({
+      files: 2,
+      hard: 0,
+      soft: 1,
+      unparsed: 0,
+      unmatched: 0,
+      errored: 1,
+    });
     expect(mock(suppress)).not.toHaveBeenCalled();
     expect(await readdir(path.join(dir, "new"))).toEqual(["1-hard"]);
   });
@@ -274,7 +322,14 @@ describe("ingestBounces", () => {
       deps: { client: db },
     });
 
-    expect(result).toEqual({ files: 0, hard: 0, soft: 0, unparsed: 0 });
+    expect(result).toEqual({
+      files: 0,
+      hard: 0,
+      soft: 0,
+      unparsed: 0,
+      unmatched: 0,
+      errored: 0,
+    });
     expect(db.calls).not.toHaveBeenCalled();
   });
 
@@ -321,6 +376,8 @@ describe("POST /api/internal/email/bounces", () => {
       hard: 0,
       soft: 0,
       unparsed: 0,
+      unmatched: 0,
+      errored: 0,
     });
   });
 });

@@ -219,7 +219,8 @@ Every newly enriched procurement is automatically evaluated against every compan
 
 ### Dispatch
 
-- **`lixto email worker`** (Dokploy schedule every 5 min): Drain `email_messages` with status=queued up to `--limit` (default 20). Send via SMTP, parse bounces into `email_suppressions`, mark status=sent/failed/suppressed.
+- **`lixto email worker`** (Dokploy schedule every 5 min): Drain `email_messages` with status=queued up to `--limit` (default 20). Send via SMTP, mark status=sent/failed/suppressed. Only *synchronous* rejections (the local SMTP handshake) are classified here.
+- **`lixto email bounces`** (Dokploy schedule every 5 min, offset from the worker): Ingest the MTA's DSN maildir (`LIXTO_BOUNCE_MAILDIR`, a volume shared between `lixto-mail` and `lixto-web`). A hard (5.x.x) DSN that matches a message we sent marks that row failed and inserts a `hard_bounce` suppression; soft (4.x.x) DSNs are logged; DSNs matching nothing we sent are quarantined, never acted on (the bounce address accepts mail from anyone).
 - **`lixto email digest`** (Dokploy schedule 8:30 AM): Enqueue daily digest per company after `recommend-run` completes. Digest only sends if company has new opportunities (score ≥ 70 with attention=true).
 
 ### MTA (Self-Hosted)

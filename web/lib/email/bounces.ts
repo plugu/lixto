@@ -69,13 +69,22 @@ export type BounceDeps = {
 export type BounceIngestResult = {
   /** Files taken out of the maildir this pass. */
   files: number;
-  /** 5.x.x: message failed and address suppressed. */
+  /** 5.x.x with a matching outbox row: message failed, address suppressed. */
   hard: number;
   /** 4.x.x (and the 2.x.x "delivered/delayed" notices): logged, nothing
    * written — the outbox is already retrying, or already correct. */
   soft: number;
   /** Not a DSN we could read; moved to `failed/`. */
   unparsed: number;
+  /** A well-formed hard DSN for an address we never sent to. The bounce
+   * address accepts mail from the whole internet, so an unmatched claim is
+   * exactly what a forged suppression attack looks like — nothing is written,
+   * the file goes to `failed/` for a human to look at. */
+  unmatched: number;
+  /** The database failed mid-settle; the file stays in `new/` and the next
+   * pass retries it. Kept apart from `unparsed` so an infra outage does not
+   * read as a parser bug in the counters. */
+  errored: number;
 };
 
 /** DSNs are tiny (Postfix's `bounce_size_limit` defaults to 50 kB). Anything
@@ -220,8 +229,14 @@ export function isHardBounce(status: string): boolean {
  * believe we sent to that address. Angle brackets are stripped on both sides
  * because MTAs disagree about carrying them.
  *
- * `null` means "no row to settle": the suppression still happens, so a dead
- * address stops receiving mail even when we cannot say which message died.
+ * Both lookups also require `to_email` to be the DSN's `Final-Recipient`. The
+ * DSN is unauthenticated input (the bounce address accepts mail from anyone),
+ * so a quoted Message-ID must never be allowed to settle a row addressed to
+ * someone other than the recipient the report claims bounced.
+ *
+ * `null` means "no row to settle" — and therefore no suppression either: a
+ * hard status alone, with no message of ours behind it, is a stranger's
+ * unverified claim, not evidence the address is dead.
  */
 async function findMessageRowId(
   client: Queryable,
@@ -233,9 +248,10 @@ async function findMessageRowId(
       `SELECT id
          FROM email_messages
         WHERE btrim(message_id, '<>') = $1
+          AND to_email = $2
         ORDER BY id DESC
         LIMIT 1`,
-      [originalMessageId],
+      [originalMessageId, recipient],
     );
     if (rows.length > 0) return Number(rows[0].id);
   }
@@ -296,7 +312,14 @@ export async function ingestBounces(
   const markFailedFn = deps.markFailed ?? markFailed;
   const suppressFn = deps.suppress ?? suppress;
 
-  const result: BounceIngestResult = { files: 0, hard: 0, soft: 0, unparsed: 0 };
+  const result: BounceIngestResult = {
+    files: 0,
+    hard: 0,
+    soft: 0,
+    unparsed: 0,
+    unmatched: 0,
+    errored: 0,
+  };
 
   const sourceDir = await resolveSourceDir(dir);
   if (sourceDir === null) {
@@ -348,15 +371,18 @@ export async function ingestBounces(
         dsn.recipient,
         dsn.originalMessageId,
       );
-      if (id !== null) {
-        await markFailedFn(id, dsn.diagnostic, { retryable: false });
-      } else {
+      if (id === null) {
+        // No message of ours behind the claim. Suppressing here would let
+        // anyone on the internet block an arbitrary address by mailing us a
+        // forged DSN — the report is kept under failed/ for a human instead.
         console.warn(
-          `[email/bounces] no outbox row for ${dsn.recipient} (${dsn.originalMessageId ?? "no message-id"})`,
+          `[email/bounces] hard bounce with no matching outbox row for ${dsn.recipient} (${dsn.originalMessageId ?? "no message-id"}); ignoring`,
         );
+        result.unmatched += 1;
+        await moveTo(file, path.join(dir, "failed"), name);
+        continue;
       }
-      // Suppress even without a row: the address is dead either way, and that
-      // is the fact PRODUCT §3 promises to act on.
+      await markFailedFn(id, dsn.diagnostic, { retryable: false });
       await suppressFn(dsn.recipient, "hard_bounce", dsn.diagnostic);
       result.hard += 1;
       await moveTo(file, path.join(dir, "cur"), name);
@@ -364,7 +390,7 @@ export async function ingestBounces(
       // A database failure: leave the file in new/ so the next pass retries it
       // instead of silently dropping a hard bounce.
       console.error("[email/bounces] could not settle bounce", file, err);
-      result.unparsed += 1;
+      result.errored += 1;
     }
   }
 

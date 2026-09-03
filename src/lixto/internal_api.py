@@ -116,7 +116,7 @@ class InternalApi:
 
     def email_bounces(self) -> dict[str, Any]:
         """`POST /api/internal/email/bounces` → one pass over the MTA's DSN
-        maildir: `{files, hard, soft, unparsed}`.
+        maildir: `{files, hard, soft, unparsed, unmatched, errored}`.
 
         No body: the maildir is `LIXTO_BOUNCE_MAILDIR` on the web container,
         never a caller-supplied path.

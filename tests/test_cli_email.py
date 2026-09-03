@@ -171,7 +171,16 @@ def test_email_digest_help_lists_company_id_option():
 
 
 def test_email_bounces_prints_counters(monkeypatch):
-    stub, calls = _make_stub(result={"files": 3, "hard": 1, "soft": 1, "unparsed": 1})
+    stub, calls = _make_stub(
+        result={
+            "files": 5,
+            "hard": 1,
+            "soft": 1,
+            "unparsed": 1,
+            "unmatched": 1,
+            "errored": 1,
+        }
+    )
     monkeypatch.setattr(email_module, "InternalApi", stub)
 
     result = runner.invoke(app, ["email", "bounces"])
@@ -179,16 +188,27 @@ def test_email_bounces_prints_counters(monkeypatch):
     assert result.exit_code == 0
     assert calls["init"] == {"base_url": "http://web.internal", "token": "secret-token"}
     assert calls["email_bounces"] == 1
-    assert "files: 3" in result.output
+    assert "files: 5" in result.output
     assert "hard: 1" in result.output
     assert "soft: 1" in result.output
     assert "unparsed: 1" in result.output
+    assert "unmatched: 1" in result.output
+    assert "errored: 1" in result.output
 
 
 def test_email_bounces_reports_zeros_when_maildir_missing(monkeypatch):
     # A web container without the MTA volume mounted is a no-op, not a failure:
     # the Dokploy schedule must not go red every five minutes.
-    stub, _calls = _make_stub(result={"files": 0, "hard": 0, "soft": 0, "unparsed": 0})
+    stub, _calls = _make_stub(
+        result={
+            "files": 0,
+            "hard": 0,
+            "soft": 0,
+            "unparsed": 0,
+            "unmatched": 0,
+            "errored": 0,
+        }
+    )
     monkeypatch.setattr(email_module, "InternalApi", stub)
 
     result = runner.invoke(app, ["email", "bounces"])

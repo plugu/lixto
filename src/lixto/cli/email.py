@@ -79,3 +79,5 @@ def bounces_cmd() -> None:
     typer.echo(f"hard: {result.get('hard')}")
     typer.echo(f"soft: {result.get('soft')}")
     typer.echo(f"unparsed: {result.get('unparsed')}")
+    typer.echo(f"unmatched: {result.get('unmatched')}")
+    typer.echo(f"errored: {result.get('errored')}")
