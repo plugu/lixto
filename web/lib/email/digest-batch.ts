@@ -72,14 +72,26 @@ function groupByCompany(recipients: Recipient[]): Map<number, CompanyRecipients>
   return byCompany;
 }
 
-/** `YYYY-MM-DD` in UTC — one digest per company per calendar day, whatever
- * time the worker/CLI runs. */
+const SAO_PAULO_DATE_FORMAT = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "America/Sao_Paulo",
+});
+
+/** `YYYY-MM-DD` in the São Paulo civil day — one digest per company per
+ * calendar day *there*, not wherever/whenever the worker/CLI happens to run.
+ * The schedule (`30 8 * * *` America/Sao_Paulo) sits close enough to
+ * midnight UTC that keying on UTC would give a run between 21:00 and 24:00
+ * BRT tomorrow's date, so the next morning's run keys a different day and
+ * sends a second digest for the same São Paulo day. */
 function today(): string {
-  return new Date().toISOString().slice(0, 10);
+  return SAO_PAULO_DATE_FORMAT.format(new Date());
 }
 
-function dedupeKey(companyId: number): string {
-  return `daily_digest:${companyId}:${today()}`;
+/** Keyed on the recipient too: without the email, every admin of a company
+ * collides on the same key and only the first `enqueue` call survives the
+ * partial unique index (migration 003) — the rest come back
+ * `skipped: "duplicate"` and their admin never gets mail. */
+function dedupeKey(companyId: number, email: string): string {
+  return `daily_digest:${companyId}:${email}:${today()}`;
 }
 
 function attentionCard(row: {
@@ -105,9 +117,9 @@ function attentionCard(row: {
  * Enqueues today's digest for every qualifying company, one row per admin
  * email. A company whose digest is empty (`attentionCount === 0 &&
  * matchedCount === 0`) is skipped outright — an empty digest is worse than no
- * mail. The per-day `dedupeKey` makes a repeat run of the same day a no-op at
- * the outbox layer (ON CONFLICT DO NOTHING), so this function is safe to
- * re-trigger.
+ * mail. The per-recipient, per-day `dedupeKey` makes a repeat run of the same
+ * São Paulo day a no-op at the outbox layer (ON CONFLICT DO NOTHING) without
+ * dropping any admin's copy, so this function is safe to re-trigger.
  */
 export async function runDigestBatch(
   opts: { companyId?: number } = {},
@@ -143,7 +155,7 @@ export async function runDigestBatch(
         template: "daily_digest",
         payload,
         companyId,
-        dedupeKey: dedupeKey(companyId),
+        dedupeKey: dedupeKey(companyId, email),
       });
       if (result.id !== null) enqueued += 1;
     }
