@@ -1,0 +1,68 @@
+#
+# Lixto MTA — Postfix master process configuration.
+#
+# Derived from Debian's stock master.cf, with the local/virtual delivery agents
+# and the commented-out MUA/pipe examples removed (this host is send-only) and
+# ONE deliberate change: the outbound smtp transport runs at maxproc=1.
+#
+# Why maxproc=1 is load-bearing
+# -----------------------------
+# main.cf sets default_transport_rate_delay = 15s, the only Postfix knob that
+# rate-limits "regardless of destination". Postfix enforces that delay inside
+# each delivery agent process, so N smtp processes deliver N times faster.
+# With Debian's default (maxproc unset -> default_process_limit, 10 here) the
+# host would burst up to 40 msg/min, eight times Hostinger's cap. Pinning the
+# transport to a single process makes the delay global.
+#
+# Worst-case send rate, any mix of destination domains:
+#   1 message / 15s = 4 msg/min  (Hostinger's limit is 5 msg/min)
+#
+# Do not raise maxproc here or lower default_transport_rate_delay in main.cf
+# without re-doing that arithmetic; the port-25 allowance is per-VPS and
+# exceeding it gets outbound blocked, not queued.
+#
+# ==========================================================================
+# service type  private unpriv  chroot  wakeup  maxproc command + args
+#               (yes)   (yes)   (no)    (never) (100)
+# ==========================================================================
+
+# Submission from the app containers. Authorisation is $mynetworks plus
+# smtpd_sender_restrictions (see main.cf); no SASL, no submission port.
+smtp      inet  n       -       y       -       -       smtpd
+
+pickup    unix  n       -       y       60      1       pickup
+cleanup   unix  n       -       y       -       0       cleanup
+qmgr      unix  n       -       n       300     1       qmgr
+tlsmgr    unix  -       -       y       1000?   1       tlsmgr
+rewrite   unix  -       -       y       -       -       trivial-rewrite
+bounce    unix  -       -       y       -       0       bounce
+defer     unix  -       -       y       -       0       bounce
+trace     unix  -       -       y       -       0       bounce
+verify    unix  -       -       y       -       1       verify
+flush     unix  n       -       y       1000?   0       flush
+proxymap  unix  -       -       n       -       -       proxymap
+proxywrite unix -       -       n       -       1       proxymap
+
+# The rate-limited outbound transport. maxproc=1: see the header above.
+smtp      unix  -       -       y       -       1       smtp
+
+# Same agent, same single-process cap, used when relay_domains is non-empty.
+# Unused today (mydestination and relay_domains are empty) but capped anyway so
+# it can never become a second, unmetered delivery path.
+relay     unix  -       -       y       -       1       smtp
+        -o syslog_name=${multi_instance_name?{$multi_instance_name}:{postfix}}/$service_name
+
+showq     unix  n       -       y       -       -       showq
+error     unix  -       -       y       -       -       error
+retry     unix  -       -       y       -       -       error
+discard   unix  -       -       y       -       -       discard
+
+# local_transport in main.cf is error:, so local(8) is never invoked; the
+# service entry stays because trivial-rewrite still resolves to it.
+local     unix  -       n       n       -       -       local
+virtual   unix  -       n       n       -       -       virtual
+lmtp      unix  -       -       y       -       -       lmtp
+
+anvil     unix  -       -       y       -       1       anvil
+scache    unix  -       -       y       -       1       scache
+postlog   unix-dgram n  -       n       -       1       postlogd

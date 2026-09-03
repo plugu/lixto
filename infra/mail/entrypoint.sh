@@ -16,6 +16,11 @@ log() {
     echo "[entrypoint] $*"
 }
 
+die() {
+    echo "[entrypoint] FATAL: $*" >&2
+    exit 1
+}
+
 # --------------------------------------------------------------------------
 # 1. DKIM keypair — generated once, inside the mounted volume, never in
 #    Terraform state. The public half is printed so the operator can paste it
@@ -108,14 +113,56 @@ EOF
 # --------------------------------------------------------------------------
 # 3. Postfix runtime configuration.
 # --------------------------------------------------------------------------
+
+# $mynetworks is the only thing standing between this MTA and every other
+# container on the shared Dokploy host, so an over-wide value is a hard error,
+# not a warning. Get the real subnet with:
+#   docker network inspect dokploy-network \
+#     -f '{{range .IPAM.Config}}{{.Subnet}} {{end}}'
+check_mynetworks() {
+    for cidr in $1; do
+        case "$cidr" in
+            127.* | "[::1]/128" | ::1/128 | localhost)
+                # Loopback: the container's own submissions (postfix DSNs).
+                continue
+                ;;
+            0.0.0.0/0 | ::/0 | "[::]/0")
+                die "MYNETWORKS contains ${cidr}: that is an open relay, refusing to start"
+                ;;
+            */[0-9] | */1[0-5])
+                # /0../15 — wider than 65k addresses and never a Docker subnet.
+                die "MYNETWORKS entry ${cidr} is wider than a /16; pass the app's own subnet (docker network inspect dokploy-network)"
+                ;;
+            10.0.0.0/8 | 172.16.0.0/12 | 192.168.0.0/16)
+                die "MYNETWORKS entry ${cidr} is a whole RFC1918 block, i.e. every container on the host; pass the app's own subnet"
+                ;;
+        esac
+    done
+}
+
+# MAIL FROM allow-list backing smtpd_sender_restrictions in main.cf. Only
+# $MAIL_DOMAIN (and its subdomains, via the leading-dot form) may inject mail.
+write_sender_access() {
+    printf '%s\tOK\n.%s\tOK\n' "$MAIL_DOMAIN" "$MAIL_DOMAIN" \
+        >/etc/postfix/sender_access
+    postmap hash:/etc/postfix/sender_access
+}
+
 configure_postfix() {
     postconf -e "myhostname = ${MYHOSTNAME}"
     postconf -e "mydomain = ${MAIL_DOMAIN}"
     echo "$MYHOSTNAME" >/etc/mailname
 
     if [ -n "$MYNETWORKS" ]; then
+        check_mynetworks "$MYNETWORKS"
         postconf -e "mynetworks = ${MYNETWORKS}"
+    else
+        check_mynetworks "$(postconf -h mynetworks)"
+        log "MYNETWORKS unset; using baked-in mynetworks = $(postconf -h mynetworks)"
     fi
+    log "mail injection allowed from: $(postconf -h mynetworks)"
+
+    write_sender_access
 
     # Documented escape hatch: relay through an external submission service
     # instead of delivering direct-to-MX.
@@ -150,8 +197,31 @@ start_services() {
     log "starting opendkim"
     opendkim -x /etc/opendkim.conf
 
+    wait_for_opendkim
+
     log "starting postfix (myhostname=${MYHOSTNAME}, selector=${DKIM_SELECTOR})"
     exec postfix start-fg
+}
+
+# opendkim -x daemonises immediately, but the milter socket is not accepting
+# yet. Postfix started in that window would hand mail to a dead milter: with
+# milter_default_action = tempfail that is a burst of 451s, and with the old
+# "accept" it was unsigned mail — the reason this wait exists. Bounded, then
+# fail loudly: a container that cannot sign must not run.
+wait_for_opendkim() {
+    tries=0
+    max_tries=100 # 100 x 0.1s = 10s
+
+    while [ "$tries" -lt "$max_tries" ]; do
+        if nc -z 127.0.0.1 8891 2>/dev/null; then
+            log "opendkim milter accepting on 127.0.0.1:8891 after ${tries} probe(s)"
+            return 0
+        fi
+        tries=$((tries + 1))
+        sleep 0.1
+    done
+
+    die "opendkim did not accept on 127.0.0.1:8891 within 10s; refusing to start Postfix (it would emit unsigned or tempfailed mail)"
 }
 
 setup_dkim_key

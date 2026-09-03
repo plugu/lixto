@@ -223,32 +223,50 @@ email:
 
 ### Deploy Runbook (First-Time Setup)
 
-1. **Provision DNS records** (Terraform):
+1. **Adopt the two existing apex records — mandatory, before any apply.** The zone already has `TXT "v=spf1 -all"` and `MX 0 .`; with empty state Terraform *creates* its own alongside them, and two SPF records is an SPF permerror that fails DMARC on every message. Import them (ids via the Cloudflare API — see `infra/terraform/README.md` § *Mandatory pre-apply import*) or delete both in the dashboard first:
    ```bash
-   terraform -chdir=infra/terraform apply
+   terraform -chdir=infra/terraform init
+   terraform -chdir=infra/terraform import cloudflare_dns_record.apex_spf "$ZONE_ID/<spf_record_id>"
+   terraform -chdir=infra/terraform import cloudflare_dns_record.apex_mx  "$ZONE_ID/<mx_record_id>"
    ```
-   Creates `mail.lixto.com.br` A record (grey-cloud, no proxying), MX, SPF, DKIM (public half), DMARC on Cloudflare.
 
-2. **Deploy MTA container**:
+2. **Provision DNS records** (Terraform):
+   ```bash
+   terraform -chdir=infra/terraform plan -out=mail.tfplan   # apex_spf/apex_mx must be ~ update, not + create
+   terraform -chdir=infra/terraform apply mail.tfplan
+   ```
+   Creates `mail.lixto.com.br` A record (grey-cloud, no proxying), MX, SPF, DKIM (public half), DMARC on Cloudflare. Verify singularity right after: `dig +short TXT lixto.com.br` and `dig +short MX lixto.com.br` must each return exactly one line.
+
+3. **Deploy MTA container**:
    - Create `lixto-mail` app in Dokploy from `infra/mail/Dockerfile`
-   - Service runs Postfix + opendkim, reachable on internal Docker network (submission port 25 only)
+   - Service runs Postfix + opendkim, reachable on internal Docker network (submission port 25 only); **do not publish port 25 to the host** — docker-proxy would rewrite every client to the bridge gateway and put it inside `$mynetworks`
+   - Set `MYNETWORKS` to the app's own subnet — nothing wider. Get it on the host with:
+     ```bash
+     docker network inspect dokploy-network -f '{{range .IPAM.Config}}{{.Subnet}} {{end}}'
+     ```
+     e.g. `MYNETWORKS="127.0.0.0/8 [::1]/128 10.0.1.0/24"`. The entrypoint refuses to start on `0.0.0.0/0`, on a whole RFC1918 block, or on anything wider than a `/16`; envelope senders are additionally restricted to `@lixto.com.br` by `smtpd_sender_restrictions`
    - On startup, generates DKIM keypair in volume at `/var/db/dkim/{selector}.private`
 
-3. **Extract and apply DKIM public key**:
-   - Read DKIM public key from MTA container logs
-   - Update `LIXTO_MAIL_DKIM_PUBLIC_KEY` in Terraform variables
+4. **Extract and apply DKIM public key**:
+   - Read DKIM public key from MTA container logs (`docker logs lixto-mail | grep -A4 'DKIM public record'`)
+   - Set `dkim_public_key` in `infra/terraform/terraform.tfvars` (untracked; the Terraform variable name, not an env var)
    - Re-run `terraform -chdir=infra/terraform apply` to publish DNS record
 
-4. **Set PTR record** (manual, via Hostinger hPanel):
+5. **Set PTR record** (manual, via Hostinger hPanel):
    - IP: `187.127.16.246`
    - Hostname: `mail.lixto.com.br`
    - (No Hostinger Terraform provider; this must be done out-of-band)
 
-5. **Send test email** and verify:
+6. **Authorise DMARC reporting** in the `dmarc_rua` domain's zone (default `plugu.solutions`), otherwise the aggregate reports are dropped by every reporter:
+   ```
+   lixto.com.br._report._dmarc.plugu.solutions.  TXT  "v=DMARC1"
+   ```
+
+7. **Send test email** and verify:
    - Create a test user and invite
    - Check inbox (not spam) for SPF, DKIM, DMARC headers
    - View in Gmail "Show original" — all three should pass
-   - Note: Hostinger caps outbound at 5 msg/min; Postfix rate-limits below this
+   - Note: Hostinger caps outbound at 5 msg/min. Postfix stays under it with `default_transport_rate_delay = 15s` **plus** `smtp … maxproc=1` in `infra/mail/master.cf`: one message per 15 s = 4 msg/min globally, regardless of how many destination domains are queued. Both settings are load-bearing — the per-destination delay alone does not cap the host.
 
 **Escape hatch**: If the IP reputation causes filtering (Gmail/Outlook), point Postfix `relayhost` at an external submission service on 587/465 (config change only, no code changes).
 

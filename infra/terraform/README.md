@@ -10,12 +10,66 @@ here; unmanaged records are left untouched.
 | 2 | `lixto.com.br` | MX | `10 mail.lixto.com.br` |
 | 3 | `lixto.com.br` | TXT | `v=spf1 a:mail.lixto.com.br -all` |
 | 4 | `<selector>._domainkey.lixto.com.br` | TXT | `var.dkim_public_key` |
-| 5 | `_dmarc.lixto.com.br` | TXT | `v=DMARC1; p=none; rua=<var.dmarc_rua>; fo=1` |
+| 5 | `_dmarc.lixto.com.br` | TXT | `v=DMARC1; p=none; rua=<var.dmarc_rua>` |
 
 The zone today actively **forbids** mail: `MX 0 .` (null MX) and
-`TXT "v=spf1 -all"`. The first `terraform plan` will therefore report a
-*change* to the apex MX and TXT records rather than a create. That is intended
-— review the diff, then apply.
+`TXT "v=spf1 -all"`. Terraform does **not** adopt those records by itself —
+with empty local state it plans a *create*, which leaves the old record in
+place next to the new one. Do the import below **before the first apply**.
+
+## Mandatory pre-apply import (do this or mail breaks)
+
+Cloudflare happily keeps **two** apex TXT records and **two** apex MX records.
+If you apply without adopting the existing ones:
+
+- `v=spf1 -all` + `v=spf1 a:mail.lixto.com.br -all` → two SPF records → SPF
+  **permerror** → `spf=none/permerror` → **DMARC fails on every message**.
+- `MX 0 .` (null MX, "this domain accepts no mail") + `MX 10 mail...` → a
+  contradictory MX set that some receivers read as "refuses mail".
+
+So: **import both records first, or delete both first.** Not optional, and not
+something the plan output will warn you about — a create looks perfectly
+healthy.
+
+### 1. Find the record ids
+
+Either the dashboard (zone → DNS → click the record → the URL / the "···" menu
+shows the record id) or the API:
+
+```sh
+export CF_API_TOKEN='…scoped Zone:DNS:Edit token…'
+export ZONE_ID='…32 hex chars…'
+
+# apex SPF (TXT on the apex, the one starting with v=spf1)
+curl -s -H "Authorization: Bearer $CF_API_TOKEN" \
+  "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records?type=TXT&name=lixto.com.br" \
+  | jq -r '.result[] | [.id, .content] | @tsv'
+
+# apex MX (the null MX, content ".")
+curl -s -H "Authorization: Bearer $CF_API_TOKEN" \
+  "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records?type=MX&name=lixto.com.br" \
+  | jq -r '.result[] | [.id, .priority, .content] | @tsv'
+```
+
+Each prints `<record_id>\t<content>`; take the id of the SPF TXT (ignore any
+other apex TXT, e.g. a domain-verification token — those are unmanaged and must
+be left alone) and the id of the `MX 0 .`.
+
+### 2. Import (run from `infra/terraform`, after `terraform init`)
+
+```sh
+terraform import cloudflare_dns_record.apex_spf "$ZONE_ID/<spf_record_id>"
+terraform import cloudflare_dns_record.apex_mx  "$ZONE_ID/<mx_record_id>"
+```
+
+Then `terraform plan` shows an **update in-place** for both (`v=spf1 -all` →
+`v=spf1 a:mail… -all`, `0 .` → `10 mail.lixto.com.br`) and a create for the
+other three. If it still shows a *create* for `apex_spf` or `apex_mx`, stop:
+the import did not take and applying now would duplicate the record.
+
+**Alternative** (equally acceptable, and simpler if the ids are awkward):
+delete the `v=spf1 -all` TXT and the `MX 0 .` in the dashboard first, then
+apply with no imports. Do one or the other — never neither.
 
 ## Manual prerequisite: PTR (do this first)
 
@@ -73,7 +127,12 @@ container, otherwise verifiers look up a name that does not exist.
 cd infra/terraform
 $EDITOR terraform.tfvars      # gitignored, contents below
 terraform init
-terraform plan   -out=mail.tfplan
+
+# MANDATORY before the very first apply — see "Mandatory pre-apply import".
+terraform import cloudflare_dns_record.apex_spf "$ZONE_ID/<spf_record_id>"
+terraform import cloudflare_dns_record.apex_mx  "$ZONE_ID/<mx_record_id>"
+
+terraform plan   -out=mail.tfplan   # apex_spf/apex_mx must be ~ update, not + create
 terraform apply  mail.tfplan
 ```
 
@@ -88,21 +147,63 @@ dkim_public_key      = "v=DKIM1; h=sha256; k=rsa; p=MIIBIjANBgkqhkiG9w0BAQEFA…
 # domain        = "lixto.com.br"
 # mail_ip       = "187.127.16.246"
 # dkim_selector = "lixto"
-# dmarc_rua     = "mailto:dmarc@lixto.com.br"
+# dmarc_rua     = "mailto:dmarc@plugu.solutions"
 ```
 
-Both `terraform.tfvars` and `*.tfstate*` are gitignored — the token and the
-state (which contains it) must never be committed. State is local, so keep the
-file: losing it makes Terraform try to re-create records that already exist.
+`terraform.tfvars` is **intentionally untracked** (`*.tfvars` in `.gitignore`):
+it holds the API token. `*.tfstate*` likewise — the state embeds the token.
+`.terraform.lock.hcl` is the opposite: it is **tracked on purpose**, so every
+operator resolves the same cloudflare provider build. Commit it whenever
+`terraform init -upgrade` changes it; never gitignore it.
+
+State is local, so keep the file: losing it makes Terraform try to *create*
+records that already exist — the same duplicate-SPF failure as skipping the
+import above. If state is lost, re-import all five records before applying.
+
+## DMARC reports actually arriving
+
+`rua` points at a mailbox **outside** `lixto.com.br`, because this zone's only
+MX is the send-only MTA, which rejects inbound mail: reports sent to
+`dmarc@lixto.com.br` would be discarded and `p=none` would teach us nothing.
+
+Cross-domain reporting needs the receiving zone to authorise it, otherwise
+Google/Microsoft/Yahoo silently drop the reports. In the **rua domain's** zone
+(not this one, not managed here) publish:
+
+```
+lixto.com.br._report._dmarc.plugu.solutions.  TXT  "v=DMARC1"
+```
+
+Verify:
+
+```sh
+dig +short TXT lixto.com.br._report._dmarc.plugu.solutions   # -> "v=DMARC1"
+```
+
+Aggregate reports arrive daily, roughly 24-72 h after the first mail is sent.
+If nothing arrives within three days, that authorisation record is the first
+thing to check.
 
 ## Verifying after apply
 
+The apex records must be **singular** — this is the check that catches a
+skipped import:
+
 ```sh
-dig +short mail.lixto.com.br
-dig +short lixto.com.br MX
-dig +short lixto.com.br TXT
-dig +short lixto._domainkey.lixto.com.br TXT
-dig +short _dmarc.lixto.com.br TXT
+dig +short TXT lixto.com.br    # exactly ONE v=spf1 line (v=spf1 a:mail.lixto.com.br -all)
+dig +short MX  lixto.com.br    # exactly ONE line: 10 mail.lixto.com.br.
+```
+
+If `TXT` shows both `v=spf1 -all` and the new record, or `MX` shows `0 .`
+alongside `10 mail`, delete the stale one in the dashboard **now**: until you
+do, SPF is a permerror and every message fails DMARC.
+
+Then the rest:
+
+```sh
+dig +short mail.lixto.com.br                 # -> 187.127.16.246
+dig +short TXT lixto._domainkey.lixto.com.br # -> v=DKIM1; ... p=...
+dig +short TXT _dmarc.lixto.com.br           # -> v=DMARC1; p=none; rua=...
 ```
 
 Then send a message to a real Gmail address and check that the received headers
