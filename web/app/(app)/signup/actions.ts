@@ -89,7 +89,7 @@ export async function buildWelcomeEmailInput(input: {
     payload: {
       userName: input.name,
       companyName: input.tradeName || input.legalName,
-      appUrl: `${APP_URL}/lixto`,
+      appUrl: `${APP_URL}/dashboard`,
     },
     companyId: input.companyId,
     userId: input.userId,

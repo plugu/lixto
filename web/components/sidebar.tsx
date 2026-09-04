@@ -16,6 +16,7 @@ import {
   Tag,
   Users,
 } from "@/components/ui/icons";
+// Chart is still used by the "Painel" nav item below.
 
 export type SidebarSession = {
   name: string;
@@ -67,7 +68,6 @@ function setCollapsedStore(next: boolean) {
 }
 
 export const NAV_ITEMS = [
-  { href: "/lixto", label: "Lixto", icon: Chart },
   { href: "/opportunities", label: "Oportunidades", icon: Tag },
   { href: "/dashboard", label: "Painel", icon: Chart },
   { href: "/procurements", label: "Licitações", icon: List },

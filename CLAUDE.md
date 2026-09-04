@@ -46,7 +46,6 @@ Key facts:
 | `LIXTO_LLM_FALLBACK_BASE_URL` | Secondary provider base URL (used on primary error) | `https://api.openai.com/v1` (OpenAI) |
 | `LIXTO_LLM_FALLBACK_API_KEY` | Secondary provider API key | — |
 | `LIXTO_LLM_FALLBACK_MODEL_*` | Fallback model tiers (CHEAP, DOC, STRONG) | `gpt-5-mini`, `gpt-5.1`, etc. |
-| `LIXTO_CHAT_MODEL` | Chat model | `gemini-3.7-flash` |
 | `LIXTO_RECOMMEND_MODEL` | Recommendation model (GO/NO-GO, Tier-3) | `gemini-3.7-flash` |
 | `LIXTO_FENCE_PORTALS` | Comma-separated list of allowed portals (cost fence) | `Compras.gov.br,ECustomize Consultoria em Software S.A,IPM Sistemas` |
 | `LIXTO_FENCE_MODALITIES` | Comma-separated modality IDs (cost fence) | `6,8` |
@@ -99,15 +98,14 @@ Key facts:
 | Database | `src/lixto/db.py` (connection, migrations) |
 | Web routes | `web/app/(app)/*` (Next.js app dir) |
 | Match engine | `web/lib/match-engine.ts` (deterministic scoring) |
-| Tools | `web/lib/agent/tools.ts` (safe structured search) |
-| Chat API | `web/app/(app)/api/chat/route.ts` |
+| Embeddings/LLM (web) | `web/lib/agent/embed.ts`, `web/lib/agent/llm.ts` (semantic search, recommend) |
 | Database queries | `web/lib/*-queries.ts` |
 
 ### Guiding Principles
 
 1. **Process once, reuse globally**: Enrich procurements once (globally); match on-demand per company profile.
 2. **Deterministic first**: Use code before LLM. LLM only for classification, summarization, analysis of free-form text/PDFs.
-3. **No LLM SQL**: Model orchestrates tools (`search_procurements`, etc.); tools call query builders with bound params.
+3. **No LLM SQL**: All search goes through typed query builders with bound params (`web/lib/*-queries.ts`); an LLM never generates SQL.
 4. **Source abstraction**: Every ingested entity carries `(source, source_id)`. Today one source: 'pncp'. Next portal = new adapter, not schema change.
 5. **Watermark idempotence**: Store `dataAtualizacaoGlobal` in `sync_state`; re-runs skip already-processed rows.
 6. **Raw retention**: `source_payloads` keeps complete DTOs for reprocessing without re-fetching.
@@ -133,6 +131,8 @@ Per PRODUCT.md, this is a **production-level project**.
 
 ## Cycle 18 Boundaries
 
-**In scope**: New schema, new CLI, new web routes, PNCP sync (procurements, plans, contracts), enrichment, chat, matching.
+**In scope**: New schema, new CLI, new web routes, PNCP sync (procurements, plans, contracts), enrichment, matching.
 
 **Out of scope**: Legacy data migration (DB starts fresh); legacy code deletion (separate ticket 85); landing page copy; Ollama classifier; learning loop; proactive mode; deep analysis; prepare/execute workflows.
+
+**Note**: Conversational chat interface was removed in cycle 23 (ticket 122) as unused surface; proactive agent (match/recommend/digest) and search tools remain.

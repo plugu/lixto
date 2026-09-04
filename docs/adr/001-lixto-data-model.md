@@ -61,7 +61,7 @@ Column-level map for the PNCP DTOs is in the DDL comments below and in `docs/PNC
 
 ### D7. Code and configuration names
 
-Python package `lixto` (`src/lixto`), CLI `lixto`, env prefix `LIXTO_` (`LIXTO_DATABASE_URL`, `LIXTO_LLM_BASE_URL`, `LIXTO_LLM_API_KEY`, `LIXTO_LLM_MODEL_CHEAP|DOC|STRONG|FALLBACK|EMBED`, `LIXTO_CHAT_MODEL`), session cookie `lixto_session`, web routes in English (`/procurements`, `/procurement/[sourceId]`, `/company`, `/company/profile`, `/company/users`, `/company/documents`, `/lixto`, `/login`, `/signup`, `/invite/[token]`). UI copy stays Portuguese.
+Python package `lixto` (`src/lixto`), CLI `lixto`, env prefix `LIXTO_` (`LIXTO_DATABASE_URL`, `LIXTO_LLM_BASE_URL`, `LIXTO_LLM_API_KEY`, `LIXTO_LLM_MODEL_CHEAP|DOC|STRONG|FALLBACK|EMBED`, `LIXTO_RECOMMEND_MODEL`), session cookie `lixto_session`, web routes in English (`/procurements`, `/procurement/[sourceId]`, `/company`, `/company/profile`, `/company/users`, `/company/documents`, `/login`, `/signup`, `/invite/[token]`). UI copy stays Portuguese. (Note: Chat interface route removed in cycle 23.)
 
 ## DDL — `migrations/001_core.sql`
 

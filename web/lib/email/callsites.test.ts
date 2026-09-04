@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // vi.mock hoists above these imports; every dependency the two server
 // actions touch (DB-backed query modules, auth/session, navigation) is
 // mocked here so the module graph never opens a real connection or reads
-// cookies. Following `lib/agent/tools.test.ts`'s style.
+// cookies.
 vi.mock("@/lib/email/outbox", () => ({
   enqueue: vi.fn(),
   suppress: vi.fn(),
@@ -301,7 +301,7 @@ describe("signupAction", () => {
         payload: {
           userName: "Maria Silva",
           companyName: "Alfa",
-          appUrl: expect.stringContaining("/lixto"),
+          appUrl: expect.stringContaining("/dashboard"),
         },
         companyId: 42,
         userId: 7,

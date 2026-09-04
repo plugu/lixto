@@ -1,6 +1,6 @@
 # Lixto — AI Procurement Agent
 
-An AI agent that mirrors Brazilian public tenders (licitações) from PNCP (Portal Nacional de Contratações Públicas) into PostgreSQL, enriches them with structured insights and embeddings, and helps suppliers find and prepare competitive bids through conversational search.
+An AI agent that mirrors Brazilian public tenders (licitações) from PNCP (Portal Nacional de Contratações Públicas) into PostgreSQL, enriches them with structured insights and embeddings, and helps suppliers find and prepare competitive bids through match scoring, recommendations, and semantic search.
 
 ## Quick Start
 
@@ -80,7 +80,6 @@ Opens at `http://localhost:3000`. Routes:
 - `/company/users`, `/company/documents` — team & habilitação
 - `/procurements` — list/search open tenders
 - `/procurement/[sourceId]` — detail, items, edital download
-- `/lixto` — conversational agent; ask "quais licitações combinam com minha empresa?"
 - `/dashboard` — system status
 
 ## Environment Variables
@@ -96,7 +95,6 @@ Opens at `http://localhost:3000`. Routes:
 | `LIXTO_LLM_MODEL_DOC` | PDF parsing model (chat completions with file parts) | `gemini-3.7-flash` |
 | `LIXTO_LLM_MODEL_STRONG` | Deep reasoning model | `gemini-3.7-flash` |
 | `LIXTO_LLM_MODEL_EMBED` | Embedding model (1536 dims, never falls back) | `gemini-embedding-001` |
-| `LIXTO_CHAT_MODEL` | Chat agent model | `gemini-3.7-flash` |
 | `LIXTO_RECOMMEND_MODEL` | Recommendation model (GO/NO-GO, Tier-3) | `gemini-3.7-flash` |
 | `LIXTO_LLM_FALLBACK_BASE_URL` | Secondary provider base URL (used on primary error) | `https://api.openai.com/v1` (OpenAI) |
 | `LIXTO_LLM_FALLBACK_API_KEY` | Secondary provider API key | — (OpenAI key) |
@@ -130,7 +128,7 @@ Opens at `http://localhost:3000`. Routes:
 
 ### Enrichment
 - `lixto enrich run [--limit N] [--days N] [--retry-errors]` — Produce one canonical enrichment per open procurement (routes to cheap/doc tier automatically).
-- `lixto enrich embed [--limit N]` — Backfill pgvector embeddings for semantic search; both chat and `/procurements` search support free-text semantic matching (in addition to keyword search).
+- `lixto enrich embed [--limit N]` — Backfill pgvector embeddings for semantic search; `/procurements` search supports free-text semantic matching (in addition to keyword search).
 
 ### Proactive Agent Loop
 - `lixto match run [--company-id N] [--since YYYY-MM-DD]` — Score procurements enriched since the last run against every company profile/CNAEs, persist `matches` and upsert `opportunities` (POST `/api/internal/match/run` on the web app).

@@ -24,10 +24,6 @@ procurement_enrichments + procurement_categories + procurement_cnaes + procureme
 procurement_embeddings (pgvector, 1536 dims)
   ↓
 [match-engine] On-demand: company profile × procurement → score + reasons
-  ↓
-[tools] Safe structured search: search_procurements, search_my_matches, get_procurement, calculate_match, analyze_procurement
-  ↓
-[chat] Conversational agent (LLM orchestrates tools, no direct SQL)
 ```
 
 ## LLM Strategy
@@ -77,7 +73,7 @@ Production ingestion is cost-fenced to keep enrichment spend within bounds.
 
 **Located**: `web/lib/match-engine.ts`
 
-**Principle**: Company profile × procurement enrichment → 0–100 score + machine-readable reasons. No LLM at scoring time. Reasons are used by chat to explain results.
+**Principle**: Company profile × procurement enrichment → 0–100 score + machine-readable reasons. No LLM at scoring time. Reasons are shown in the opportunities UI to explain results.
 
 ### Scoring Rules
 
@@ -118,25 +114,7 @@ When a search carries free text (q parameter), the query builder embeds it via `
 1. **Keyword branch**: Full-text search on procurement description and items (same as keyword-only queries).
 2. **Semantic branch**: Top-K vector similarity (cosine ≥ 0.4 minimum; K=200 candidates) from `procurement_embeddings`.
 
-Structured filters (UF, modalidade, faixa de valor, situação) apply as hard `WHERE` clauses on both branches. Results are ranked via reciprocal-rank fusion (k=60 damping constant) — deterministic, no LLM. If embedding the query fails (missing key, provider error), search falls back to keyword-only. Facet counts remain keyword-only to avoid duplicate rows per filter. Each row carries `match_kind` ('keyword', 'semantic', or 'both') so the chat and UI can explain why it surfaced ("encontrei por similaridade" for semantic-only hits).
-
-## Tools (Safe, Structured)
-
-Located: `web/lib/agent/tools.ts`. Model calls tools by name + JSON args; every tool validates and calls a query builder (no LLM-generated SQL).
-
-| Tool | Args | Returns | Purpose |
-|---|---|---|---|
-| `search_procurements` | `q`, `states`, `statuses`, `modalityIds`, `valueMin`, `valueMax`, `limit` | Procurement refs (top 20) + `match_kind` | Unauthenticated: hybrid search (keyword ∪ semantic) |
-| `search_my_matches` | Same as above | Procurement refs + scores + reasons | Authenticated: procurements scored for this company |
-| `get_procurement` | `sourceId` (PNCP control number) | Full dossier (detail + items + documents + enrichment) | Fetch one procurement with context |
-| `calculate_match` | `sourceIds` (array, max 10) | Scores for each | Score multiple procurements for this company |
-| `analyze_procurement` | `sourceId` | Dossier + cached enrichment analysis | Detail view (same as `get_procurement`) |
-
-**Argument validation**: Unknown fields dropped, invalid types coerced or defaulted. Errors logged server-side, short PT-BR message to user.
-
-**Response capping**: Text truncated to 160 chars, items to 20, documents to 10. Every field is billed as prompt tokens on the next turn.
-
-**Context**: Company ID comes from session only; tools are branded for the logged-in company.
+Structured filters (UF, modalidade, faixa de valor, situação) apply as hard `WHERE` clauses on both branches. Results are ranked via reciprocal-rank fusion (k=60 damping constant) — deterministic, no LLM. If embedding the query fails (missing key, provider error), search falls back to keyword-only. Facet counts remain keyword-only to avoid duplicate rows per filter. Each row carries `match_kind` ('keyword', 'semantic', or 'both') so the UI can explain why it surfaced ("encontrei por similaridade" for semantic-only hits).
 
 ## Agent Core Tables
 
@@ -144,8 +122,8 @@ Written by different cycles; in cycle 19:
 
 | Table | Columns | Cycle | Purpose |
 |---|---|---|---|
-| `agent_runs` | id, kind, status, started_at, finished_at, counters, error | 18 | Every CLI/sync/enrich/chat run |
-| `conversations` | id, company_id, user_id, title, created_at, updated_at | 18 | Chat threads |
+| `agent_runs` | id, kind, status, started_at, finished_at, counters, error | 18 | Every CLI/sync/enrich run |
+| `conversations` | id, company_id, user_id, title, created_at, updated_at | 18 | Chat threads (schema kept; chat UI removed in cycle 23, no new rows) |
 | `messages` | id, conversation_id, role, content, tool_calls, tool_call_id, refs, model, created_at | 18 | Messages in a thread |
 | `opportunities` | id, company_id, procurement_id, state, score, reasons, attention, computed_at | 19 | Per-company × procurement lifecycle; state ∈ discovered/matched/analyzed/recommended/preparing/awaiting_approval/executed/dismissed |
 | `matches` | id, company_id, procurement_id, score, reasons, engine_version, computed_at | 19 | Persisted match history (for proactive mode, learning loop) |
@@ -181,11 +159,8 @@ Every newly enriched procurement is automatically evaluated against every compan
 - **Schedule** (Dokploy, disabled by default): `15 8 * * *` (after match-run)
 
 ### 3. In-App Digest
-- **`/lixto`**: Chat interface opens with a system-authored message summarizing the last run
-  - Counts: new/matched/attention opportunities
-  - Cards for "attention" items (score ≥ 70) with score, reasons, recommendation verdict (if present)
-- **`/dashboard`**: "Oportunidades de hoje" card linking to the opportunity list
-- **`/opportunities`**: List company's opportunities by state/score; filter by state (matched/analyzed/dismissed)
+- **`/dashboard`**: "Oportunidades de hoje" card shows counts (new/matched/attention opportunities) and links to the opportunity list
+- **`/opportunities`**: List company's opportunities by state/score; filter by state (matched/analyzed/dismissed); cards display score, reasons, and recommendation verdict (if present) for "attention" items (score ≥ 70)
 
 ### 4. Feedback Capture
 - **User actions**: Each opportunity card offers "Tenho interesse" (accepted) and "Descartar" (dismissed with reason)

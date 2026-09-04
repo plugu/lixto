@@ -799,6 +799,11 @@ AI procurement operator.**
 - Deploy runbook: Terraform → deploy MTA → extract DKIM → re-apply → set PTR → test (README.md)
 - Escape hatch: `relayhost` on 587/465 for external submission if IP reputation issues
 
+### Cycle 23 — Chat interface removal
+
+**Completed**:
+- Removed the conversational `/lixto` chat page and agent loop (`POST /api/chat`, chat components) — the interface was unused surface with ongoing LLM budget risk. Proactive agent (match/recommend/digest) and all search tools remain; opportunity digest now surfaces through `/dashboard` and `/opportunities` list instead.
+
 ### Cycle 20+ roadmap
 
 **High priority** (needed for production feedback loop):

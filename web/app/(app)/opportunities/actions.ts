@@ -15,7 +15,6 @@ const DISMISS_REASONS = ["fora_do_ramo", "valor", "prazo", "exigencia", "outro"]
 
 function revalidateDigest() {
   revalidatePath("/opportunities");
-  revalidatePath("/lixto");
 }
 
 export async function markInterestAction(
