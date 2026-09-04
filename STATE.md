@@ -1,11 +1,11 @@
 # STATE — rewrite after every ticket completes; never append. ≤30 lines total.
 
 ## Now
-- Cycle 22 (transactional email, **production** mode) plan approved (2/3). Tickets 108 (outbox+ADR, opus), 109 (Postfix/opendkim image + Terraform Cloudflare DNS, opus), 110 (pt-BR templates, sonnet) running in parallel worktrees ../lixto-wt-{108,109,110}. Then {111 ∥ 112} → 113 → 114 → reviewer pass → approval 3/3.
+- Cycle 22 (transactional email, **production** mode) **LIVE in prod 2026-09-04**: tickets 108-121 done, second reviewer pass fixed 2 blockers (forged-DSN suppression guard; bounce ops wiring), pushed 970bbeb. `lixto-mail` Dokploy app (a75n_NAkCS073mkUumhD-, Postfix+opendkim) deployed; DNS (A/MX/SPF/DKIM/DMARC p=none) written via Cloudflare MCP + report-auth TXT in plugu.solutions; migrations 001-004 applied; schedules email-worker (*/5), email-bounces (2-57/5), email-digest (30 8) enabled. Smoke: welcome → Gmail 250 OK; bounce round-trip verified (550 5.1.1 → DSN → maildir → row failed + suppression).
 - Cycle 21 still live in prod: local enrichment loop (`lixto-qwen` on the Mac, US$ 0) drains the fenced backlog at ~22 rows/h; ~2.3k rows enriched, ~6.4k pending in fence. Cloud `enrich-run` schedule stays OFF (OpenAI credits exhausted, Gemini key is free-tier). Cycle-21 diff still awaiting its own approval.
 
 ## Next
-- Cycle 22 ops after 114: `terraform apply` (Cloudflare) → deploy `lixto-mail` Dokploy app from infra/mail → paste DKIM public key → re-apply → **manual PTR 187.127.16.246 → mail.lixto.com.br in Hostinger hPanel** → mount the mail volume on `lixto-web` (`LIXTO_BOUNCE_MAILDIR=/var/db/mail/bounces`) → schedules `email-worker` (*/5) + `email-bounces` (2-57/5) + `email-digest` (30 8) → Gmail smoke with SPF/DKIM/DMARC passing.
+- Cycle 22 leftovers: **manual PTR 187.127.16.246 → mail.lixto.com.br in Hostinger hPanel** (still srv1897779.hstgr.cloud — spam-folder risk until set); verify SPF/DKIM/DMARC pass in Gmail "Show original"; optional: mint scoped CF token + `terraform import` the 5 records so infra/terraform owns them; watch DMARC aggregates at dmarc@plugu.solutions (24-72h).
 - Cycle 21 open decisions: CNAE cleanup (drop the 3,169 local-model CNAE rows, 45% hallucinated) + validate codes against `cnae_codes`; Gemini billing or OpenAI top-up; enable cloud `enrich-run`; retry the 8 failed backfill units.
 - Cycle 23 candidates: deterministic CNAE (FTS/embeddings over `cnae_codes`), password-reset flow, WhatsApp via Evolution, deep analysis (rung 2).
 
