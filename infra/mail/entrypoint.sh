@@ -114,12 +114,22 @@ EOF
     printf '*@%s %s._domainkey.%s\n' \
         "$MAIL_DOMAIN" "$DKIM_SELECTOR" "$MAIL_DOMAIN" >/etc/opendkim/SigningTable
 
+    # InternalHosts must include every network the app submits from
+    # ($MYNETWORKS), not just loopback: opendkim runs in signing-only mode
+    # (Mode s) and silently skips mail from hosts it considers external — a
+    # message from the web container would leave unsigned, with no error
+    # anywhere (found live 2026-09-04: dkim= absent in Gmail's
+    # Authentication-Results). Postfix mynetworks syntax ([::1]/128) is not
+    # opendkim syntax, so bracketed IPv6 entries are unwrapped.
     cat >/etc/opendkim/TrustedHosts <<EOF
 127.0.0.1
 localhost
 ${MYHOSTNAME}
 ${MAIL_DOMAIN}
 EOF
+    for net in ${MYNETWORKS:-$(postconf -h mynetworks)}; do
+        echo "$net" | tr -d '[]' >>/etc/opendkim/TrustedHosts
+    done
 
     chown -R opendkim:opendkim /etc/opendkim
 }
