@@ -5,7 +5,7 @@
 - Cycle 21 still live in prod: local enrichment loop (`lixto-qwen` on the Mac, US$ 0) drains the fenced backlog at ~22 rows/h; ~2.3k rows enriched, ~6.4k pending in fence. Cloud `enrich-run` schedule stays OFF (OpenAI credits exhausted, Gemini key is free-tier). Cycle-21 diff still awaiting its own approval.
 
 ## Next
-- Cycle 22 leftovers: **manual PTR 187.127.16.246 → mail.lixto.com.br in Hostinger hPanel** (still srv1897779.hstgr.cloud — spam-folder risk until set); verify SPF/DKIM/DMARC pass in Gmail "Show original"; optional: mint scoped CF token + `terraform import` the 5 records so infra/terraform owns them; watch DMARC aggregates at dmarc@plugu.solutions (24-72h).
+- Cycle 22 CLOSED 2026-09-04: PTR set (Hostinger), SPF+DKIM+DMARC all pass in Gmail (DKIM needed the 5ea22e4 InternalHosts fix — opendkim skipped signing for the app subnet silently). Remaining niceties: mint scoped CF token + `terraform import` the 5 DNS records so infra/terraform owns them; watch DMARC aggregates at dmarc@plugu.solutions (24-72h); tighten DMARC p=none → quarantine once reports look clean.
 - Cycle 21 open decisions: CNAE cleanup (drop the 3,169 local-model CNAE rows, 45% hallucinated) + validate codes against `cnae_codes`; Gemini billing or OpenAI top-up; enable cloud `enrich-run`; retry the 8 failed backfill units.
 - Cycle 23 candidates: deterministic CNAE (FTS/embeddings over `cnae_codes`), password-reset flow, WhatsApp via Evolution, deep analysis (rung 2).
 
