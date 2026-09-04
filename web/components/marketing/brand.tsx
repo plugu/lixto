@@ -1,32 +1,51 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { editorial } from "./fonts";
 
-export function Logo({ className = "" }: { className?: string }) {
+export function LogoMark({ className = "h-7 w-7" }: { className?: string }) {
   return (
-    <span className={`inline-flex items-center gap-2.5 ${className}`}>
-      <svg
-        viewBox="0 0 28 28"
-        aria-hidden="true"
-        className="h-7 w-7 shrink-0"
+    <svg viewBox="0 0 28 28" aria-hidden="true" className={`shrink-0 ${className}`}>
+      <rect width="28" height="28" rx="8.5" fill="#0f766e" />
+      <path
+        d="M9.2 7.6v11.2h6.1"
+        fill="none"
+        stroke="#5eead4"
+        strokeWidth="2.3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M19.3 8.2v5.4M16.6 10.9h5.4"
+        fill="none"
+        stroke="#5eead4"
+        strokeWidth="2.1"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+export function Logo({
+  className = "",
+  compact = false,
+}: {
+  className?: string;
+  compact?: boolean;
+}) {
+  // editorial.variable is applied here (not only on the landing wrapper) so the
+  // wordmark keeps its Fraunces face when the logo renders inside app chrome.
+  return (
+    <span
+      className={`inline-flex items-center ${editorial.variable} ${
+        compact ? "gap-2" : "gap-2.5"
+      } ${className}`}
+    >
+      <LogoMark className={compact ? "h-6 w-6" : "h-7 w-7"} />
+      <span
+        className={`font-editorial leading-none font-semibold tracking-[-0.01em] ${
+          compact ? "text-[17px]" : "text-[19px]"
+        }`}
       >
-        <rect width="28" height="28" rx="8.5" fill="#0f766e" />
-        <path
-          d="M9.2 7.6v11.2h6.1"
-          fill="none"
-          stroke="#5eead4"
-          strokeWidth="2.3"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        <path
-          d="M19.3 8.2v5.4M16.6 10.9h5.4"
-          fill="none"
-          stroke="#5eead4"
-          strokeWidth="2.1"
-          strokeLinecap="round"
-        />
-      </svg>
-      <span className="font-editorial text-[19px] leading-none font-semibold tracking-[-0.01em]">
         Lixto
       </span>
     </span>

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ComponentType } from "react";
 import { useSyncExternalStore } from "react";
+import { Logo, LogoMark } from "@/components/marketing/brand";
 import { Button } from "@/components/ui/button";
 import { CommandSearch } from "@/components/ui/command-search";
 import {
@@ -149,9 +150,17 @@ export function Sidebar({ session }: { session: SidebarSession | null }) {
         collapsed ? "w-14 px-2" : "w-60 px-3"
       }`}
     >
-      <div className={`flex items-center ${collapsed ? "justify-center px-0" : "justify-between px-1"}`}>
-        <Link href="/dashboard" className={collapsed ? "hidden" : "flex items-center"}>
-          <span className="font-display text-lg italic text-ink">Lixto</span>
+      <div
+        className={`flex items-center ${
+          collapsed ? "flex-col gap-2 px-0" : "justify-between px-1"
+        }`}
+      >
+        <Link
+          href="/dashboard"
+          aria-label="Lixto"
+          className="flex items-center text-ink"
+        >
+          {collapsed ? <LogoMark className="h-6 w-6" /> : <Logo />}
         </Link>
         <button
           type="button"

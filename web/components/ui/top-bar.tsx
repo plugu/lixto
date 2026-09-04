@@ -10,6 +10,7 @@ import {
   NAV_ITEMS,
   type SidebarSession,
 } from "@/components/sidebar";
+import { Logo } from "@/components/marketing/brand";
 import { Menu, X } from "./icons";
 
 export function TopBar({ session }: { session: SidebarSession | null }) {
@@ -20,8 +21,8 @@ export function TopBar({ session }: { session: SidebarSession | null }) {
 
   return (
     <header className="flex h-12 items-center justify-between border-b border-line bg-canvas px-4 md:hidden">
-      <Link href="/dashboard" className="font-display text-base italic text-ink">
-        Lixto
+      <Link href="/dashboard" aria-label="Lixto" className="flex items-center text-ink">
+        <Logo compact />
       </Link>
       <button
         type="button"
@@ -43,7 +44,9 @@ export function TopBar({ session }: { session: SidebarSession | null }) {
             className="relative ml-auto flex h-full w-72 max-w-[80vw] flex-col gap-1 bg-canvas p-4 shadow-[0_8px_24px_rgba(28,27,24,.10)]"
           >
             <div className="mb-4 flex items-center justify-between">
-              <span className="font-display text-base italic text-ink">Lixto</span>
+              <span className="flex items-center text-ink">
+                <Logo compact />
+              </span>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
