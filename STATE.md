@@ -1,10 +1,10 @@
 # STATE — rewrite after every ticket completes; never append. ≤30 lines total.
 
 ## Now
-- Cycle 25 (AI Tender Analysis V1, **mvp**) running in worktree `cycle-24-tender-analysis`. tickets 131–136 all done (1 attempt each). Suites green: ruff, pytest 473, tsc, vitest 494, next build. Uncommitted in worktree; awaiting final diff review (approval 2 of 2).
+- Cycle 25 (AI Tender Analysis V1, **mvp**) running in worktree `cycle-24-tender-analysis`. tickets 131–136 all done (1 attempt each). Suites green: ruff, pytest 473, tsc, vitest 494, next build. Approved and committed: 4dfdda6 on `worktree-cycle-24-tender-analysis`. Not merged, not deployed.
 
 ## Next
-- Approve → commit on `worktree-cycle-24-tender-analysis` → wait for Radar merge → merge this branch from the MAIN checkout (resolve CLAUDE.md/README/ARCHITECTURE/DATA_MODEL/status.py conflicts) → deploy + Dokploy schedule rename (`enrich-run` → `analyze-run`, new `analyze-jobs */2`), set 3 new env vars.
+- Wait for Radar merge → merge this branch from the MAIN checkout (resolve CLAUDE.md/README/ARCHITECTURE/DATA_MODEL/status.py conflicts) → deploy + Dokploy schedule rename (`enrich-run` → `analyze-run`, new `analyze-jobs */2`), set 3 new env vars.
 
 ## Decisions
 - execution: sequential (in place, this worktree)
