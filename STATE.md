@@ -6,7 +6,7 @@
 
 ## Next
 - Radar go-live blocked on user: pick LLM provider/model (embed model must equal the one `enrich-embed` already uses), decide PCA volume (~65k rows/day nationwide), then follow README "Radar go-live" (seed → enable plans-sync → radar-run; plans-embed optional). Prod needs a company profile before matches appear.
-- Still spending today (user said no LLM spend — confirm): `analyze-jobs` (on-demand clicks), `enrich-embed` (embeddings 3×/day), `recommend-run` (chat 1×/day) are ENABLED.
+- Kept ENABLED by user (2026-09-08): `analyze-jobs`, `enrich-embed`, `recommend-run`. Only the Radar jobs wait on the provider decision.
 - Cycle 25 follow-ups: verify migration 006 on prod; smoke-test "Analisar com IA" on one open procurement. Do not enable `analyze-run` without the user.
 - Radar V2 candidates: prediction linker (`procurement_found` + lead-time badge), history/expiring-contract signals, agency+PDM clustering, digest inclusion, 👍/👎 feedback.
 - App-wide caveat: `notFound()` streams as HTTP 200 because of `app/loading.tsx` (UI correct) — own ticket if 404 status matters.
