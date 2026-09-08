@@ -96,6 +96,23 @@ def test_get_status_reads_llm_last_7d_est_usd_micros():
     assert report.llm_last_7d_est_usd_micros == 120000
 
 
+def test_llm_today_and_7d_queries_cover_both_analyze_run_kinds():
+    """Runs are recorded as 'analyze' (cron, lixto analyze run) and
+    'analyze_jobs' (on-demand drain, lixto analyze jobs); both must count
+    toward the LLM usage totals."""
+    conn, cur = _conn()
+
+    get_status(conn)
+
+    executed_sql = [str(c.args[0]) for c in cur.execute.call_args_list]
+    llm_today_sql = next(sql for sql in executed_sql if "llm_calls" in sql)
+    llm_7d_sql = next(sql for sql in executed_sql if "interval '7 days'" in sql)
+    assert "kind IN ('analyze', 'analyze_jobs')" in llm_today_sql
+    assert "kind IN ('analyze', 'analyze_jobs')" in llm_7d_sql
+    assert "kind = 'enrich'" not in llm_today_sql
+    assert "kind = 'enrich'" not in llm_7d_sql
+
+
 def test_get_status_reads_fenced_pending():
     conn, _cur = _conn(fenced_pending=17)
 

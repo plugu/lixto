@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 
 import psycopg
 
-from lixto.enrich.worker import LIXTO_ENRICH_DAILY_CAP
+from lixto.analyze.worker import LIXTO_ENRICH_DAILY_CAP
 from lixto.fence import get_fence
 
 # Every table this cycle's syncs write. Counted with one query each (all are
@@ -61,13 +61,13 @@ SELECT
     coalesce(sum((counters->>'llm_completion_tokens')::bigint), 0),
     coalesce(sum((counters->>'llm_est_usd_micros')::bigint), 0)
 FROM agent_runs
-WHERE kind = 'enrich' AND started_at >= date_trunc('day', now())
+WHERE kind IN ('analyze', 'analyze_jobs') AND started_at >= date_trunc('day', now())
 """
 
 _LLM_LAST_7D_SQL = """
 SELECT coalesce(sum((counters->>'llm_est_usd_micros')::bigint), 0)
 FROM agent_runs
-WHERE kind = 'enrich' AND started_at >= now() - interval '7 days'
+WHERE kind IN ('analyze', 'analyze_jobs') AND started_at >= now() - interval '7 days'
 """
 
 

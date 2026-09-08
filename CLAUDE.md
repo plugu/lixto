@@ -33,7 +33,7 @@ Key facts:
 2. Export `name` (string) + `app` (typer.Typer) for a command group, OR `register(root: typer.Typer)` for top-level commands
 3. It's mounted automatically; run `lixto --help` to verify
 
-**Example**: `lixto sync incremental`, `lixto enrich run`, `lixto status`
+**Example**: `lixto sync incremental`, `lixto analyze run`, `lixto status`
 
 ### Environment Variables
 
@@ -50,7 +50,10 @@ Key facts:
 | `LIXTO_FENCE_PORTALS` | Comma-separated list of allowed portals (cost fence) | `Compras.gov.br,ECustomize Consultoria em Software S.A,IPM Sistemas` |
 | `LIXTO_FENCE_MODALITIES` | Comma-separated modality IDs (cost fence) | `6,8` |
 | `LIXTO_FENCE_OPEN_ONLY` | Restrict to open/upcoming procurements (cost fence) | `1` |
-| `LIXTO_ENRICH_DAILY_CAP` | Max enrichment rows/day; 0 or unset = unlimited | `1500` |
+| `LIXTO_ENRICH_DAILY_CAP` | Max analyses/day (cron); 0 or unset = unlimited | `1500` |
+| `LIXTO_ANALYZE_MAX_BYTES` | Combined byte cap for a procurement's active PDFs | `60` (MB) |
+| `LIXTO_ANALYZE_MAX_CHARS` | Character cap for LLM prompt (default 400,000) | `400000` |
+| `LIXTO_ANALYZE_USER_DAILY_CAP` | Max on-demand analyses per company/day (web) | `10` |
 | `LIXTO_IBGE_CNAE_URL` | CNAE seed source | `https://concla.ibge.gov.br/export/tabelas/ascii/subclasses.txt` |
 | `LIXTO_MIN_REQUEST_INTERVAL` | Seconds between PNCP requests | `0.5` |
 | `UPLOADS_DIR` | Document storage | `./uploads` (dev), `/app/uploads` (prod) |
@@ -74,10 +77,11 @@ Key facts:
   - `results-sync` — `0 3 * * *` (homologated results)
   - `plans-sync` — `0 4 * * *` (disabled; manual only)
   - `contracts-sync` — `0 5 * * *` (disabled; manual only)
-  - `enrich-run` — `30 7,14,21 * * *` (enrich up to daily cap)
+  - `analyze-run` — `30 7,14,21 * * *` (deep analysis of fenced procurements: facets + dossier, up to daily cap)
+  - `analyze-jobs` — `*/2 * * * *` (drain on-demand "Analisar com IA" queue)
   - `match-run` — `0 8,15,22 * * *` (score procurements vs profiles)
   - `recommend-run` — `15 8 * * *` (GO/NO-GO for top opportunities)
-  - `enrich-embed` — `45 7,14,21 * * *` (backfill vector embeddings; 15 min after `enrich-run`)
+  - `enrich-embed` — `45 7,14,21 * * *` (backfill vector embeddings; 15 min after `analyze-run`)
   - `email-worker` — `*/5 * * * *` (drain outbox every 5 min)
   - `email-bounces` — `2-57/5 * * * *` (ingest DSN maildir, offset 2 min from worker)
   - `email-digest` — `30 8 * * *` (enqueue digest at 8:30 AM)
@@ -92,7 +96,9 @@ Key facts:
 | Schema DDL | `migrations/001_core.sql` (READ FIRST) |
 | CLI commands | `src/lixto/cli/*.py` |
 | Sync logic | `src/lixto/sync/*.py` (procurements, plans, contracts, results, etc.) |
-| Enrichment | `src/lixto/enrich/worker.py` (LLM routing) |
+| Analysis worker | `src/lixto/analyze/worker.py` (LLM routing, facets + dossier) |
+| Analysis UI | `web/components/analysis-panel.tsx` |
+| Analysis queries | `web/lib/analysis-queries.ts` |
 | LLM client | `src/lixto/llm.py` (OpenAI-compatible, provider abstraction) |
 | PNCP client | `src/lixto/pncp_client.py` |
 | Database | `src/lixto/db.py` (connection, migrations) |

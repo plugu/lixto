@@ -1,10 +1,12 @@
 import { after } from "next/server";
+import { AnalysisPanel } from "@/components/analysis-panel";
+import { AnalyzeButton } from "@/components/analyze-button";
 import { DocumentsList } from "@/components/documents-list";
-import { EnrichmentPanel } from "@/components/enrichment-panel";
 import { ItemsTable } from "@/components/items-table";
 import { StatusBadge } from "@/components/status-badge";
 import { LinkButton } from "@/components/ui/button";
 import { Card, CollapsibleCard } from "@/components/ui/card";
+import { fetchAnalysis, getAnalysisState } from "@/lib/analysis-queries";
 import { requireSession } from "@/lib/auth";
 import { fetchEnrichment } from "@/lib/enrichment-queries";
 import { formatCurrencyBRL, formatDateBR } from "@/lib/format";
@@ -34,7 +36,7 @@ function buildPncpUrl(detail: ProcurementDetail): string | null {
 export default async function ProcurementDetailPage(
   props: PageProps<"/procurement/[sourceId]">,
 ) {
-  await requireSession();
+  const session = await requireSession();
 
   const { sourceId } = await props.params;
   const detail = await fetchProcurementDetail(decodeSourceId(sourceId));
@@ -52,12 +54,15 @@ export default async function ProcurementDetailPage(
     );
   }
 
-  const [items, documents, enrichment, prices] = await Promise.all([
-    fetchItems(detail.id),
-    fetchDocuments(detail.id),
-    fetchEnrichment(detail.id),
-    fetchPriceBenchmark(detail.id),
-  ]);
+  const [items, documents, enrichment, prices, analysisState, analysis] =
+    await Promise.all([
+      fetchItems(detail.id),
+      fetchDocuments(detail.id),
+      fetchEnrichment(detail.id),
+      fetchPriceBenchmark(detail.id),
+      getAnalysisState(detail.id, session.user.companyId),
+      fetchAnalysis(detail.id),
+    ]);
 
   // Lazy-fill queueing is a write, not read-path data: it must never delay
   // first byte. Runs after the response is sent; a queue failure here must not
@@ -77,6 +82,12 @@ export default async function ProcurementDetailPage(
     .join(" · ");
   const pncpUrl = buildPncpUrl(detail);
 
+  const showAnalyzeButton =
+    status !== "closed" &&
+    (analysisState.analysis === null ||
+      analysisState.stale ||
+      analysisState.job !== null);
+
   return (
     <div className="page-wide flex flex-col gap-6">
       <BackLink />
@@ -91,6 +102,22 @@ export default async function ProcurementDetailPage(
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge status={status} />
           </div>
+
+          {showAnalyzeButton && (
+            <AnalyzeButton
+              procurementId={detail.id}
+              initial={{
+                hasAnalysis: analysisState.analysis !== null,
+                stale: analysisState.stale,
+                job: analysisState.job
+                  ? {
+                      status: analysisState.job.status,
+                      error: analysisState.job.error,
+                    }
+                  : null,
+              }}
+            />
+          )}
 
           <dl className="mt-2 grid grid-cols-2 gap-x-8 gap-y-3 sm:grid-cols-4">
             <Fact
@@ -135,29 +162,51 @@ export default async function ProcurementDetailPage(
         </header>
       </Card>
 
-      <div
-        className={
-          enrichment
-            ? "grid min-w-0 gap-6 lg:grid-cols-[1fr_22rem]"
-            : "grid min-w-0 gap-6"
-        }
-      >
-        <div className="flex min-w-0 flex-col gap-6">
-          <CollapsibleCard title="Itens">
-            <ItemsTable items={items} prices={prices} />
-          </CollapsibleCard>
+      {(() => {
+        // The dossier is the page's content: it renders full width above
+        // "Itens", never in the sidebar. The 22rem sidebar only exists to
+        // point at the shallow enrichment while there is no dossier yet.
+        const showSidebar = analysis === null && enrichment !== null;
 
-          <CollapsibleCard title="Documentos">
-            <DocumentsList documents={documents} />
-          </CollapsibleCard>
-        </div>
+        return (
+          <div
+            className={
+              showSidebar
+                ? "grid min-w-0 gap-6 lg:grid-cols-[1fr_22rem]"
+                : "grid min-w-0 gap-6"
+            }
+          >
+            <div className="flex min-w-0 flex-col gap-6">
+              {analysis && (
+                <AnalysisPanel
+                  analysis={analysis}
+                  documents={documents}
+                  enrichment={enrichment}
+                />
+              )}
 
-        {enrichment && (
-          <div className="min-w-0 lg:sticky lg:top-8 lg:self-start">
-            <EnrichmentPanel enrichment={enrichment} />
+              <CollapsibleCard title="Itens">
+                <ItemsTable items={items} prices={prices} />
+              </CollapsibleCard>
+
+              <CollapsibleCard title="Documentos">
+                <DocumentsList documents={documents} />
+              </CollapsibleCard>
+            </div>
+
+            {showSidebar && (
+              <div className="min-w-0 lg:sticky lg:top-8 lg:self-start">
+                <Card>
+                  <p className="text-sm text-ink">
+                    Análise resumida disponível — clique em Analisar com IA
+                    para o dossiê completo
+                  </p>
+                </Card>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        );
+      })()}
     </div>
   );
 }

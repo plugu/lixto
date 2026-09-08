@@ -79,7 +79,14 @@ Deterministic PDF extraction results (once per document).
 - **Key**: `(procurement_id, sequence)` compound, FK to `procurement_documents`
 - **Notable columns**: `method` (pypdf|insufficient|not_pdf|failed), `pages`, `chars`, `text` (extracted body, if successful), `extracted_at`
 - **Notable indexes**: PK only
-- **Purpose**: Store extraction once; enrich reuses. Prevents LLM from analyzing the same scanned PDF repeatedly.
+- **Purpose**: Store extraction once; analysis reuses. Prevents LLM from analyzing the same scanned PDF repeatedly. **Note**: Per-page extracted text is stored separately in `procurement_document_pages` (one row per page).
+
+### `procurement_document_pages`
+Per-page text extraction (one row per PDF page).
+- **Key**: `(procurement_id, sequence, page)` compound, FK to `procurement_documents`
+- **Notable columns**: `page` (1-based), `text` (page body)
+- **Notable indexes**: PK only
+- **Purpose**: Enable analysis worker to route by page-tagged text (doc tier, higher quality for complex layouts).
 
 ### `procurement_results`
 Homologated winners (supplier, price) per item.
@@ -91,7 +98,7 @@ Homologated winners (supplier, price) per item.
 ## Enrichment (Global, Once Per Procurement)
 
 ### `procurement_enrichments`
-Canonical enrichment output (one row per open procurement). Written by `lixto enrich run`.
+Canonical enrichment output (one row per open procurement). Written by `lixto analyze run`.
 - **Key**: `procurement_id` (BIGINT) PK, FK to `procurements`
 - **Notable columns**: `schema_version`, `model`, `confidence`, `status` (done|error), `summary`, `concepts[]`, `keywords[]`, `risks[]`, `categories[]`, `complexity`, `requires_certification`, `requires_technical_certificate`, `me_epp_exclusive`, `me_epp_preference`, `delivery_location`, `delivery_deadline_days`, `data` (JSONB full payload)
 - **Notable indexes**: `status`
@@ -124,6 +131,64 @@ pgvector embeddings for semantic search.
 - **Notable columns**: `model`, `embedding` (vector(1536)), `embedded_at`
 - **Notable indexes**: HNSW cosine index on `embedding`
 - **Purpose**: Semantic matching (company profile vector vs procurement vector).
+
+## Tender Analysis (Deep Dossier, Cycle 25)
+
+### `tender_analyses`
+Canonical deep dossier (one per procurement, company-agnostic).
+- **Key**: `procurement_id` (BIGINT) PK, FK to `procurements`
+- **Notable columns**: `version` (increments when document set changes), `status` (done|error), `model`, `schema_version` (2.0), `document_set_hash` (md5 over active documents), `input_kind` (text|pdf|structured), `input_chars`, `input_truncated`, `executive_summary`, `object_text`, `overall_risk` (low|medium|high|critical), `data` (JSONB full validated payload), `analyzed_at`
+- **Notable indexes**: `status`, `analyzed_at`
+- **Purpose**: Executive summary and risk, keyed to procurement. Written by `lixto analyze run` (cron, fenced) or `lixto analyze jobs` (on-demand, per-company).
+
+### `tender_analysis_facts`
+Basic + commercial fact fields, each with citations.
+- **Key**: `id` (BIGSERIAL), unique `(procurement_id, key)`
+- **Notable columns**: `group` (basic|commercial), `key`, `label`, `value`, `statement_kind` (fact|inference), `confidence` (high|medium|low), `citations` (JSONB array of `{sequence, page}`)
+- **Notable indexes**: `procurement_id`
+- **Purpose**: Faceted facts (what is bought, commercial terms) cited to document + page.
+
+### `tender_analysis_dates`
+Important dates with kind (proposal deadline, session, clarification window, challenge, site visit, contract start, delivery, other).
+- **Key**: `id` (BIGSERIAL), unique `(procurement_id, sequence)`
+- **Notable columns**: `kind`, `label`, `occurs_at` (TIMESTAMPTZ, null when unparsable), `raw_text`, `confidence`, `citations`
+- **Notable indexes**: `procurement_id`, `occurs_at`
+- **Purpose**: Extracted timeline with uncertainty quantified.
+
+### `tender_analysis_requirements`
+Participation, legal, fiscal, economic, technical, specification, guarantee, other requirements.
+- **Key**: `id` (BIGSERIAL), unique `(procurement_id, sequence)`
+- **Notable columns**: `category` (participation|legal|fiscal_labor|economic_financial|technical|specification|guarantee|other), `title`, `description`, `mandatory` (boolean), `severity` (low|medium|high|critical), `statement_kind` (fact|inference), `confidence`, `citations`
+- **Notable indexes**: `(procurement_id, category)`
+- **Purpose**: What disqualifies a bidder or costs to comply; severity signals impact.
+
+### `tender_analysis_penalties`
+Failure consequences (late delivery, non-conformance, etc.).
+- **Key**: `id` (BIGSERIAL), unique `(procurement_id, sequence)`
+- **Notable columns**: `description`, `basis` (e.g., "0.5% per day, capped 10%"), `confidence`, `citations`
+- **Notable indexes**: `procurement_id`
+- **Purpose**: Financial risk quantification.
+
+### `tender_analysis_risks`
+Risks, red flags, contradictions, amendments across documents.
+- **Key**: `id` (BIGSERIAL), unique `(procurement_id, sequence)`
+- **Notable columns**: `kind` (risk|red_flag|contradiction|amendment), `severity` (low|medium|high|critical), `title`, `description`, `recommendation`, `citations`
+- **Notable indexes**: `(procurement_id, kind)`
+- **Purpose**: Alert and decision support (e.g., conflicting requirements across edital + aditivo).
+
+### `tender_analysis_missing`
+Information gaps and ambiguities not covered elsewhere.
+- **Key**: `id` (BIGSERIAL), unique `(procurement_id, sequence)`
+- **Notable columns**: `field` (e.g., "delivery_address"), `note`
+- **Notable indexes**: `procurement_id`
+- **Purpose**: Track what's unknown (e.g., no delivery deadline stated).
+
+### `analysis_jobs`
+On-demand "Analisar com IA" queue (web button → job → drain by cron).
+- **Key**: `id` (BIGSERIAL)
+- **Notable columns**: `procurement_id`, `company_id`, `requested_by_user_id`, `status` (queued|running|done|error), `error`, `created_at`, `started_at`, `finished_at`
+- **Notable indexes**: queue index on `(created_at) WHERE status IN ('queued','running')`, per-company-day `(company_id, created_at)`, per-procurement `(procurement_id, created_at DESC)`
+- **Purpose**: Deferred analysis with user tracking (shows progress on web).
 
 ## Annual Procurement Plans (PCA)
 

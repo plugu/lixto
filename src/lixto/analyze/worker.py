@@ -1,19 +1,24 @@
-"""Global enrichment worker.
+"""The tender-analysis worker behind `lixto analyze run`.
 
-Produces one canonical enrichment per pending open procurement — once,
-globally, reused by every company. Select → per-row LLM → persist → commit
-per row, so a crash only loses the in-flight procurement, and each row is
-routed to the cheapest tier that can actually answer:
+Replaces the cycle-18 enrichment worker: one pass per pending open
+procurement, select → per-row LLM → persist → commit, so a crash only loses
+the in-flight procurement. Each row is routed to the cheapest input the
+material allows:
 
-- edital text extracted by pypdf  → `input_kind='text'`, cheap tier on the text;
-- only scanned/insufficient PDFs  → `input_kind='pdf'`, doc tier with the PDFs;
-- no usable document at all       → `input_kind='structured'`, cheap tier on the
-  structured metadata alone.
+- any document with extracted page text → `input_kind='text'`, doc tier on the
+  page-tagged text of every PDF;
+- only scanned/insufficient PDFs (at most MAX_PDFS) → `input_kind='pdf'`, doc
+  tier with the PDFs inline;
+- nothing usable → `input_kind='structured'`, cheap tier on the PNCP metadata
+  alone.
 
-One transaction per procurement writes `procurement_enrichments` plus the
-facet tables (`procurement_categories`, `procurement_requirements`,
-`procurement_cnaes`, `procurement_embeddings`), so a reader never sees an
-enrichment whose facets are half-written.
+One transaction per procurement writes `procurement_enrichments` and its facet
+tables (unchanged 1.0 contract, `schema_version` 2.0) *plus* `tender_analyses`
+and its children, so a reader never sees a dossier whose facts are
+half-written or facets that disagree with the dossier they came from.
+
+The daily cap keeps its cycle-18 env var name (`LIXTO_ENRICH_DAILY_CAP`) on
+purpose: renaming it would break every deployed schedule for no gain.
 """
 
 from __future__ import annotations
@@ -26,9 +31,10 @@ from typing import Any
 import httpx
 import psycopg
 
-from lixto.enrich.documents import DOWNLOAD_TIMEOUT, extract_for_procurement, pick_documents
+from lixto.analyze.prompt import DEFAULT_MAX_CHARS, INSTRUCTIONS, MAX_ITEMS, build_prompt
+from lixto.analyze.schema import ANALYSIS_SCHEMA, SCHEMA_VERSION, validate_analysis
+from lixto.enrich.documents import DOWNLOAD_TIMEOUT, extract_for_procurement
 from lixto.enrich.embed import build_embedding_text, to_pgvector
-from lixto.enrich.schema import ENRICHMENT_SCHEMA, SCHEMA_VERSION, validate_payload
 from lixto.fence import Fence, get_fence
 from lixto.llm import LlmClient
 from lixto.runs import RunCounters
@@ -37,59 +43,29 @@ logger = logging.getLogger(__name__)
 
 BATCH_LIMIT_DEFAULT = 200
 
-# Rows/day across every `enrich run` invocation; 0 or unset means unlimited.
+# Rows/day across every `analyze run` invocation; 0 or unset means unlimited.
+# Name kept from cycle 18 so deployed schedules/env need no change.
 LIXTO_ENRICH_DAILY_CAP = "LIXTO_ENRICH_DAILY_CAP"
-MAX_ITEMS = 40
-ITEM_CHARS = 160
-DESCRIPTION_CHARS = 2000
-CONTEXT_TEXT_CHARS = 60_000
+LIXTO_ANALYZE_MAX_CHARS = "LIXTO_ANALYZE_MAX_CHARS"
 
 MAX_PDFS = 2
 MAX_PDF_BYTES = 30 * 1024 * 1024  # 30 MB combined
 
-INSTRUCTIONS = """Você é um analista de licitações públicas brasileiras. \
-Extraia do edital e dos dados estruturados uma representação canônica da \
-licitação. Essa representação é global: ela será reutilizada por todas as \
-empresas, então nunca avalie o encaixe de uma empresa específica nem invente \
-informação que não esteja no material recebido.
-
-Os nomes dos campos e os valores de enumeração são em inglês (use exatamente \
-os valores listados); o conteúdo textual é em português.
-
-Campos:
-- summary: 1 a 3 frases descrevendo objetivamente o que está sendo comprado.
-- categories: categorias amplas de compra (ex.: "material escolar", \
-"servicos de limpeza", "equipamentos de informatica").
-- concepts: os conceitos/objetos centrais da compra, mais específicos que as \
-categories (ex.: "lapis", "caderno", "toner").
-- keywords: termos de busca, incluindo sinônimos e variações que compradores \
-e fornecedores realmente usam (ex.: "lapis", "lapis preto", "lapis grafite", \
-"material escolar").
-- cnae_candidates: subclasses CNAE do IBGE no formato 0000-0/00 que um \
-fornecedor deste objeto provavelmente possui, cada uma com code e confidence \
-de 0 a 1.
-- requirements: exigências de habilitação/participação, cada uma com kind \
-(legal_qualification, tax_compliance, technical_qualification, \
-economic_qualification, document, certification, sample, site_visit, other) e \
-description curta em português.
-- requires_certification: true se o edital exige certificação/registro \
-específico do produto ou do fornecedor.
-- requires_technical_certificate: true se exige atestado de capacidade técnica.
-- delivery: location (local de entrega/execução) e deadline_days (prazo em \
-dias). Use location "" e deadline_days -1 quando o edital não informar.
-- risks: cláusulas restritivas, exigências incomuns, prazos apertados ou \
-qualquer ponto de atenção para um fornecedor.
-- complexity: low, medium ou high, considerando exigências, volume e prazo.
-- confidence: 0 a 1, refletindo quanto da resposta veio do texto do edital em \
-vez de suposição a partir dos metadados.
-
-Regras de normalização: categories, concepts e keywords devem ser \
-substantivos em português, minúsculos, SEM acentos, no singular quando fizer \
-sentido, sem pontuação e sem nomes de órgãos, cidades ou números de processo."""
+# Identity of the document set an analysis was produced from. Ticket 134
+# copies this text verbatim into the web read side, so a dossier can be
+# marked stale the moment a document is added, replaced or republished —
+# keep the two implementations byte-identical.
+DOCUMENT_SET_HASH_SQL = """
+SELECT md5(coalesce(string_agg(
+    sequence || ':' || coalesce(to_char(published_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS'), '') || ':' || coalesce(url, ''),
+    E'\\n' ORDER BY sequence), ''))
+FROM procurement_documents
+WHERE procurement_id = %(procurement_id)s AND is_active IS TRUE
+"""
 
 # `%(retry_errors)s` flips the pending predicate: normally any existing
-# enrichment row excludes the procurement; with --retry-errors, rows whose
-# last run failed become eligible again.
+# analysis row excludes the procurement; with --retry-errors, rows whose last
+# run failed become eligible again.
 _SELECT_PENDING_SQL = """
 SELECT p.id,
        p.source_id,
@@ -99,6 +75,8 @@ SELECT p.id,
        p.state,
        p.city_name,
        p.estimated_value,
+       p.published_at,
+       p.proposal_opens_at,
        p.proposal_closes_at,
        p.is_price_registry,
        a.name AS agency_name
@@ -106,9 +84,9 @@ FROM procurements p
 JOIN agencies a ON a.tax_id = p.agency_tax_id
 WHERE (p.proposal_closes_at >= now() OR p.proposal_opens_at > now())
   AND NOT EXISTS (
-        SELECT 1 FROM procurement_enrichments e
-        WHERE e.procurement_id = p.id
-          AND (NOT %(retry_errors)s OR e.status <> 'error')
+        SELECT 1 FROM tender_analyses t
+        WHERE t.procurement_id = p.id
+          AND (NOT %(retry_errors)s OR t.status <> 'error')
       )
   AND (%(days)s::int IS NULL
        OR p.published_at >= now() - make_interval(days => %(days)s))
@@ -124,8 +102,8 @@ ORDER BY item_number
 LIMIT %(max_items)s
 """
 
-# Unlike _SELECT_ITEMS_SQL (capped at MAX_ITEMS for the prompt), the ME/EPP
-# flags are derived from every item on the procurement, so this has no LIMIT.
+# Unlike _SELECT_ITEMS_SQL (capped for the prompt), the ME/EPP flags are
+# derived from every item on the procurement, so this has no LIMIT.
 _SELECT_BENEFITS_SQL = """
 SELECT benefit_type_id FROM procurement_items WHERE procurement_id = %(procurement_id)s
 """
@@ -196,25 +174,138 @@ SET model = EXCLUDED.model,
     embedded_at = now()
 """
 
-# Re-enrichment rewrites the canonical text, so any previous vector is stale:
+# Re-analysis rewrites the canonical text, so any previous vector is stale:
 # drop it when no new one was produced, which puts the row back in
 # `lixto enrich embed`'s queue.
 _DELETE_EMBEDDING_SQL = "DELETE FROM procurement_embeddings WHERE procurement_id = %(id)s"
 
+# `version` counts how many times this procurement was analysed; the web app
+# shows it and ticket 133 re-runs on a changed document set hash.
+_UPSERT_ANALYSIS_SQL = """
+INSERT INTO tender_analyses (
+    procurement_id, version, status, error, model, schema_version, document_set_hash,
+    input_kind, input_chars, input_truncated,
+    executive_summary, object_text, overall_risk, data, analyzed_at, created_at, updated_at
+) VALUES (
+    %(procurement_id)s, 1, %(status)s, %(error)s, %(model)s, %(schema_version)s,
+    %(document_set_hash)s, %(input_kind)s, %(input_chars)s, %(input_truncated)s,
+    %(executive_summary)s, %(object_text)s, %(overall_risk)s, %(data)s, now(), now(), now()
+)
+ON CONFLICT (procurement_id) DO UPDATE
+SET version = tender_analyses.version + 1,
+    status = EXCLUDED.status,
+    error = EXCLUDED.error,
+    model = EXCLUDED.model,
+    schema_version = EXCLUDED.schema_version,
+    document_set_hash = EXCLUDED.document_set_hash,
+    input_kind = EXCLUDED.input_kind,
+    input_chars = EXCLUDED.input_chars,
+    input_truncated = EXCLUDED.input_truncated,
+    executive_summary = EXCLUDED.executive_summary,
+    object_text = EXCLUDED.object_text,
+    overall_risk = EXCLUDED.overall_risk,
+    data = EXCLUDED.data,
+    analyzed_at = now(),
+    updated_at = now()
+"""
+
+_DELETE_FACTS_SQL = "DELETE FROM tender_analysis_facts WHERE procurement_id = %(id)s"
+_INSERT_FACT_SQL = """
+INSERT INTO tender_analysis_facts (
+    procurement_id, "group", key, label, value, statement_kind, confidence, citations
+) VALUES (
+    %(procurement_id)s, %(group)s, %(key)s, %(label)s, %(value)s,
+    %(statement_kind)s, %(confidence)s, %(citations)s
+)
+"""
+
+_DELETE_DATES_SQL = "DELETE FROM tender_analysis_dates WHERE procurement_id = %(id)s"
+_INSERT_DATE_SQL = """
+INSERT INTO tender_analysis_dates (
+    procurement_id, sequence, kind, label, occurs_at, raw_text, confidence, citations
+) VALUES (
+    %(procurement_id)s, %(sequence)s, %(kind)s, %(label)s, %(occurs_at)s,
+    %(raw_text)s, %(confidence)s, %(citations)s
+)
+"""
+
+_DELETE_ANALYSIS_REQUIREMENTS_SQL = (
+    "DELETE FROM tender_analysis_requirements WHERE procurement_id = %(id)s"
+)
+_INSERT_ANALYSIS_REQUIREMENT_SQL = """
+INSERT INTO tender_analysis_requirements (
+    procurement_id, sequence, category, title, description, mandatory, severity,
+    statement_kind, confidence, citations
+) VALUES (
+    %(procurement_id)s, %(sequence)s, %(category)s, %(title)s, %(description)s,
+    %(mandatory)s, %(severity)s, %(statement_kind)s, %(confidence)s, %(citations)s
+)
+"""
+
+_DELETE_PENALTIES_SQL = "DELETE FROM tender_analysis_penalties WHERE procurement_id = %(id)s"
+_INSERT_PENALTY_SQL = """
+INSERT INTO tender_analysis_penalties (
+    procurement_id, sequence, description, basis, confidence, citations
+) VALUES (
+    %(procurement_id)s, %(sequence)s, %(description)s, %(basis)s, %(confidence)s, %(citations)s
+)
+"""
+
+_DELETE_RISKS_SQL = "DELETE FROM tender_analysis_risks WHERE procurement_id = %(id)s"
+_INSERT_RISK_SQL = """
+INSERT INTO tender_analysis_risks (
+    procurement_id, sequence, kind, severity, title, description, recommendation, citations
+) VALUES (
+    %(procurement_id)s, %(sequence)s, %(kind)s, %(severity)s, %(title)s,
+    %(description)s, %(recommendation)s, %(citations)s
+)
+"""
+
+_DELETE_MISSING_SQL = "DELETE FROM tender_analysis_missing WHERE procurement_id = %(id)s"
+_INSERT_MISSING_SQL = """
+INSERT INTO tender_analysis_missing (procurement_id, sequence, field, note)
+VALUES (%(procurement_id)s, %(sequence)s, %(field)s, %(note)s)
+"""
+
 # All statuses count against the cap — a row that errored still cost tokens.
 _USED_TODAY_SQL = (
-    "SELECT count(*) FROM procurement_enrichments WHERE enriched_at >= date_trunc('day', now())"
+    "SELECT count(*) FROM tender_analyses WHERE analyzed_at >= date_trunc('day', now())"
 )
 
 
+def _json_default(value: Any) -> str:
+    """`json.dumps` fallback: the only non-primitive the payload carries is
+    the parsed `occurs_at` datetime, which belongs in JSONB as ISO-8601."""
+    isoformat = getattr(value, "isoformat", None)
+    if callable(isoformat):
+        return isoformat()
+    raise TypeError(f"{type(value).__name__} is not JSON serializable")
+
+
+def to_json(value: Any) -> str:
+    return json.dumps(value, default=_json_default)
+
+
 def _daily_cap() -> int:
-    """`LIXTO_ENRICH_DAILY_CAP` rows/day across all `enrich run` invocations;
-    0 or unset means unlimited."""
+    """`LIXTO_ENRICH_DAILY_CAP` rows/day across all `analyze run`
+    invocations; 0 or unset means unlimited."""
     raw = os.environ.get(LIXTO_ENRICH_DAILY_CAP, "0")
     try:
         return int(raw)
     except ValueError:
         return 0
+
+
+def _max_chars() -> int:
+    """`LIXTO_ANALYZE_MAX_CHARS` — how much document text one prompt may
+    carry; anything beyond it is reported as truncated."""
+    raw = os.environ.get(LIXTO_ANALYZE_MAX_CHARS)
+    if not raw:
+        return DEFAULT_MAX_CHARS
+    try:
+        return int(raw)
+    except ValueError:
+        return DEFAULT_MAX_CHARS
 
 
 def _pending_sql(fence: Fence) -> str:
@@ -226,6 +317,16 @@ def _pending_sql(fence: Fence) -> str:
     return _SELECT_PENDING_SQL.replace("\nORDER BY", fragment + "\nORDER BY", 1)
 
 
+def document_set_hash(conn: psycopg.Connection, procurement_id: int) -> str | None:
+    """md5 over the active document set (sequence, publication instant, url).
+    Stored on the analysis so a later run can tell whether the package the
+    dossier was built from still stands."""
+    with conn.cursor() as cur:
+        cur.execute(DOCUMENT_SET_HASH_SQL, {"procurement_id": procurement_id})
+        row = cur.fetchone()
+    return row[0] if row else None
+
+
 def fetch_items(conn: psycopg.Connection, procurement_id: int) -> list[dict[str, Any]]:
     with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
         cur.execute(_SELECT_ITEMS_SQL, {"procurement_id": procurement_id, "max_items": MAX_ITEMS})
@@ -233,8 +334,8 @@ def fetch_items(conn: psycopg.Connection, procurement_id: int) -> list[dict[str,
 
 
 def fetch_benefit_ids(conn: psycopg.Connection, procurement_id: int) -> list[int | None]:
-    """`benefit_type_id` of every item on the procurement (no MAX_ITEMS cap),
-    the input to `derive_me_epp`."""
+    """`benefit_type_id` of every item on the procurement (no cap), the input
+    to `derive_me_epp`."""
     with conn.cursor() as cur:
         cur.execute(_SELECT_BENEFITS_SQL, {"procurement_id": procurement_id})
         return [row[0] for row in cur.fetchall()]
@@ -259,84 +360,16 @@ def derive_me_epp(benefit_ids: list[int | None]) -> tuple[bool | None, bool | No
     return False, any(b in (1, 2, 3) for b in ids)
 
 
-def _format_item(index: int, item: dict[str, Any]) -> str:
-    description = (item.get("description") or "(sem descrição)").strip()[:ITEM_CHARS]
-    parts = [f"{index}. {description}"]
-    quantity = item.get("quantity")
-    unit = (item.get("unit") or "").strip()
-    if quantity is not None or unit:
-        parts.append(f"{quantity if quantity is not None else '?'} {unit}".strip())
-    price = item.get("estimated_unit_price")
-    if price is not None:
-        parts.append(f"R$ {price}")
-    return " — ".join(parts)
-
-
-def _benefit_line(me_epp: tuple[bool | None, bool | None]) -> str | None:
-    """One prompt line summarizing the derived ME/EPP flags so the model can
-    weigh them in `risks`/`requirements`; None when there's nothing derived
-    (no items / no benefit data)."""
-    exclusive, preference = me_epp
-    if exclusive is None and preference is None:
-        return None
-    label = "exclusivo" if exclusive else ("cota reservada" if preference else "nenhum")
-    return f"Benefício ME/EPP (PNCP): {label}"
-
-
-def build_prompt(
-    row: dict[str, Any],
-    items: list[dict[str, Any]],
-    docs: list[dict[str, Any]],
-    me_epp: tuple[bool | None, bool | None] = (None, None),
-) -> str:
-    """Structured summary of the procurement plus, when available, the pypdf
-    text of its edital documents capped at CONTEXT_TEXT_CHARS."""
-    lines = ["## Dados estruturados", ""]
-    lines.append(f"Objeto: {(row.get('description') or '(sem objeto)')[:DESCRIPTION_CHARS]}")
-    if row.get("additional_info"):
-        lines.append(f"Informação complementar: {row['additional_info'][:DESCRIPTION_CHARS]}")
-    if row.get("modality_name"):
-        lines.append(f"Modalidade: {row['modality_name']}")
-    if row.get("agency_name"):
-        lines.append(f"Órgão: {row['agency_name']}")
-    location = " / ".join(str(x) for x in (row.get("state"), row.get("city_name")) if x)
-    if location:
-        lines.append(f"Local: {location}")
-    if row.get("estimated_value") is not None:
-        lines.append(f"Valor total estimado: {row['estimated_value']}")
-    if row.get("is_price_registry") is not None:
-        lines.append(f"SRP (registro de preços): {'sim' if row['is_price_registry'] else 'não'}")
-    if row.get("proposal_closes_at"):
-        lines.append(f"Encerramento das propostas: {row['proposal_closes_at']}")
-    benefit_line = _benefit_line(me_epp)
-    if benefit_line:
-        lines.append(benefit_line)
-
-    if items:
-        lines.append("")
-        lines.append("## Itens")
-        for i, item in enumerate(items[:MAX_ITEMS], start=1):
-            lines.append(_format_item(i, item))
-
-    texts = [d.get("text") for d in docs if d.get("method") == "pypdf" and d.get("text")]
-    if texts:
-        lines.append("")
-        lines.append("## Texto do edital")
-        lines.append("\n\n".join(texts)[:CONTEXT_TEXT_CHARS])
-
-    return "\n".join(lines)
-
-
 def _collect_pdfs(
-    conn: psycopg.Connection,
     procurement_id: int,
     docs: list[dict[str, Any]],
     http_client: httpx.Client,
 ) -> list[dict[str, Any]] | None:
     """PDF bytes for the docs pypdf couldn't read, reusing the freshly
-    downloaded bytes when the extractor still has them. Returns None when
-    nothing is usable or the cap (MAX_PDFS / MAX_PDF_BYTES) is exceeded — the
-    caller then falls back to the structured route."""
+    downloaded bytes when the extractor still has them and re-downloading
+    from the document's own `url` otherwise. Returns None when nothing is
+    usable or the cap (MAX_PDFS / MAX_PDF_BYTES) is exceeded — the caller
+    then falls back to the structured route."""
     candidates = [d for d in docs if d.get("method") == "insufficient"]
     if not candidates:
         return None
@@ -344,15 +377,13 @@ def _collect_pdfs(
         logger.info("%s has %d insufficient docs, over cap", procurement_id, len(candidates))
         return None
 
-    urls = {d.get("sequence"): d.get("url") for d in pick_documents(conn, procurement_id)}
-
     pdfs: list[dict[str, Any]] = []
     total = 0
     for doc in candidates:
         seq = doc.get("sequence")
         content = doc.get("pdf_bytes")
         if content is None:
-            url = urls.get(seq)
+            url = doc.get("url")
             if not url:
                 continue
             resp = http_client.get(url, timeout=DOWNLOAD_TIMEOUT, follow_redirects=True)
@@ -379,17 +410,19 @@ def _persist(
     me_epp: tuple[bool | None, bool | None] = (None, None),
     embedding: str | None = None,
     embedding_model: str | None = None,
+    document_set_hash: str | None = None,
+    input_chars: int = 0,
+    input_truncated: bool = False,
 ) -> None:
-    """Writes the enrichment row and its four facet tables in one
-    transaction, so readers never see half an enrichment. `me_epp` — from
-    `derive_me_epp(fetch_benefit_ids(...))` — is written for
-    `me_epp_exclusive`/`me_epp_preference` regardless of what (if anything)
-    the LLM payload says, since those two flags are Tier-0 (deterministic
-    from `procurement_items.benefit_type_id`)."""
+    """Writes the enrichment row, its four facet tables, the analysis row and
+    its six child tables in one transaction, so readers never see half a
+    dossier. `me_epp` — from `derive_me_epp(fetch_benefit_ids(...))` — is
+    written regardless of what the payload says, since those two flags are
+    Tier-0 (deterministic from `procurement_items.benefit_type_id`)."""
     payload = payload or {}
     delivery = payload.get("delivery") or {}
     me_epp_exclusive, me_epp_preference = me_epp
-    params = {
+    enrichment_params = {
         "procurement_id": procurement_id,
         "schema_version": SCHEMA_VERSION,
         "model": model,
@@ -400,7 +433,9 @@ def _persist(
         "summary": payload.get("summary"),
         "concepts": payload.get("concepts") or [],
         "keywords": payload.get("keywords") or [],
-        "risks": payload.get("risks") or [],
+        # Facet lists derived from the dossier (see analyze.schema): the
+        # `risks`/`requirements` keys themselves hold the rich cited shapes.
+        "risks": payload.get("facet_risks") or [],
         "complexity": payload.get("complexity"),
         "requires_certification": payload.get("requires_certification"),
         "requires_technical_certificate": payload.get("requires_technical_certificate"),
@@ -408,11 +443,27 @@ def _persist(
         "me_epp_preference": me_epp_preference,
         "delivery_location": delivery.get("location"),
         "delivery_deadline_days": delivery.get("deadline_days"),
-        "data": json.dumps(payload),
+        "data": to_json(payload),
+    }
+
+    analysis_params = {
+        "procurement_id": procurement_id,
+        "status": status,
+        "error": error,
+        "model": model,
+        "schema_version": SCHEMA_VERSION,
+        "document_set_hash": document_set_hash,
+        "input_kind": input_kind,
+        "input_chars": input_chars,
+        "input_truncated": input_truncated,
+        "executive_summary": payload.get("executive_summary"),
+        "object_text": payload.get("object"),
+        "overall_risk": payload.get("overall_risk"),
+        "data": to_json(payload),
     }
 
     with conn.cursor() as cur:
-        cur.execute(_UPSERT_ENRICHMENT_SQL, params)
+        cur.execute(_UPSERT_ENRICHMENT_SQL, enrichment_params)
 
         cur.execute(_DELETE_CATEGORIES_SQL, {"id": procurement_id})
         for category in payload.get("categories") or []:
@@ -422,7 +473,7 @@ def _persist(
             )
 
         cur.execute(_DELETE_REQUIREMENTS_SQL, {"id": procurement_id})
-        for sequence, requirement in enumerate(payload.get("requirements") or [], start=1):
+        for sequence, requirement in enumerate(payload.get("facet_requirements") or [], start=1):
             cur.execute(
                 _INSERT_REQUIREMENT_SQL,
                 {
@@ -455,7 +506,108 @@ def _persist(
             )
         else:
             cur.execute(_DELETE_EMBEDDING_SQL, {"id": procurement_id})
+
+        # The dossier: parent first (the children reference it), then a full
+        # replace of each child list.
+        cur.execute(_UPSERT_ANALYSIS_SQL, analysis_params)
+        _persist_dossier(cur, procurement_id, payload)
     conn.commit()
+
+
+def _persist_dossier(cur: psycopg.Cursor, procurement_id: int, payload: dict[str, Any]) -> None:
+    """Replaces the six child lists of one analysis. `sequence` is the 1-based
+    index in the payload list, which is also the display order."""
+    cur.execute(_DELETE_FACTS_SQL, {"id": procurement_id})
+    for fact in payload.get("facts") or []:
+        cur.execute(
+            _INSERT_FACT_SQL,
+            {
+                "procurement_id": procurement_id,
+                "group": fact["group"],
+                "key": fact["key"],
+                "label": fact["label"],
+                "value": fact["value"],
+                "statement_kind": fact["statement_kind"],
+                "confidence": fact["confidence"],
+                "citations": to_json(fact["citations"]),
+            },
+        )
+
+    cur.execute(_DELETE_DATES_SQL, {"id": procurement_id})
+    for sequence, date in enumerate(payload.get("dates") or [], start=1):
+        cur.execute(
+            _INSERT_DATE_SQL,
+            {
+                "procurement_id": procurement_id,
+                "sequence": sequence,
+                "kind": date["kind"],
+                "label": date["label"],
+                "occurs_at": date["occurs_at"],
+                "raw_text": date["raw_text"],
+                "confidence": date["confidence"],
+                "citations": to_json(date["citations"]),
+            },
+        )
+
+    cur.execute(_DELETE_ANALYSIS_REQUIREMENTS_SQL, {"id": procurement_id})
+    for sequence, requirement in enumerate(payload.get("requirements") or [], start=1):
+        cur.execute(
+            _INSERT_ANALYSIS_REQUIREMENT_SQL,
+            {
+                "procurement_id": procurement_id,
+                "sequence": sequence,
+                "category": requirement["category"],
+                "title": requirement["title"],
+                "description": requirement["description"],
+                "mandatory": requirement["mandatory"],
+                "severity": requirement["severity"],
+                "statement_kind": requirement["statement_kind"],
+                "confidence": requirement["confidence"],
+                "citations": to_json(requirement["citations"]),
+            },
+        )
+
+    cur.execute(_DELETE_PENALTIES_SQL, {"id": procurement_id})
+    for sequence, penalty in enumerate(payload.get("penalties") or [], start=1):
+        cur.execute(
+            _INSERT_PENALTY_SQL,
+            {
+                "procurement_id": procurement_id,
+                "sequence": sequence,
+                "description": penalty["description"],
+                "basis": penalty["basis"],
+                "confidence": penalty["confidence"],
+                "citations": to_json(penalty["citations"]),
+            },
+        )
+
+    cur.execute(_DELETE_RISKS_SQL, {"id": procurement_id})
+    for sequence, risk in enumerate(payload.get("risks") or [], start=1):
+        cur.execute(
+            _INSERT_RISK_SQL,
+            {
+                "procurement_id": procurement_id,
+                "sequence": sequence,
+                "kind": risk["kind"],
+                "severity": risk["severity"],
+                "title": risk["title"],
+                "description": risk["description"],
+                "recommendation": risk["recommendation"],
+                "citations": to_json(risk["citations"]),
+            },
+        )
+
+    cur.execute(_DELETE_MISSING_SQL, {"id": procurement_id})
+    for sequence, missing in enumerate(payload.get("missing") or [], start=1):
+        cur.execute(
+            _INSERT_MISSING_SQL,
+            {
+                "procurement_id": procurement_id,
+                "sequence": sequence,
+                "field": missing["field"],
+                "note": missing["note"],
+            },
+        )
 
 
 def _embed_payload(
@@ -463,7 +615,7 @@ def _embed_payload(
 ) -> tuple[str | None, str | None]:
     """Vector of the payload's canonical text, or (None, None) when the embed
     call fails. An embedding is a nice-to-have here: never let it cost us the
-    enrichment itself — `lixto enrich embed` backfills whatever is missing."""
+    analysis itself — `lixto enrich embed` backfills whatever is missing."""
     text = build_embedding_text(payload)
     if not text:
         return None, None
@@ -477,31 +629,53 @@ def _embed_payload(
     return to_pgvector(vectors[0]), embed_model
 
 
-def enrich_one(
+def _doc_pages(docs: list[dict[str, Any]]) -> dict[int, int]:
+    """`{sequence: page_count}` for the documents whose text was actually fed
+    to the model — the allowlist every citation is checked against."""
+    pages: dict[int, int] = {}
+    for doc in docs:
+        page_texts = doc.get("page_texts")
+        if not page_texts:
+            continue
+        sequence = doc.get("sequence")
+        if not isinstance(sequence, int):
+            continue
+        pages[sequence] = doc.get("pages") or len(page_texts)
+    return pages
+
+
+def analyze_one(
     conn: psycopg.Connection,
     row: dict[str, Any],
     *,
     llm: LlmClient,
     http_client: httpx.Client,
 ) -> str:
-    """Enriches a single procurement end-to-end and commits. Returns
+    """Analyses a single procurement end-to-end and commits. Returns
     'done' | 'error'; never raises for per-row failures — those are persisted
     as status='error' so the row leaves the queue (rerun with --retry-errors
     to pick it back up)."""
     procurement_id = row["id"]
     input_kind = "structured"
     me_epp: tuple[bool | None, bool | None] = (None, None)
+    doc_hash: str | None = None
+    input_chars = 0
+    truncated = False
     try:
+        doc_hash = document_set_hash(conn, procurement_id)
         me_epp = derive_me_epp(fetch_benefit_ids(conn, procurement_id))
         docs = extract_for_procurement(conn, procurement_id, http_client)
         items = fetch_items(conn, procurement_id)
-        prompt = build_prompt(row, items, docs, me_epp=me_epp)
+        prompt, input_chars, truncated = build_prompt(
+            row, items, docs, me_epp=me_epp, max_chars=_max_chars()
+        )
+        doc_pages = _doc_pages(docs)
 
         pdfs: list[dict[str, Any]] | None = None
-        if any(d.get("method") in ("pypdf", "ocr") for d in docs):
+        if doc_pages:
             input_kind = "text"
         else:
-            pdfs = _collect_pdfs(conn, procurement_id, docs, http_client)
+            pdfs = _collect_pdfs(procurement_id, docs, http_client)
             if pdfs:
                 input_kind = "pdf"
 
@@ -510,19 +684,19 @@ def enrich_one(
                 instructions=INSTRUCTIONS,
                 prompt=prompt,
                 pdfs=pdfs,
-                schema=ENRICHMENT_SCHEMA,
-                name="enrichment",
+                schema=ANALYSIS_SCHEMA,
+                name="tender_analysis",
             )
         else:
             result, model = llm.complete_json_text(
-                tier="cheap",
+                tier="doc" if input_kind == "text" else "cheap",
                 instructions=INSTRUCTIONS,
                 prompt=prompt,
-                schema=ENRICHMENT_SCHEMA,
-                name="enrichment",
+                schema=ANALYSIS_SCHEMA,
+                name="tender_analysis",
             )
 
-        payload = validate_payload(result)
+        payload = validate_analysis(result, doc_pages=doc_pages)
         if payload is None:
             _persist(
                 conn,
@@ -533,6 +707,9 @@ def enrich_one(
                 error="resposta inválida",
                 payload=None,
                 me_epp=me_epp,
+                document_set_hash=doc_hash,
+                input_chars=input_chars,
+                input_truncated=truncated,
             )
             return "error"
 
@@ -548,10 +725,13 @@ def enrich_one(
             me_epp=me_epp,
             embedding=embedding,
             embedding_model=embedding_model,
+            document_set_hash=doc_hash,
+            input_chars=input_chars,
+            input_truncated=truncated,
         )
         return "done"
     except Exception as exc:
-        logger.exception("enrichment failed for %s", procurement_id)
+        logger.exception("analysis failed for %s", procurement_id)
         try:
             # The failure may have aborted an open transaction; clear it
             # before writing the error row.
@@ -565,6 +745,9 @@ def enrich_one(
                 error=str(exc)[:2000],
                 payload=None,
                 me_epp=me_epp,
+                document_set_hash=doc_hash,
+                input_chars=input_chars,
+                input_truncated=truncated,
             )
         except Exception:
             logger.exception("failed to persist error status for %s", procurement_id)
@@ -590,7 +773,7 @@ def _apply_usage(counters: RunCounters, llm: LlmClient) -> dict[str, Any]:
     return result
 
 
-def enrich(
+def analyze(
     conn: psycopg.Connection,
     *,
     limit: int | None = None,
@@ -601,7 +784,7 @@ def enrich(
     counters: RunCounters | None = None,
     fence: Fence | None = None,
 ) -> dict[str, Any]:
-    """Enriches pending open procurements in the fence, one at a time,
+    """Analyses pending open procurements in the fence, one at a time,
     committing after each so the run is resumable, until the effective limit
     (min of `--limit` and what's left of the daily cap) is exhausted. Returns
     counters (processed, done, error, cap, used_today_at_start, cap_reached,
@@ -636,7 +819,7 @@ def enrich(
             if remaining <= 0:
                 counters["cap_reached"] = 1
                 logger.info(
-                    "daily cap %d reached (%d enriched today); nothing to do",
+                    "daily cap %d reached (%d analysed today); nothing to do",
                     cap,
                     used_today,
                 )
@@ -662,11 +845,11 @@ def enrich(
             counters["cap_reached"] = 1
 
         for row in rows:
-            status = enrich_one(conn, row, llm=llm, http_client=http_client)
+            status = analyze_one(conn, row, llm=llm, http_client=http_client)
             counters.inc("processed")
             counters.inc(status)
             logger.info(
-                "enriched %s -> %s (%d/%d)",
+                "analysed %s -> %s (%d/%d)",
                 row.get("source_id") or row["id"],
                 status,
                 counters["processed"],

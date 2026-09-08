@@ -1,11 +1,13 @@
-"""Global procurement enrichment.
+"""Global procurement enrichment support.
 
-One canonical, versioned enrichment per procurement — produced once and
-reused by every company, never re-run per tenant. This package holds the
-contract (`schema.py`: the LLM JSON schema and normalization rules), the
-deterministic edital text extraction that feeds it (`documents.py`), the
-worker that persists it (`worker.py`) and the embedding backfill
-(`embed.py`).
+The worker that used to live in this package (`lixto enrich run`) was
+replaced in cycle 25 by `lixto.analyze` (`lixto analyze run` / `lixto
+analyze jobs`), which writes the same enrichment facets plus the deep
+tender-analysis dossier in one pass. This package now holds what that
+worker — and the rest of the app — still depends on: the deterministic
+edital text extraction (`documents.py`), the enrichment facet schema and
+normalization contract (`schema.py`), and the embedding backfill used by
+both `lixto enrich embed` and `lixto.analyze` (`embed.py`).
 
 Persisted in `procurement_enrichments` plus the facet tables
 `procurement_categories`, `procurement_requirements`, `procurement_cnaes`,

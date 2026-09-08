@@ -56,11 +56,11 @@ uv run lixto plans sync
 uv run lixto contracts sync
 ```
 
-### 5. Enrich & Embed
+### 5. Analyze & Embed
 
 ```bash
-# Global enrichment (once per procurement, every LLM tier routed automatically)
-uv run lixto enrich run
+# Deep analysis (once per procurement, produces dossier + enrichment facets)
+uv run lixto analyze run
 
 # Backfill pgvector embeddings (for semantic search)
 uv run lixto enrich embed
@@ -104,7 +104,9 @@ Opens at `http://localhost:3000`. Routes:
 | `LIXTO_FENCE_PORTALS` | Comma-separated list of allowed portals (cost fence) | `Compras.gov.br,ECustomize Consultoria em Software S.A,IPM Sistemas` |
 | `LIXTO_FENCE_MODALITIES` | Comma-separated modality IDs (cost fence) | `6,8` |
 | `LIXTO_FENCE_OPEN_ONLY` | Restrict to open/upcoming procurements (cost fence) | `1` |
-| `LIXTO_ENRICH_DAILY_CAP` | Max enrichment rows/day; 0 or unset = unlimited | `1500` |
+| `LIXTO_ENRICH_DAILY_CAP` | Max analyses/day (cron); 0 or unset = unlimited | `1500` |
+| `LIXTO_ANALYZE_MAX_BYTES` | Combined byte cap for a procurement's active PDFs | `60` (MB) |
+| `LIXTO_ANALYZE_MAX_CHARS` | Character cap for LLM prompt | `400000` |
 | `LIXTO_IBGE_CNAE_URL` | CNAE seed source | `https://concla.ibge.gov.br/export/tabelas/ascii/subclasses.txt` |
 | `LIXTO_MIN_REQUEST_INTERVAL` | Seconds between PNCP requests | `0.5` |
 | `UPLOADS_DIR` | Document storage path | `./uploads` (dev), `/app/uploads` (prod) |
@@ -126,8 +128,11 @@ Opens at `http://localhost:3000`. Routes:
 ### Backfill
 - `lixto backfill [--since YYYY-MM-DD] [--until YYYY-MM-DD] [--modality CODE ...]` — Full fetch from PNCP since a date (resumable).
 
-### Enrichment
-- `lixto enrich run [--limit N] [--days N] [--retry-errors]` — Produce one canonical enrichment per open procurement (routes to cheap/doc tier automatically).
+### Analysis (Tender Dossier)
+- `lixto analyze run [--limit N] [--days N] [--retry-errors]` — Produce one canonical dossier per open procurement (deep analysis with facets, cited facts, requirements, penalties, risks, missing info); routes text/PDF/structured automatically.
+- `lixto analyze jobs [--limit N]` — Drain the on-demand "Analisar com IA" queue.
+
+### Embeddings
 - `lixto enrich embed [--limit N]` — Backfill pgvector embeddings for semantic search; `/procurements` search supports free-text semantic matching (in addition to keyword search).
 
 ### Proactive Agent Loop
@@ -145,7 +150,7 @@ Opens at `http://localhost:3000`. Routes:
 **Entity layers** (see `docs/DATA_MODEL.md` for full reference):
 
 1. **World model** — `procurements`, `procurement_items`, `procurement_documents`, `procurement_results`, `agencies`, `agency_units`
-2. **Enrichment** — `procurement_enrichments`, `procurement_categories`, `procurement_requirements`, `procurement_cnaes`, `procurement_embeddings`
+2. **Analysis & Enrichment** — `tender_analyses`, `tender_analysis_facts`, `tender_analysis_dates`, `tender_analysis_requirements`, `tender_analysis_penalties`, `tender_analysis_risks`, `tender_analysis_missing`, `analysis_jobs`, `procurement_document_pages`, `procurement_enrichments`, `procurement_categories`, `procurement_requirements`, `procurement_cnaes`, `procurement_embeddings`
 3. **Plans & contracts** — `procurement_plans`, `procurement_plan_items`, `contracts`, `contract_amendments`
 4. **Companies** — `companies`, `company_cnaes`, `company_profiles`, `company_documents`
 5. **Users & auth** — `users`, `sessions`
@@ -162,7 +167,8 @@ Dokploy project `lixto`, app `lixto-cli`, timezone `America/Sao_Paulo`:
 | results-sync | `0 3 * * *` | `lixto results sync --limit 2000` | Enabled |
 | plans-sync | `0 4 * * *` | `lixto plans sync` | Disabled (manual) |
 | contracts-sync | `0 5 * * *` | `lixto contracts sync --max-amendments 500` | Disabled (manual) |
-| enrich-run | `30 7,14,21 * * *` | `lixto enrich run --days 30 --limit 300` | Enabled |
+| analyze-run | `30 7,14,21 * * *` | `lixto analyze run --days 30 --limit 300` | Enabled |
+| analyze-jobs | `*/2 * * * *` | `lixto analyze jobs --limit 50` | Enabled |
 | match-run | `0 8,15,22 * * *` | `lixto match run` | Disabled (user decision) |
 | recommend-run | `15 8 * * *` | `lixto recommend run` | Disabled (user decision) |
 | enrich-embed | `45 7,14,21 * * *` | `lixto enrich embed` | Disabled (created disabled until ingestion enabled) |
@@ -287,15 +293,16 @@ When moving Lixto to production ingestion:
    ```
    This fetches 45 days of fenced procurements and queues items/documents for drain by the scheduled details sync.
 
-3. **Drain enrichment** until `daily cap reached`:
+3. **Drain analysis** until `daily cap reached`:
    ```bash
-   lixto enrich run
+   lixto analyze run
    ```
    The cap is enforced per day; monitor `lixto status` for tokens and estimated USD.
 
 4. **Enable schedules in order** in Dokploy (one-off each):
    - `sync-incremental` — pulls new fenced procurements
-   - `enrich-run` — produces enrichments up to the daily cap
+   - `analyze-run` — produces dossiers + facets up to the daily cap
+   - `analyze-jobs` — drains on-demand analysis queue
    - `enrich-embed` — backfills missing vector embeddings for semantic search
    - `match-run` — scores procurements against company profiles; persists opportunities
    - `recommend-run` — builds GO/NO-GO recommendations for top scoring opportunities
@@ -321,9 +328,9 @@ curl -s https://pncp.gov.br/api/swagger-ui.html
 ### LLM rate-limited?
 Adjust `LIXTO_MIN_REQUEST_INTERVAL` (PNCP, not LLM) and set `LIXTO_LLM_MODEL_FALLBACK` for retry.
 
-### Enrichment stuck?
+### Analysis stuck?
 ```bash
-lixto enrich run --limit 10 --retry-errors  # Reprocess failures
+lixto analyze run --limit 10 --retry-errors  # Reprocess failures
 ```
 
 ## Architecture

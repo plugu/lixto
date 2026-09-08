@@ -15,9 +15,9 @@ source_payloads (raw JSON retention for reprocessing)
   ↓
 procurement_documents → [deterministic PDF extraction]
   ↓
-[enrich.run] Global LLM enrichment (one per open procurement)
+[analyze.run] Global LLM analysis (one per open procurement: dossier + enrichment facets)
   ↓
-procurement_enrichments + procurement_categories + procurement_cnaes + procurement_requirements
+tender_analyses + procurement_enrichments + procurement_categories + procurement_cnaes + procurement_requirements
   ↓
 [enrich.embed] Vector embeddings (semantic search)
   ↓
@@ -33,7 +33,7 @@ procurement_embeddings (pgvector, 1536 dims)
 | Tier | Primary | Fallback | Purpose | Input |
 |---|---|---|---|---|
 | Cheap | `gemini-3.5-flash-lite` | `gpt-5-mini` | Text classification, keywords, categories | Clean text, structured metadata |
-| Doc | `gemini-3.7-flash` | `gpt-5-mini` | PDF analysis (inline file parts) | Scanned PDFs, complex layouts |
+| Doc | `gemini-3.7-flash` | `gpt-5-mini` | Tender analysis (inline file parts) | Scanned PDFs, complex layouts, page-tagged text |
 | Strong | `gemini-3.7-flash` | `gpt-5.1` | Deep reasoning (reserved) | Full context for complex analysis |
 | Embed | `gemini-embedding-001` | none | Embeddings (1536-dim vectors, pinned) | Concatenated enrichment text |
 
@@ -44,10 +44,10 @@ procurement_embeddings (pgvector, 1536 dims)
 
 **PDF handling**: Doc tier uses chat completions with inline base64 `file` content parts (not OpenAI Responses API).
 
-**Routing logic** (`src/lixto/enrich/worker.py`):
-1. If the procurement has no edital text (structured metadata only) → cheap tier.
-2. If text extraction succeeded → cheap tier.
-3. If text extraction failed (scanned PDF) → doc tier with PDF files.
+**Routing logic** (`src/lixto/analyze/worker.py`):
+1. If the procurement has extracted page text → doc tier on page-tagged text of every PDF.
+2. If text extraction failed but PDFs are available (≤ max_pdfs) → doc tier with PDF files (inline base64).
+3. If no documents or extraction impossible → cheap tier on PNCP metadata only.
 4. On tier failure, retry once with fallback provider if configured.
 
 Provider is abstracted (`LIXTO_LLM_BASE_URL`, OpenAI-compatible interface); switching providers is an env change.
@@ -58,12 +58,14 @@ Production ingestion is cost-fenced to keep enrichment spend within bounds.
 
 **Ingestion stays unfenced**: `lixto sync incremental` fetches all portals, modalities, and statuses via PNCP's `/atualizacao` (HTTP only, no LLM cost).
 
-**Details + enrichment are fenced**: Details fetch and enrichment only process procurements matching all three criteria:
+**Details + analysis are fenced**: Details fetch and `lixto analyze run` only process procurements matching all three criteria:
 - `origin_system` in `LIXTO_FENCE_PORTALS` (top-3 portals by default: Compras.gov.br, ECustomize, IPM)
 - `modality_id` in `LIXTO_FENCE_MODALITIES` (modalities 6 and 8: Pregão eletrônico, Dispensa)
 - `LIXTO_FENCE_OPEN_ONLY=1` restricts to open/upcoming (`proposal_closes_at >= now() OR proposal_opens_at > now()`)
 
-**Hard daily cap**: `LIXTO_ENRICH_DAILY_CAP` limits enrichment rows written per day across all runs. When reached, `lixto enrich run` stops and says so. Every LLM call records prompt/completion tokens and estimated USD in `agent_runs.counters`.
+**Hard daily cap (cron)**: `LIXTO_ENRICH_DAILY_CAP` limits analyses written per day by `lixto analyze run` across all runs. When reached, the cron stops and says so. Every LLM call records prompt/completion tokens and estimated USD in `agent_runs.counters`.
+
+**On-demand jobs bypass the fence** but are **capped per company** by `LIXTO_ANALYZE_USER_DAILY_CAP` (default 10). The "Analisar com IA" button on any open procurement without a dossier enqueues a job (`analysis_jobs` row); web polls for completion. Re-run only when the document set hash changes (`version` increments).
 
 **Cost reporting**: `lixto status` shows today's enriched/cap/tokens/estimated USD and last 7 days' total USD (integrates `agent_runs` counters).
 
@@ -265,6 +267,26 @@ Facet tables link back to `procurements`:
 - `procurement_requirements` — legal_qualification | tax_compliance | technical_qualification | economic_qualification | document | certification | sample | site_visit | other
 - `procurement_cnaes` — cnae_code + confidence (from enrichment only; origin = 'enrichment')
 - `procurement_embeddings` — pgvector cosine index (HNSW)
+
+## Tender Analysis (Cycle 25)
+
+One pass (`lixto analyze run`) replaces cycle 18's enrichment: processes every fenced open procurement's documents (PDF text extraction + fallback OCR) and writes both enrichment facets (schema_version 2.0) *and* a deep, cited dossier in new `tender_analyses` tables.
+
+**Output tables** (one procurement-scoped set per analysis):
+- `tender_analyses` — executive summary, object, overall risk, document set hash, version, status
+- `tender_analysis_facts` — basic + commercial fields (group, key, label, value, confidence: high|medium|low) with citations `(sequence, page)`
+- `tender_analysis_dates` — kinds ∈ {proposal_deadline, session, clarification_deadline, challenge_deadline, site_visit, contract_start, delivery, other}
+- `tender_analysis_requirements` — category ∈ {participation, legal, fiscal_labor, economic_financial, technical, specification, guarantee, other}; mandatory flag; severity ∈ {low, medium, high, critical}
+- `tender_analysis_penalties` — description + basis
+- `tender_analysis_risks` — kind ∈ {risk, red_flag, contradiction, amendment}; severity; title + description + recommendation
+- `tender_analysis_missing` — field + note for data gaps
+
+**Workflow**:
+1. Cron `lixto analyze run` selects fenced procurements without a complete analysis, fetches all active PDFs, extracts text (per-page to `procurement_document_pages`), routes to LLM by input kind (text/PDF/structured), validates output schema, writes dossier + enrichment in one transaction.
+2. Web button "Analisar com IA" on any open procurement enqueues `analysis_jobs` row (company-scoped, queued), capped per company by `LIXTO_ANALYZE_USER_DAILY_CAP` (default 10).
+3. Cron `lixto analyze jobs` drains queued jobs, same worker, bypasses fence but respects per-company cap.
+
+**Deterministic reprocessing**: If document set hash changes (new/updated PDFs), `version` increments and the dossier is marked stale; re-run fetches the new set.
 
 ## API Contracts
 

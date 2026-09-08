@@ -1,4 +1,10 @@
-"""`lixto enrich` — global procurement enrichment and embedding backfill."""
+"""`lixto enrich` — embedding backfill for the global enrichment.
+
+The enrichment pass itself moved to `lixto analyze run` in cycle 25 (one
+doc-tier call writes the facets *and* the cited dossier); this group keeps
+only the vector backfill, which is independent of how the facets were
+produced.
+"""
 
 from __future__ import annotations
 
@@ -6,64 +12,11 @@ import typer
 
 from lixto import db, runs
 from lixto.enrich.embed import embed_pending
-from lixto.enrich.worker import enrich as run_enrich
 
 name = "enrich"
 app = typer.Typer(help="Enrichment commands")
 
 _LIMIT_OPTION = typer.Option(None, "--limit", help="Max procurements to process.")
-_DAYS_OPTION = typer.Option(
-    None,
-    "--days",
-    help="Only procurements published in the last N days.",
-)
-_RETRY_ERRORS_OPTION = typer.Option(
-    False,
-    "--retry-errors",
-    help="Also reprocess procurements whose last enrichment failed.",
-)
-
-
-@app.command("run")
-def run_cmd(
-    limit: int = _LIMIT_OPTION,
-    days: int = _DAYS_OPTION,
-    retry_errors: bool = _RETRY_ERRORS_OPTION,
-) -> None:
-    """Produce the canonical global enrichment (one per open procurement),
-    routing each row to the cheapest model tier that can answer (edital text
-    → cheap, scanned PDF → doc tier, no document → structured metadata only).
-    Resumable: already enriched procurements are skipped; use --retry-errors
-    to reprocess the failed ones.
-    """
-    conn = db.get_connection()
-    try:
-        with runs.run(conn, "enrich") as counters:
-            result = run_enrich(
-                conn,
-                limit=limit,
-                days=days,
-                retry_errors=retry_errors,
-                counters=counters,
-            )
-    finally:
-        conn.close()
-
-    typer.echo(f"enriched: {result['processed']} (done {result['done']}, error {result['error']})")
-    typer.echo(
-        f"usage: {result.get('llm_calls', 0)} calls, "
-        f"{result.get('llm_prompt_tokens', 0)} prompt + "
-        f"{result.get('llm_completion_tokens', 0)} completion tokens, "
-        f"est US$ {result.get('est_usd', 0.0):.4f}"
-    )
-    if result.get("cap_reached"):
-        typer.echo(f"daily cap reached (cap {result.get('cap')})")
-    if result["error"] > 0 and result["done"] == 0:
-        typer.echo(
-            "no procurement enriched successfully — check the LLM provider key/URL",
-            err=True,
-        )
-        raise typer.Exit(code=1)
 
 
 @app.command("embed")

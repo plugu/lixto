@@ -33,7 +33,8 @@ lixto sync details [--limit N]             # Fetch items/docs for procurements m
 lixto results sync [--limit N]             # Drain demand queue (scheduled 3am)
 lixto plans sync [--since] [--until]       # PCA (scheduled 4am, disabled)
 lixto contracts sync [--max-amendments N]  # Contracts (scheduled 5am, disabled)
-lixto enrich run [--limit N] [--days N]    # Global enrichment (scheduled 7:30am/2:30pm/9:30pm)
+lixto analyze run [--limit N] [--days N]   # Deep analysis (scheduled 7:30am/2:30pm/9:30pm)
+lixto analyze jobs [--limit N]             # On-demand analysis queue (scheduled every 2 min)
 lixto enrich embed [--limit N]             # Backfill embeddings (manual)
 lixto status                               # Print database stats
 ```
@@ -61,7 +62,7 @@ lixto status                               # Print database stats
 |---|---|
 | Add a CLI command | `src/lixto/cli/*.py` (auto-discovered) |
 | Modify sync logic | `src/lixto/sync/*.py` |
-| Change enrichment routing | `src/lixto/enrich/worker.py` |
+| Change analysis routing | `src/lixto/analyze/worker.py` |
 | Swap LLM provider | `src/lixto/llm.py` + env vars (no code change) |
 | Add a web route | `web/app/(app)/route-name/page.tsx` (Next.js app dir) |
 | Add a tool for chat | `web/lib/agent/tools.ts` (only safe SQL, no model access) |
@@ -119,7 +120,8 @@ Dokploy project `lixto`, app `lixto-cli`, timezone America/Sao_Paulo:
 | results-sync | `0 3 * * *` | `lixto results sync --limit 2000` | ✓ |
 | plans-sync | `0 4 * * *` | `lixto plans sync` | ✗ |
 | contracts-sync | `0 5 * * *` | `lixto contracts sync --max-amendments 500` | ✗ |
-| enrich-run | `30 7,14,21 * * *` | `lixto enrich run --days 30 --limit 300` | ✓ |
+| analyze-run | `30 7,14,21 * * *` | `lixto analyze run --days 30 --limit 300` | ✓ |
+| analyze-jobs | `*/2 * * * *` | `lixto analyze jobs --limit 50` | ✓ |
 | enrich-embed | `0 0 31 2 *` | `lixto enrich embed` | ✗ |
 | db-init | `0 0 31 2 *` | `lixto db init` | ✗ |
 
@@ -154,7 +156,7 @@ echo $LIXTO_LLM_MODEL_CHEAP $LIXTO_LLM_MODEL_DOC $LIXTO_LLM_MODEL_STRONG
 uv run lixto sync incremental --until 2026-08-26 --max-details 100
 
 # Test with limit
-uv run lixto enrich run --limit 5 --retry-errors
+uv run lixto analyze run --limit 5 --retry-errors
 ```
 
 ## When You're Done
