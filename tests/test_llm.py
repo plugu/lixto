@@ -69,10 +69,21 @@ def test_strong_tier_uses_strong_model():
     assert sdk.chat.completions.create.call_args.kwargs["model"] == "strong-model"
 
 
+def test_doc_tier_uses_doc_model_for_text_calls():
+    # The tender-analysis worker sends page-tagged text (not PDF parts) on the
+    # doc tier; prod raised "unknown tier: 'doc'" before this was routed.
+    sdk = _client()
+    _payload, model = _llm(sdk).complete_json_text(
+        tier="doc", instructions="sys", prompt="user", schema=SCHEMA, name="n"
+    )
+    assert model == "doc-model"
+    assert sdk.chat.completions.create.call_args.kwargs["model"] == "doc-model"
+
+
 def test_unknown_tier_raises():
     with pytest.raises(ValueError):
         _llm(_client()).complete_json_text(
-            tier="doc", instructions="s", prompt="p", schema=SCHEMA, name="n"
+            tier="vision", instructions="s", prompt="p", schema=SCHEMA, name="n"
         )
 
 

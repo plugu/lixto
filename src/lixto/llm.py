@@ -201,6 +201,8 @@ class LlmClient:
     def model_for(self, tier: str) -> str:
         if tier == "cheap":
             return self.cheap
+        if tier == "doc":
+            return self.doc
         if tier == "strong":
             return self.strong
         raise ValueError(f"unknown tier: {tier!r}")
