@@ -1,10 +1,11 @@
 # STATE — rewrite after every ticket completes; never append. ≤30 lines total.
 
 ## Now
-- Cycle 25 (AI Tender Analysis V1, **mvp**) running in worktree `cycle-24-tender-analysis`. tickets 131–136 all done (1 attempt each). Suites green: ruff, pytest 473, tsc, vitest 494, next build. Approved and committed: 4dfdda6 on `worktree-cycle-24-tender-analysis`. Not merged, not deployed.
+- Cycle 25 (AI Tender Analysis V1, **mvp**) running in worktree `cycle-24-tender-analysis`. tickets 131–136 all done (1 attempt each). Suites green: ruff, pytest 473, tsc, vitest 494, next build. Merged to main (fast-forward, ee11ec7) and pushed 2026-09-08 09:32 UTC; GitHub-App autoDeploy built lixto-web (09:34) and lixto-cli (09:35, `lixto db init` on start). Dokploy: `enrich-run` renamed `analyze-run` (command updated, still DISABLED — cost decision from cycle 21 stands), new `analyze-jobs` `*/2 * * * *` `lixto analyze jobs --limit 5` ENABLED (id OtyQLv5h1SmUvWb5DAbl3). New env vars left at defaults.
 
 ## Next
-- Wait for Radar merge → merge this branch from the MAIN checkout (resolve CLAUDE.md/README/ARCHITECTURE/DATA_MODEL/status.py conflicts) → deploy + Dokploy schedule rename (`enrich-run` → `analyze-run`, new `analyze-jobs */2`), set 3 new env vars.
+- Verify migration 006 applied on prod (first `analyze-jobs` run log, or psql `schema_migrations`); smoke-test "Analisar com IA" on one open procurement in prod; decide whether to enable `analyze-run` (cron cost).
+- Radar session (other Claude, main checkout on `cycle-24-radar`) must now rebase onto ee11ec7 — expect conflicts in CLAUDE.md/README/ARCHITECTURE/DATA_MODEL/status.py; its `005_radar.sql` numbering is fine (006 already taken).
 
 ## Decisions
 - execution: sequential (in place, this worktree)
