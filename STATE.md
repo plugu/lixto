@@ -1,11 +1,12 @@
 # STATE — rewrite after every ticket completes; never append. ≤30 lines total.
 
 ## Now
-- Cycle 24 (Future Procurement Radar V1, **mvp**) DEPLOYED 2026-09-08 13:23 UTC (`320ad04`, rebased onto cycle 25; suites green post-rebase: ruff, pytest 493, eslint, vitest 619, next build). Migration 005 applied on prod; manual `radar-run` → 200, runId 253, zeros (no PCA rows, no company profiles yet). Dokploy schedules: `plans-embed` 20 4 (`--limit 2000`, ON), `radar-run` 40 4 (ON), `radar-seed` manual-only chain; `plans-sync` still OFF pending volume decision (old note: ~200k rows/3 days).
+- Cycle 24 (Future Procurement Radar V1, **mvp**) DEPLOYED 2026-09-08 13:23 UTC (`320ad04`, rebased onto cycle 25; suites green post-rebase: ruff, pytest 493, eslint, vitest 619, next build). Migration 005 applied on prod; manual `radar-run` → 200, runId 253, zeros (no PCA rows, no company profiles yet). Dokploy schedules created, ALL OFF by user decision (LLM provider/model undecided, no spend): `plans-sync`, `plans-embed` (`--limit 2000`), `radar-run`, `radar-seed` (manual chain). Go-live runbook in README → "Radar go-live".
 - Cycle 25 (AI Tender Analysis V1, **mvp**) DEPLOYED 2026-09-08: migration 006, `analyze-jobs` `*/2 * * * *` enabled; `analyze-run` cron stays DISABLED by decision (2026-09-08) — analysis is on-demand only.
 
 ## Next
-- Radar go-live data: decide PCA ingestion volume (nationwide ~65k rows/day) → run `radar-seed` (adjust `--since`) then enable `plans-sync`; prod needs a company profile before matches appear.
+- Radar go-live blocked on user: pick LLM provider/model (embed model must equal the one `enrich-embed` already uses), decide PCA volume (~65k rows/day nationwide), then follow README "Radar go-live" (seed → enable plans-sync → radar-run; plans-embed optional). Prod needs a company profile before matches appear.
+- Still spending today (user said no LLM spend — confirm): `analyze-jobs` (on-demand clicks), `enrich-embed` (embeddings 3×/day), `recommend-run` (chat 1×/day) are ENABLED.
 - Cycle 25 follow-ups: verify migration 006 on prod; smoke-test "Analisar com IA" on one open procurement. Do not enable `analyze-run` without the user.
 - Radar V2 candidates: prediction linker (`procurement_found` + lead-time badge), history/expiring-contract signals, agency+PDM clustering, digest inclusion, 👍/👎 feedback.
 - App-wide caveat: `notFound()` streams as HTTP 200 because of `app/loading.tsx` (UI correct) — own ticket if 404 status matters.

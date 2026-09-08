@@ -130,7 +130,7 @@ Opens at `http://localhost:3000`. Routes:
 
 ### Sync (targeted domains)
 - `lixto results sync [--limit N]` — Drain the demand queue for homologated results.
-- `lixto plans sync [--since YYYY-MM-DD] [--until YYYY-MM-DD]` — Fetch annual procurement plans (PCA) from `/v1/pca/atualizacao`.
+- `lixto plans sync [--since YYYY-MM-DD] [--until YYYY-MM-DD]` — Fetch annual procurement plans (PCA) from `/v1/pca/atualizacao`, nationwide, in ≤7-day chunks; watermark `sync_state.incremental:plans`. **First run needs `--since`** — with no watermark and no `--since` the window is today only and nothing is fetched. No LLM cost; volume is the knob (historically ~200k rows per 3 days).
 - `lixto contracts sync [--since YYYY-MM-DD] [--until YYYY-MM-DD] [--max-amendments N]` — Fetch contracts from `/v1/contratos/atualizacao` and amendments from `/v1/orgaos/{cnpj}/contratos/{ano}/{seq}/termos`.
 
 ### Backfill
@@ -144,8 +144,9 @@ Opens at `http://localhost:3000`. Routes:
 - `lixto enrich embed [--limit N]` — Backfill pgvector embeddings for semantic search; `/procurements` search supports free-text semantic matching (in addition to keyword search).
 
 ### Plans & Radar (Future Procurement Discovery)
-- `lixto plans embed [--limit N]` — Backfill embeddings for in-horizon PCA items (prerequisite for Radar).
-- `lixto radar run [--company-id N]` — Detect future opportunities from the PCA horizon, expire stale ones, and score each company profile against surviving predictions (POST `/api/internal/radar/run` on the web app).
+- `lixto plans embed [--limit N]` — Embed in-horizon PCA items (`LIXTO_RADAR_HORIZON_DAYS`, default 365) into `plan_item_embeddings` with `LIXTO_LLM_MODEL_EMBED`. **Spends embedding tokens** — `--limit` (or `LIXTO_RADAR_EMBED_LIMIT`) is the per-run cost fence; unset = unlimited. Optional: Radar works without it (term matching only; the semantic signal is simply absent).
+- `lixto radar run [--company-id N]` — Detect future opportunities from the PCA horizon, expire stale ones, and score each company profile against surviving predictions (POST `/api/internal/radar/run` on the web app; needs `LIXTO_INTERNAL_TOKEN` + `LIXTO_WEB_INTERNAL_URL`). Deterministic, no LLM cost. Output: `runId`, `companies`, `opportunities`, `matched`.
+- On-demand only (no CLI): "Analisar com IA" on `/radar/[id]` calls `LIXTO_RADAR_ANALYSIS_MODEL` once per opportunity×company, cached; capped by `LIXTO_RADAR_ANALYSIS_DAILY_CAP` (default 20/company/day).
 
 ### Proactive Agent Loop
 - `lixto match run [--company-id N] [--since YYYY-MM-DD]` — Score procurements enriched since the last run against every company profile/CNAEs, persist `matches` and upsert `opportunities` (POST `/api/internal/match/run` on the web app).
@@ -173,20 +174,29 @@ Opens at `http://localhost:3000`. Routes:
 
 Dokploy project `lixto`, app `lixto-cli`, timezone `America/Sao_Paulo`:
 
-| Schedule | Cron | Command | Status |
-|---|---|---|---|
-| sync-incremental | `0 6,13,20 * * *` | `lixto sync incremental --max-details 2000` | Enabled |
-| results-sync | `0 3 * * *` | `lixto results sync --limit 2000` | Enabled |
-| plans-sync | `0 4 * * *` | `lixto plans sync` | Disabled (manual) |
-| contracts-sync | `0 5 * * *` | `lixto contracts sync --max-amendments 500` | Disabled (manual) |
-| analyze-run | `30 7,14,21 * * *` | `lixto analyze run --days 30 --limit 300` | Enabled |
-| analyze-jobs | `*/2 * * * *` | `lixto analyze jobs --limit 50` | Enabled |
-| match-run | `0 8,15,22 * * *` | `lixto match run` | Disabled (user decision) |
-| recommend-run | `15 8 * * *` | `lixto recommend run` | Disabled (user decision) |
-| enrich-embed | `45 7,14,21 * * *` | `lixto enrich embed` | Disabled (created disabled until ingestion enabled) |
-| db-init | `0 0 31 2 *` | `lixto db init` | Disabled (manual) |
+State as of 2026-09-08 (read from Dokploy; "LLM $" marks jobs that spend provider tokens):
 
-Dates `0 0 31 2 *` (Feb 31st) never fire; use for manual-only schedules.
+| Schedule | Cron | Command | LLM $ | Status |
+|---|---|---|---|---|
+| sync-incremental | `0 6,13,20 * * *` | `lixto sync incremental --max-details 2000` | no | Enabled |
+| results-sync | `0 3 * * *` | `lixto results sync --limit 2000` | no | Disabled (manual) |
+| plans-sync | `0 4 * * *` | `lixto plans sync` | no | Disabled — see Radar go-live |
+| plans-embed | `20 4 * * *` | `lixto plans embed --limit 2000` | **yes** (embeddings) | Disabled — see Radar go-live |
+| radar-run | `40 4 * * *` | `lixto radar run` | no | Disabled — see Radar go-live |
+| radar-seed | `0 0 31 2 *` | `lixto plans sync --since <date> && lixto plans embed --limit 2000 && lixto radar run` | **yes** (embeddings) | Disabled (manual one-shot) |
+| contracts-sync | `0 5 * * *` | `lixto contracts sync --max-amendments 500` | no | Disabled (manual) |
+| analyze-run | `30 7,14,21 * * *` | `lixto analyze run --days 30 --limit 300` | **yes** | Disabled (cost decision; analysis is on-demand only) |
+| analyze-jobs | `*/2 * * * *` | `lixto analyze jobs --limit 5` | **yes** (per user click, capped per company) | Enabled |
+| enrich-embed | `45 7,14,21 * * *` | `lixto enrich embed` | **yes** (embeddings) | Enabled |
+| match-run | `0 8,15,22 * * *` | `lixto match run` | no | Enabled |
+| recommend-run | `15 8 * * *` | `lixto recommend run` | **yes** | Enabled |
+| email-worker | `*/5 * * * *` | `lixto email worker --limit 20` | no | Enabled |
+| email-bounces | `2-57/5 * * * *` | `lixto email bounces` | no | Enabled |
+| email-digest | `30 8 * * *` | `lixto email digest` | no | Enabled |
+| db-init | `0 0 31 2 *` | `lixto db init` | no | Disabled (manual; also runs on every `lixto-cli` deploy) |
+| cnae-seed | `0 0 31 2 *` | `lixto cnae seed` | no | Disabled (manual) |
+
+Dates `0 0 31 2 *` (Feb 31st) never fire; use for manual-only schedules. Dokploy `schedule.runManually` fires any of them on demand.
 
 ## Transactional email
 
@@ -322,6 +332,19 @@ When moving Lixto to production ingestion:
 5. **Monitor cost** with `lixto status` — shows today's LLM spend (calls, tokens, estimated USD) and last 7 days' total.
 
 **Important**: The embedding model (`LIXTO_LLM_MODEL_EMBED`) must never change after ingestion starts, as all vectors in the table would become incomparable. If you need to re-embed, either run a full backfill or set up a new vector table and migrate indices.
+
+### Radar go-live (cycle 24 — not yet started)
+
+Code and migration `005_radar.sql` are deployed; all four Radar schedules exist on `lixto-cli` and are **disabled**. Nothing runs and nothing is spent until these steps:
+
+0. **Decide the LLM provider/model first** — `plans-embed` bills embedding tokens; `LIXTO_LLM_MODEL_EMBED` must be the same model already used by `enrich-embed` (vectors are compared against `company_profiles.embedding`). `LIXTO_RADAR_ANALYSIS_MODEL` (chat) can be anything OpenAI-compatible; falls back to `LIXTO_RECOMMEND_MODEL`.
+1. **Decide PCA volume.** `plans sync` is nationwide (no fence): roughly 65k rows/day. Cheap in tokens (zero), not in disk. If that is too much, add a fence before enabling (V2 idea: only agencies already present in `procurements`).
+2. **Seed once**: edit `radar-seed`'s `--since` (7–30 days back), `schedule.runManually`. Runs `plans sync --since … && plans embed --limit 2000 && radar run`. To skip embeddings entirely, drop the middle command — Radar still works on term matches.
+3. **Enable daily**: `plans-sync` (04:00) → `plans-embed` (04:20, optional) → `radar-run` (04:40). Timings assume plans sync finishes within 20 min; if not, the next day's run catches up.
+4. **Company profile required**: `radar run` scores only companies with a `company_profiles` row (`companies: 0` in the output means nobody is matched yet).
+5. **Verify**: `lixto radar run` output shows `opportunities > 0`; `/radar` lists cards; `SELECT status, count(*) FROM future_opportunities GROUP BY 1`.
+
+Cost knobs: `LIXTO_RADAR_EMBED_LIMIT` / `--limit` (embeddings per run), `LIXTO_RADAR_ANALYSIS_DAILY_CAP` (on-demand analyses per company per day), `LIXTO_RADAR_HORIZON_DAYS` (how far ahead items are considered — smaller horizon = fewer rows and embeddings).
 
 ## Troubleshooting
 

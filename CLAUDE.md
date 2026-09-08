@@ -80,14 +80,15 @@ Key facts:
 **Dokploy**:
 - Project: `lixto` (renamed from `plataforma-licitante`)
 - Apps: `lixto-web` (Next.js) + `lixto-cli` (Python, sleeps forever on `ENTRYPOINT ["sleep", "infinity"]`) + `lixto-mail` (Postfix + opendkim MTA, from `infra/mail/Dockerfile`)
-- Schedules on `lixto-cli` (enabled in cycle 21+):
+- Schedules on `lixto-cli` (state 2026-09-08; the README "Production Schedules" table is the authoritative list with LLM-cost flags):
   - `sync-incremental` — `0 6,13,20 * * *` (pull fenced procurements)
-  - `results-sync` — `0 3 * * *` (homologated results)
-  - `plans-sync` — `0 4 * * *` (pull annual procurement plans)
-  - `plans-embed` — `20 4 * * *` (backfill plan-item embeddings for Radar)
-  - `radar-run` — `40 4 * * *` (detect future opportunities, expire stale ones, score per company)
-  - `contracts-sync` — `0 5 * * *` (disabled; manual only)
-  - `analyze-run` — `30 7,14,21 * * *` (deep analysis of fenced procurements: facets + dossier, up to daily cap)
+  - `results-sync` — `0 3 * * *` (homologated results; DISABLED, manual)
+  - `plans-sync` — `0 4 * * *` (pull annual procurement plans; DISABLED until Radar go-live — first run needs `--since`)
+  - `plans-embed` — `20 4 * * *` (`lixto plans embed --limit 2000`, Radar embeddings; DISABLED — spends embedding tokens, LLM provider undecided)
+  - `radar-run` — `40 4 * * *` (detect future opportunities, expire stale ones, score per company; DISABLED until PCA data exists)
+  - `radar-seed` — manual only (`0 0 31 2 *`; `plans sync --since … && plans embed --limit 2000 && radar run`)
+  - `contracts-sync` — `0 5 * * *` (DISABLED; manual only)
+  - `analyze-run` — `30 7,14,21 * * *` (deep analysis cron; DISABLED by decision — analysis is on-demand only)
   - `analyze-jobs` — `*/2 * * * *` (drain on-demand "Analisar com IA" queue)
   - `match-run` — `0 8,15,22 * * *` (score procurements vs profiles)
   - `recommend-run` — `15 8 * * *` (GO/NO-GO for top opportunities)
