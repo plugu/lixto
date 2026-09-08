@@ -239,3 +239,14 @@ export function Alert({ size = 16, ...props }: IconProps) {
     </svg>
   );
 }
+
+export function Radar({ size = 16, ...props }: IconProps) {
+  return (
+    <svg {...base(size)} {...props}>
+      <circle cx="12" cy="12" r="9" />
+      <circle cx="12" cy="12" r="5.5" />
+      <circle cx="12" cy="12" r="2" />
+      <path d="M12 12L18 6" />
+    </svg>
+  );
+}

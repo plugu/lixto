@@ -64,8 +64,16 @@ Key facts:
 | `LIXTO_BOUNCE_MAILDIR` | DSN maildir shared by `lixto-mail` and `lixto-web` | `/var/db/mail/bounces` |
 | `LIXTO_BOUNCE_ADDRESS` | Address the MTA accepts DSNs for | `bounces@lixto.com.br` |
 | `LIXTO_APP_URL` | Web app base URL (used in email links) | `https://lixto.com.br` (prod), `http://localhost:3000` (dev) |
+| `LIXTO_RADAR_HORIZON_DAYS` | Days into the future to scan for planned procurements | `365` |
+| `LIXTO_RADAR_EMBED_LIMIT` | Max plan items to embed per run; 0 or unset = unlimited | `0` |
+| `LIXTO_RADAR_WEIGHT_PCA_ITEM` | Opportunity score weight: item exists in a plan | `50` |
+| `LIXTO_RADAR_WEIGHT_DATE_NEAR` | Opportunity score weight: desired date ≤90 days ahead | `30` |
+| `LIXTO_RADAR_WEIGHT_DATE_MID` | Opportunity score weight: desired date 90–180 days ahead | `15` |
+| `LIXTO_RADAR_WEIGHT_RECENT_UPDATE` | Opportunity score weight: plan updated within 60 days | `20` |
+| `LIXTO_RADAR_ANALYSIS_MODEL` | LLM for on-demand Radar opportunity analysis (falls back to `LIXTO_RECOMMEND_MODEL`, then `gpt-5.1`) | — |
+| `LIXTO_RADAR_ANALYSIS_DAILY_CAP` | Max AI analyses per company per day; 0 = unlimited | `20` |
 
-**Note**: All `LIXTO_*` vars are read by Python (CLI); `web` also reads LLM, embedding, and email vars via `.env.local`.
+**Note**: All `LIXTO_*` vars are read by Python (CLI); `web` also reads LLM, embedding, email, and Radar vars via `.env.local`.
 
 ### Production Deployment
 
@@ -75,7 +83,9 @@ Key facts:
 - Schedules on `lixto-cli` (enabled in cycle 21+):
   - `sync-incremental` — `0 6,13,20 * * *` (pull fenced procurements)
   - `results-sync` — `0 3 * * *` (homologated results)
-  - `plans-sync` — `0 4 * * *` (disabled; manual only)
+  - `plans-sync` — `0 4 * * *` (pull annual procurement plans)
+  - `plans-embed` — `20 4 * * *` (backfill plan-item embeddings for Radar)
+  - `radar-run` — `40 4 * * *` (detect future opportunities, expire stale ones, score per company)
   - `contracts-sync` — `0 5 * * *` (disabled; manual only)
   - `analyze-run` — `30 7,14,21 * * *` (deep analysis of fenced procurements: facets + dossier, up to daily cap)
   - `analyze-jobs` — `*/2 * * * *` (drain on-demand "Analisar com IA" queue)
@@ -93,16 +103,20 @@ Key facts:
 
 | What | Where |
 |---|---|
-| Schema DDL | `migrations/001_core.sql` (READ FIRST) |
+| Schema DDL | `migrations/001_core.sql` (READ FIRST); `migrations/005_radar.sql` (Radar tables) |
 | CLI commands | `src/lixto/cli/*.py` |
 | Sync logic | `src/lixto/sync/*.py` (procurements, plans, contracts, results, etc.) |
 | Analysis worker | `src/lixto/analyze/worker.py` (LLM routing, facets + dossier) |
 | Analysis UI | `web/components/analysis-panel.tsx` |
 | Analysis queries | `web/lib/analysis-queries.ts` |
+| Plan-item embeddings | `src/lixto/enrich/plan_embed.py` (backfill for Radar) |
 | LLM client | `src/lixto/llm.py` (OpenAI-compatible, provider abstraction) |
 | PNCP client | `src/lixto/pncp_client.py` |
 | Database | `src/lixto/db.py` (connection, migrations) |
 | Web routes | `web/app/(app)/*` (Next.js app dir) |
+| Radar engine | `web/lib/radar-engine.ts`, `web/lib/radar-batch.ts` (detection, scoring, expiry) |
+| Radar routes | `web/app/(app)/radar/*` (/radar list, /radar/[id] detail) |
+| Radar analysis | `web/lib/radar-analysis.ts` (on-demand AI analysis) |
 | Match engine | `web/lib/match-engine.ts` (deterministic scoring) |
 | Embeddings/LLM (web) | `web/lib/agent/embed.ts`, `web/lib/agent/llm.ts` (semantic search, recommend) |
 | Database queries | `web/lib/*-queries.ts` |
@@ -122,6 +136,18 @@ Per PRODUCT.md, this is a **production-level project**.
 - Full test discipline (ruff, pytest, tsc, vitest).
 - No TODOs or hardcoded config.
 - Zero shortcuts.
+
+### Radar (Cycle 24)
+
+**Product**: Future procurement discovery. Every PCA (annual procurement plan) item in the horizon is scored once (opportunity score: will it happen, and soon?) and then matched per company (company match score: does it fit this seller's profile?). One opportunity = one PCA item, traceable. Deterministic "why" always rendered from signals; "Analyze with AI" is on-demand, cached per opportunity×company, zero LLM spend for unopened items.
+
+**Two separate scores**:
+- *Opportunity score* (0–100): PCA item base weight + date proximity bands + plan recency. Weights from `LIXTO_RADAR_WEIGHT_*` env vars (defaults: PCA=50, DateNear=30, DateMid=15, RecentUpdate=20). No LLM.
+- *Company match score* (0–100): Profile terms FTS on item, states vs agency state, value band, cosine similarity (profile embedding vs plan-item embedding). No LLM per item. Minimum 40 to persist.
+
+**Status lifecycle**: `predicted` (detected in horizon) → `procurement_found` (V2 linker found the tender) or `expired` (desired date passed or item removed from plan). `detected_at` is never rewritten; it is the evidence of early discovery.
+
+**Schema** (five tables in `migrations/005_radar.sql`): `plan_item_embeddings`, `future_opportunities`, `future_opportunity_matches`, `future_opportunity_actions`, `future_opportunity_analyses`. Future opportunities have *no FK on item_number* (items are replaced delete+insert on plan update; opportunity must survive that).
 
 ## Before You Touch Schema
 

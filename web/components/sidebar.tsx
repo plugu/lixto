@@ -13,6 +13,7 @@ import {
   FileText,
   List,
   LogOut,
+  Radar,
   Sidebar as SidebarIcon,
   Tag,
   Users,
@@ -70,6 +71,7 @@ function setCollapsedStore(next: boolean) {
 
 export const NAV_ITEMS = [
   { href: "/opportunities", label: "Oportunidades", icon: Tag },
+  { href: "/radar", label: "Radar", icon: Radar },
   { href: "/dashboard", label: "Painel", icon: Chart },
   { href: "/procurements", label: "Licitações", icon: List },
 ] as const;
@@ -89,6 +91,9 @@ export function isActive(pathname: string, href: string): boolean {
   if (href === "/company") return pathname === "/company";
   if (href === "/procurements") {
     return pathname === href || pathname.startsWith("/procurement/");
+  }
+  if (href === "/radar") {
+    return pathname === href || pathname.startsWith("/radar/");
   }
   return pathname === href || pathname.startsWith(`${href}/`);
 }

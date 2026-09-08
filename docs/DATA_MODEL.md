@@ -203,9 +203,48 @@ Planos de Contratação Anual — forward signal of what agencies will buy.
 ### `procurement_plan_items`
 Items within a plan (e.g., "desks — 100 units, value R$ 5000").
 - **Key**: `(plan_id, item_number)` compound, FK to `procurement_plans`
-- **Notable columns**: `description`, `catalog_classification_id`, `supply_unit`, `estimated_quantity`, `unit_value`, `total_value`, `desired_date`
+- **Notable columns**: `description`, `catalog_classification_id`, `supply_unit`, `estimated_quantity`, `unit_value`, `total_value`, `desired_date`, `pdm_code`, `category_name`
 - **Notable indexes**: `desired_date`, description FTS
 - **Purpose**: Itemized plans (used by proactive matching and supplier forecasting).
+
+## Radar (Future Opportunities, Cycle 24)
+
+### `plan_item_embeddings`
+Pgvector embeddings for PCA items (same model and dimensions as `procurement_embeddings`).
+- **Key**: `(plan_id, item_number)` compound, FK to `procurement_plan_items` (ON DELETE CASCADE)
+- **Notable columns**: `model` (embedding model name), `embedding` (vector(1536), pgvector), `embedded_at`
+- **Notable indexes**: HNSW cosine index on `embedding`
+- **Purpose**: Semantic matching between company profile vectors and plan item vectors for Radar relevance scoring.
+
+### `future_opportunities`
+One row per PCA item inside the horizon, scored once globally.
+- **Key**: `id` (BIGSERIAL) PK
+- **Natural key**: `(plan_id, item_number)` UNIQUE
+- **Foreign keys**: `plan_id` → `procurement_plans` (ON DELETE CASCADE); **no FK on item_number** (items are replaced delete+insert on plan update; opportunity must survive that)
+- **Notable columns**: `agency_tax_id` (FK), `state` (resolved from agency_units), `title` (snapshot of plan item description), `pdm_code`, `category_name`, `estimated_value`, `expected_date`, `plan_year`, `opportunity_score` (0–100, will-it-happen), `signals` (JSONB [{code, weight, detail}]), `status` (predicted|procurement_found|expired), `detected_at` (never rewritten; immutable proof of early discovery), `engine_version`
+- **Notable indexes**: `(status, expected_date)`, `agency_tax_id`, `state`, description FTS
+- **Purpose**: Proactive opportunity discovery (supplier sees planned procurements before tenders published). One opportunity = one PCA item, traceable evidence.
+
+### `future_opportunity_matches`
+Per-company relevance scores against opportunities (deterministic match, no history).
+- **Key**: `(company_id, future_opportunity_id)` compound, both FKs
+- **Notable columns**: `match_score` (0–100, company fit), `reasons` (JSONB [{code, weight, detail}] — term FTS, semantic, state, value, exclusions), `engine_version`, `computed_at`
+- **Notable indexes**: `(company_id, match_score DESC)`
+- **Purpose**: Persisted per-company relevance (latest state only; rewrites on rerun). Minimum match_score 40 to persist (RADAR_MATCH_MIN).
+
+### `future_opportunity_actions`
+Saved / ignored state per company × opportunity (user actions).
+- **Key**: `(company_id, future_opportunity_id)` compound, both FKs
+- **Notable columns**: `state` (saved|ignored), `user_id` (FK, NULL if company action), `created_at`, `updated_at`
+- **Notable indexes**: `company_id` (filter by state)
+- **Purpose**: User's save/ignore choice; persisted across sessions. "Found" in /radar list filtered by state.
+
+### `future_opportunity_analyses`
+Cached "Analyze with AI" results (one per company × opportunity, ever).
+- **Key**: `id` (BIGSERIAL) PK
+- **Notable columns**: `company_id` (FK), `future_opportunity_id` (FK), `model` (LLM model name), `content` (JSONB {why_it_may_happen, company_fit, preparation[]}), `created_at`
+- **Notable indexes**: `(company_id, future_opportunity_id)` UNIQUE
+- **Purpose**: On-demand AI analysis (why it may happen, compatibility, preparation steps). Rate-limited: `LIXTO_RADAR_ANALYSIS_DAILY_CAP` per company per day. Zero LLM spend for unopened items.
 
 ## Contracts
 

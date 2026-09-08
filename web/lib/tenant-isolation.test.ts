@@ -19,6 +19,13 @@ import {
   buildInsertDocument,
   type NewDocument,
 } from "./document-queries";
+import {
+  buildPruneRadarMatchesQuery,
+  buildRadarCandidateQuery,
+  buildUpsertRadarMatchesQuery,
+  type RadarProfile,
+} from "./radar-match-queries";
+import { buildClearRadarAction, buildSetRadarAction } from "./radar-detail-queries";
 
 const COMPANY_ID = 42;
 const USER_ID = 1;
@@ -119,6 +126,55 @@ describe("Tenant isolation - all builders bind company_id", () => {
 
     // INSERT uses column list: (company_id, ...)
     expect(text).toContain("company_id");
+    expect(values[0]).toBe(COMPANY_ID);
+  });
+
+  it("buildRadarCandidateQuery binds company_id as $1", () => {
+    const profile: RadarProfile = {
+      terms: ["lapis"],
+      exclusion_terms: [],
+      states: [],
+      min_value: null,
+      max_value: null,
+      size: "ME",
+      embedding: null,
+    };
+    const { text, values } = buildRadarCandidateQuery(COMPANY_ID, profile);
+
+    expect(text).toContain("$1::bigint AS company_id");
+    expect(values[0]).toBe(COMPANY_ID);
+  });
+
+  it("buildUpsertRadarMatchesQuery binds company_id as $1", () => {
+    const { text, values } = buildUpsertRadarMatchesQuery(COMPANY_ID, [
+      { id: 7, score: 80, reasons: [{ code: "term_text", weight: 40, detail: "x" }] },
+    ]);
+
+    expect(text).toContain("INSERT INTO future_opportunity_matches");
+    expect(text).toContain("($1,");
+    expect(values[0]).toBe(COMPANY_ID);
+  });
+
+  it("buildPruneRadarMatchesQuery binds company_id as $1", () => {
+    const { text, values } = buildPruneRadarMatchesQuery(COMPANY_ID, [7, 8]);
+
+    expect(text).toContain("m.company_id = $1");
+    expect(values[0]).toBe(COMPANY_ID);
+    expect(values[1]).toEqual([7, 8]);
+  });
+
+  it("buildSetRadarAction verifies ownership and binds company_id as $1", () => {
+    const { text, values } = buildSetRadarAction(COMPANY_ID, 171, USER_ID, "saved");
+
+    expect(text).toContain("m.company_id = $1");
+    expect(text).toContain("WHERE fo.id = $2");
+    expect(values[0]).toBe(COMPANY_ID);
+  });
+
+  it("buildClearRadarAction binds company_id as $1", () => {
+    const { text, values } = buildClearRadarAction(COMPANY_ID, 171);
+
+    expect(/company_id\s*=\s*\$\d/.test(text)).toBe(true);
     expect(values[0]).toBe(COMPANY_ID);
   });
 });

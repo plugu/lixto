@@ -1,11 +1,12 @@
 """Thin sync HTTP client for the web app's internal batch endpoints.
 
 The scoring/recommendation/email logic lives once, in the web app (tickets
-90/91/113): `POST /api/internal/match/run`, `POST /api/internal/recommend/run`,
-`POST /api/internal/email/send`, `POST /api/internal/email/digest` and
-`POST /api/internal/email/bounces`, authenticated with a shared secret header
-`x-lixto-internal-token`. The CLI (`lixto match run`, `lixto recommend run`,
-`lixto email worker`, `lixto email digest`, `lixto email bounces`) is a thin
+90/91/113/124): `POST /api/internal/match/run`, `POST /api/internal/recommend/run`,
+`POST /api/internal/email/send`, `POST /api/internal/email/digest`,
+`POST /api/internal/email/bounces` and `POST /api/internal/radar/run`,
+authenticated with a shared secret header `x-lixto-internal-token`. The CLI
+(`lixto match run`, `lixto recommend run`, `lixto email worker`,
+`lixto email digest`, `lixto email bounces`, `lixto radar run`) is a thin
 trigger so operators and Dokploy schedules keep a single CLI surface — no
 scoring/rendering/SMTP in Python.
 
@@ -16,6 +17,7 @@ Contract:
   - email worker: `{"limit"?: int}`
   - email digest: `{"companyId"?: int}`
   - email bounces: `{}`
+  - radar run: `{"companyId"?: int}`
 - response: `200` with the parsed JSON counters, or a non-2xx (401 on a bad
   token, 500 `{"error": ...}` on failure) — surfaced as `InternalApiError`.
 """
@@ -122,3 +124,14 @@ class InternalApi:
         never a caller-supplied path.
         """
         return self._post("/api/internal/email/bounces", {})
+
+    def radar_run(self, *, company_id: int | None = None) -> dict[str, Any]:
+        """`POST /api/internal/radar/run` → detects future opportunities from
+        the PCA horizon and expires stale ones (ticket 124):
+        `{runId, opportunities, expired}` today; ticket 126 adds `companies`
+        and `matched` (per-company scoring) to the same response.
+        """
+        body: dict[str, Any] = {}
+        if company_id is not None:
+            body["companyId"] = company_id
+        return self._post("/api/internal/radar/run", body)

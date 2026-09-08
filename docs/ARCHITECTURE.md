@@ -171,6 +171,71 @@ Every newly enriched procurement is automatically evaluated against every compan
 - **Visibility**: Dismissed opportunities hidden from digest; chat tools (`list_opportunities`, `explain_opportunity`) expose same data
 - **Single scoring**: Match engine used by both batch and conversational (no duplication)
 
+## Future Procurement Radar (Cycle 24)
+
+Proactive surface of planned public purchases (PCA items) before the tender is published. One opportunity = one PCA item.
+
+### Pipeline
+
+```
+lixto plans sync (watermarked, incremental)
+  ↓
+procurement_plans + procurement_plan_items
+  ↓
+lixto plans embed (backfill embeddings for in-horizon items)
+  ↓
+plan_item_embeddings (pgvector, 1536 dims)
+  ↓
+lixto radar run (detect → score opportunity → expire stale → per-company match)
+  ↓
+future_opportunities (detected, scored once globally)
+  ↓
+future_opportunity_matches (per-company relevance, scored per profile)
+  ↓
+/radar UI (list, filter by state/period/value/min score, detail view with analysis)
+```
+
+### Opportunity Scoring
+
+**Two separate scores** (PRODUCT.md):
+
+1. **Opportunity score** (0–100, "will it happen?"): Pure PCA data (item existence, date proximity, plan recency). No LLM.
+   - Base `pca_item` weight (default 50): item exists in a published plan
+   - `date_near` (0–90 days ahead; default weight 30)
+   - `date_mid` (90–180 days ahead; default weight 15)
+   - `recent_plan_update` (within 60 days; default weight 20)
+   - Weights from `LIXTO_RADAR_WEIGHT_*` env vars; final score clamped 0–100
+
+2. **Company match score** (0–100, "does it fit?"): Deterministic profile × item signals. No LLM per item.
+   - Profile `terms` FTS on item title
+   - Profile exclusion terms (negative)
+   - Profile `states` vs agency state
+   - Profile value band (min/max) vs estimated value
+   - Cosine similarity (profile embedding vs plan-item embedding, same model as procurements)
+   - Minimum 40 to persist in `future_opportunity_matches`
+
+**Deterministic "why"**: Signals always rendered from structured list (code + weight + detail). No LLM guessing.
+
+**On-demand AI**: "Analyze with AI" calls LLM once per opportunity×company (why it may happen, compatibility, preparation steps), cached in `future_opportunity_analyses`. Zero LLM spend for unopened items. Rate-limited: `LIXTO_RADAR_ANALYSIS_DAILY_CAP` (default 20) per company per day. Model: `LIXTO_RADAR_ANALYSIS_MODEL` (falls back to `LIXTO_RECOMMEND_MODEL`, then `gpt-5.1`).
+
+### Horizon
+
+Items included in the Radar are those whose desired date is on or after today and no later than `LIXTO_RADAR_HORIZON_DAYS` ahead (default 365). Items past their desired date or removed from the plan are marked `status = 'expired'` and hidden from the list. `detected_at` is never rewritten — it is the evidence that Lixto saw this purchase before the tender existed.
+
+### UI & Routes
+
+- **`/radar`**: List opportunities, filter by state (predicted/expired), period (1m/3m/6m/1y), value band, min score. Cards show title, agency, estimated value, desired date, opportunity score + top signals, company match score (for logged-in user's company).
+- **`/radar/[id]`**: Detail view. Agency, PCA item, value, quantity, date, PDM code/classification. Opportunity signals and company match reasons. "Analyze with AI" button + cached analysis. Save / ignore action.
+- **Note**: `notFound()` responses stream as HTTP 200 because of `app/loading.tsx`; the not-found UI still renders.
+
+### Status Lifecycle
+
+- `predicted`: Detected in horizon (initial state)
+- `procurement_found`: V2 linker found the corresponding tender (procurement exists in PNCP)
+- `expired`: Desired date passed or item removed from plan
+
+`detected_at` is immutable and serves as the ground truth for "found N days before publication" analytics.
+
 ## Transactional email
 
 **Model**: Persisted outbox (idempotent, never lose or duplicate mail). Every send enqueued in the same transaction as the business event; worker drains queue with bounded retries and exponential backoff.

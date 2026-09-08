@@ -4,30 +4,32 @@ routing_profile: cloud
 parallel_default: sequential
 ---
 
-# Lixto — AI Tender Analysis, V1 (cycle 25)
+# Lixto — Future Procurement Radar, MVP V1 (cycle 24)
 
 ## What / why
-Today's enrichment is a shallow index built from at most two edital PDFs: enough to match and search, not to decide. Users still read 150 pages to learn what disqualifies them and what failure costs. V1 replaces that pass with one deep, cited, company-agnostic dossier per procurement answering "what must I know before deciding?" from the documents alone. Company fit stays a separate, later step.
+Lixto today is reactive: it finds procurements already published on PNCP. The Radar surfaces public purchases that are *likely to happen* before the notice exists, so a supplier can quote, stock, and get compliant ahead of competitors. V1 tests one hypothesis — "users value seeing planned public purchases before the tender is published" — using only PNCP Annual Procurement Plans (PCA) matched against the company profile.
 
 Repo facts that shape V1:
-- **One pass replaces `enrich run`.** New worker `lixto analyze run` writes `procurement_enrichments` + facet tables exactly as today (match engine, semantic search, recommend, digest untouched; payload `schema_version` 2.0) **and** new dossier tables. Old worker, prompt and `enrich-run` schedule are deleted. `enrich embed` stays.
-- **New tables, never altered old ones (ADR 001).** Migration adds: `tender_analyses` (one per procurement, `version`, `status`, `model`, `document_set_hash`, executive summary, key facts, overall risk), `tender_analysis_facts` (basic + commercial fields), `tender_analysis_dates`, `tender_analysis_requirements` (category incl. specification/guarantee, mandatory, severity), `tender_analysis_penalties`, `tender_analysis_risks` (risk, red flag, contradiction, amendment), `tender_analysis_missing`, `analysis_jobs`, and `procurement_document_pages` (per-page text). Items stay the PNCP-structured `procurement_items` (already on the page); the LLM only flags restrictive specifications. Every fact row carries `(document sequence, page)` citations and `confidence` in {high, medium, low}.
-- **All active PDFs, page-level text.** Extraction covers every active PDF (edital, TR, anexos, minuta); byte cap `LIXTO_ANALYZE_MAX_BYTES` (default 60 MB), prompt cap `LIXTO_ANALYZE_MAX_CHARS`. Doc tier model. DOCX/XLSX/HTML deferred. Documents are fed newest-last with publication dates so amendments override; the dossier flags changed requirements.
-- **Fact vs inference vs missing.** Structured LLM output, schema-validated before persisting. Each statement is `fact` (must cite), `inference` (must say why), or the field goes to *missing*. Never invents values; never claims illegality, only "may deserve legal review".
-- **Two entry points, one worker.** Cron analyses the fenced set under the global daily cap. An **"Analisar com IA"** button on any open procurement without a dossier enqueues a job (`analysis_jobs` row, web polls), capped per company by `LIXTO_ANALYZE_USER_DAILY_CAP` (default 10). Re-run only when the document set hash changes (`version` increments).
-- **UI = detail page.** `EnrichmentPanel` becomes the dossier: header card (object, value, method, deadline with urgency, overall risk), then sections: resumo, itens, prazos, participação e habilitação (legal, fiscal, econômica, técnica), especificações restritivas, condições comerciais (entrega, pagamento, reajuste), garantias, penalidades, riscos e alertas, contradições, informações ausentes. Citations link to the PNCP document URL + page. Portuguese copy.
+- PCA ingestion already exists (`lixto plans sync` → `procurement_plans` / `procurement_plan_items`, with `desired_date`, values, PDM/catalog codes, Portuguese FTS). The `plans-sync` Dokploy schedule is disabled; V1 enables it (daily) and adds nothing to that pipeline beyond an embedding backfill for plan items.
+- Cycle-18 tables are never altered (ADR 001). Radar state lives in **new tables** in a new migration: a future-opportunity row per PCA item, its signals (`[{code, weight, detail}]`, same shape as `matches.reasons`), a per-company match row, and per-company actions (saved / ignored) plus the cached AI analysis.
+- **One opportunity = one PCA item.** Traceable evidence, no clustering logic. Grouping by agency+PDM is V2.
+- **Two separate scores.** *Opportunity score* (0–100, will-it-happen): PCA-only in V1 — `PCA_ITEM` base + `DATE_APPROACHING` (desired date within horizon) + `RECENT_PLAN_UPDATE`; weights from env (`LIXTO_RADAR_WEIGHT_*`), defaults documented. *Company match score* (0–100): deterministic — profile `terms`/`exclusion_terms` FTS on item description, `states` vs agency state, `min/max_value` band, plus cosine similarity between profile embedding and a new plan-item embedding (same embed pipeline as procurements). **No LLM per item.**
+- **Deterministic "why", on-demand AI.** "Why are we showing this?" is always rendered from the signal list. "Analyze with AI" calls the LLM once per opportunity×company (why it may happen / compatibility / what to prepare), result cached; zero LLM spend for unopened items. Copy must say *likely / estimated / possible* — never a confirmed fact.
+- **Validation deferred, but not lost.** Each opportunity row carries `detected_at` and `status` (`predicted` now; `procurement_found` / `expired` set by a V2 linker), so "found N days before publication" is computable retroactively over V1 data.
+- Horizon: items whose `desired_date` is today or later (or null) and plan `year` ≥ current year. Items past their desired date age out of the list.
 
 ## Primary user story
-As a Lixto user on a procurement page, I click "Analisar com IA" (or find it done) and within minutes read a cited dossier of what is bought, every requirement that can disqualify me, every deadline, penalty and guarantee, plus contradictions and gaps across documents, so I decide whether to prepare a bid without reading the package myself.
+As a Lixto user whose company profile is filled in, I open **Radar** and see planned public purchases matched to what I sell, ranked by score, each explaining exactly which PCA item, agency, date and value it rests on — so I can prepare for the tender weeks or months before it is published.
 
 ## Out of scope
-- Company match, compliance matrix, documentation readiness, bid score, bid/no-bid verdict (V2; deterministic match + GO/NO-GO stay as they are)
-- Per-procurement Q&A / chat (V2, with company data)
-- DOCX, XLSX, HTML inputs; user-uploaded documents
-- Historical prices, competitors, previous winners (V3)
-- In-app PDF viewer (citation opens PNCP URL + page)
-- Dossier in digest email; amendment alerts
-- Any ML model; any autonomous bidding, pricing or legal action
+- Historical-pattern, expiring-contract, price-registration signals (V2/V3)
+- Prediction linker / `procurement_found` transitions and lead-time badge (V2; only `detected_at`+`status` columns ship now)
+- Clustering items into agency-level opportunities
+- Price intelligence, competitor/winner analysis, preparation workflows
+- Alerts, notes, follow, 👍/👎 feedback, digest-email inclusion
+- Radar dashboard tiles / product metrics
+- Any LLM classification of PCA items; any ML model
+- Fencing PCA ingestion (stays nationwide as today)
 
 ## Success demo
-Done when I can open a multi-PDF open procurement on prod, click "Analisar com IA", watch the job finish, and read a Portuguese dossier (items, dates, qualification, penalties, guarantees, risks, contradictions, missing info) where each fact has a clickable document+page citation, while semantic search, `/opportunities` matching and `recommend-run` still work, and `lixto analyze run` fills facets + dossier for the fenced set under the daily cap.
+Done when I can log in as a company with a profile, open `/radar`, see PCA-derived future opportunities matched to my profile ranked by score, filter by state / period / value / min score, open one and see its evidence (agency, PCA item, desired date, estimated value, PNCP link) plus the deterministic "why" and an "Analyze with AI" result, then save or ignore it and find that choice persisted on reload — all on prod data after `lixto plans sync` and the new radar CLI job have run.

@@ -110,6 +110,14 @@ Opens at `http://localhost:3000`. Routes:
 | `LIXTO_IBGE_CNAE_URL` | CNAE seed source | `https://concla.ibge.gov.br/export/tabelas/ascii/subclasses.txt` |
 | `LIXTO_MIN_REQUEST_INTERVAL` | Seconds between PNCP requests | `0.5` |
 | `UPLOADS_DIR` | Document storage path | `./uploads` (dev), `/app/uploads` (prod) |
+| `LIXTO_RADAR_HORIZON_DAYS` | Days into the future to scan for planned procurements | `365` |
+| `LIXTO_RADAR_EMBED_LIMIT` | Max plan items to embed per run; 0/unset = unlimited | `0` |
+| `LIXTO_RADAR_WEIGHT_PCA_ITEM` | Opportunity score weight: item exists in a plan | `50` |
+| `LIXTO_RADAR_WEIGHT_DATE_NEAR` | Opportunity score weight: desired date ≤90 days ahead | `30` |
+| `LIXTO_RADAR_WEIGHT_DATE_MID` | Opportunity score weight: desired date 90–180 days ahead | `15` |
+| `LIXTO_RADAR_WEIGHT_RECENT_UPDATE` | Opportunity score weight: plan updated within 60 days | `20` |
+| `LIXTO_RADAR_ANALYSIS_MODEL` | LLM for on-demand Radar opportunity analysis (falls back to `LIXTO_RECOMMEND_MODEL`) | — |
+| `LIXTO_RADAR_ANALYSIS_DAILY_CAP` | Max AI analyses per company per day; 0 = unlimited | `20` |
 
 ## CLI Commands
 
@@ -134,6 +142,10 @@ Opens at `http://localhost:3000`. Routes:
 
 ### Embeddings
 - `lixto enrich embed [--limit N]` — Backfill pgvector embeddings for semantic search; `/procurements` search supports free-text semantic matching (in addition to keyword search).
+
+### Plans & Radar (Future Procurement Discovery)
+- `lixto plans embed [--limit N]` — Backfill embeddings for in-horizon PCA items (prerequisite for Radar).
+- `lixto radar run [--company-id N]` — Detect future opportunities from the PCA horizon, expire stale ones, and score each company profile against surviving predictions (POST `/api/internal/radar/run` on the web app).
 
 ### Proactive Agent Loop
 - `lixto match run [--company-id N] [--since YYYY-MM-DD]` — Score procurements enriched since the last run against every company profile/CNAEs, persist `matches` and upsert `opportunities` (POST `/api/internal/match/run` on the web app).

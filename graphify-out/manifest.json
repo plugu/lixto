@@ -1,1262 +1,1406 @@
 {
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/migrations/003_email.sql": {
-    "mtime": 1788827120.068377,
+  "/Users/aazevedo/dev/plataforma-licitante/migrations/003_email.sql": {
+    "mtime": 1788437633.0424895,
     "hash": "502c2cf770ec1cafa0de95f743390721"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/migrations/002_document_texts_ocr.sql": {
-    "mtime": 1788827120.0680265,
+  "/Users/aazevedo/dev/plataforma-licitante/migrations/002_document_texts_ocr.sql": {
+    "mtime": 1787958275.222073,
     "hash": "953b181358e2d685df97d3459cd145ae"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/migrations/004_email_bounce_indexes.sql": {
-    "mtime": 1788827120.0685534,
+  "/Users/aazevedo/dev/plataforma-licitante/migrations/005_radar.sql": {
+    "mtime": 1788873597.1562374,
+    "hash": "3d0afba3419b83b4afc283c62a32b48d"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/migrations/004_email_bounce_indexes.sql": {
+    "mtime": 1788446828.5533922,
     "hash": "ed73d3bd0edccdb7c7daa10a01101d33"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/migrations/006_tender_analysis.sql": {
-    "mtime": 1788832125.3724818,
+  "/Users/aazevedo/dev/plataforma-licitante/migrations/006_tender_analysis.sql": {
+    "mtime": 1788873596.9238005,
     "hash": "55d8aab16be190285400dd25506da3bf"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/migrations/001_core.sql": {
-    "mtime": 1788827120.0677912,
+  "/Users/aazevedo/dev/plataforma-licitante/migrations/001_core.sql": {
+    "mtime": 1787691785.910057,
     "hash": "9fb4d9e6c2c40263a8354e094ae2b8fb"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/postcss.config.mjs": {
-    "mtime": 1788827120.130815,
+  "/Users/aazevedo/dev/plataforma-licitante/web/postcss.config.mjs": {
+    "mtime": 1786072360.2634294,
     "hash": "239f3ebf717465dc636818a1a619398d"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/next-env.d.ts": {
-    "mtime": 1788828224.9525106,
+  "/Users/aazevedo/dev/plataforma-licitante/web/next-env.d.ts": {
+    "mtime": 1788830864.1956267,
     "hash": "8195d2c60ce847a459ae9d308d6a5724"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/proxy.ts": {
-    "mtime": 1788827120.1310275,
+  "/Users/aazevedo/dev/plataforma-licitante/web/proxy.ts": {
+    "mtime": 1788440849.1148896,
     "hash": "be353f80cb8136f9a63967340923de07"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/vitest.config.ts": {
-    "mtime": 1788827120.1324983,
+  "/Users/aazevedo/dev/plataforma-licitante/web/vitest.config.ts": {
+    "mtime": 1787701855.041631,
     "hash": "bc81397497601c2992b127c19c844e41"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/eslint.config.mjs": {
-    "mtime": 1788827120.1137264,
+  "/Users/aazevedo/dev/plataforma-licitante/web/eslint.config.mjs": {
+    "mtime": 1786072360.2632425,
     "hash": "dfa1f5f6a7037bf39dc510f30b180002"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/next.config.ts": {
-    "mtime": 1788827120.128117,
+  "/Users/aazevedo/dev/plataforma-licitante/web/next.config.ts": {
+    "mtime": 1787367030.0270371,
     "hash": "091e8a6ed94a04e7e9b441738c48acfc"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/app/layout.tsx": {
-    "mtime": 1788827120.1014202,
+  "/Users/aazevedo/dev/plataforma-licitante/web/app/layout.tsx": {
+    "mtime": 1787696917.7297175,
     "hash": "98f4e9421d2b6e73c4847d895fdb32f6"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/app/error.tsx": {
-    "mtime": 1788827120.100908,
+  "/Users/aazevedo/dev/plataforma-licitante/web/app/error.tsx": {
+    "mtime": 1787662500.885339,
     "hash": "119404df1f56575367cb3af78cf638af"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/app/loading.tsx": {
-    "mtime": 1788827120.1016412,
+  "/Users/aazevedo/dev/plataforma-licitante/web/app/loading.tsx": {
+    "mtime": 1787662507.5466294,
     "hash": "ab6764bf9f00b6db6902d9f44f3d6373"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/app/page.tsx": {
-    "mtime": 1788827120.102255,
+  "/Users/aazevedo/dev/plataforma-licitante/web/app/page.tsx": {
+    "mtime": 1787672440.761427,
     "hash": "d8b1f9e2fc92771c63ad8cf12ec3401b"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/app/not-found.tsx": {
-    "mtime": 1788827120.10183,
+  "/Users/aazevedo/dev/plataforma-licitante/web/app/not-found.tsx": {
+    "mtime": 1787662504.241675,
     "hash": "d8ef7a3b802bac5ffa66add382e10209"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/app/(app)/layout.tsx": {
-    "mtime": 1788827120.0970814,
+  "/Users/aazevedo/dev/plataforma-licitante/web/app/(app)/layout.tsx": {
+    "mtime": 1787693267.7864287,
     "hash": "4da4e8872d457cef38407f7dfe39e895"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/app/(app)/opportunities/actions.ts": {
-    "mtime": 1788827120.097993,
+  "/Users/aazevedo/dev/plataforma-licitante/web/app/(app)/opportunities/actions.ts": {
+    "mtime": 1788535152.6973968,
     "hash": "19d7a85006395f21387d125ad70c9ba9"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/app/(app)/opportunities/page.tsx": {
-    "mtime": 1788827120.0982578,
+  "/Users/aazevedo/dev/plataforma-licitante/web/app/(app)/opportunities/page.tsx": {
+    "mtime": 1787711708.9294863,
     "hash": "8b5f3dbba9953bd4720c59f1fab4343e"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/app/(app)/signup/actions.ts": {
-    "mtime": 1788827120.0989842,
+  "/Users/aazevedo/dev/plataforma-licitante/web/app/(app)/signup/actions.ts": {
+    "mtime": 1788535153.8290248,
     "hash": "0a2afb368458c3f1ef5c3a3fc095b8b6"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/app/(app)/signup/page.tsx": {
-    "mtime": 1788827120.099137,
+  "/Users/aazevedo/dev/plataforma-licitante/web/app/(app)/signup/page.tsx": {
+    "mtime": 1787693267.7869313,
     "hash": "868e048dea357c84f80ee6cede6106ff"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/app/(app)/logout/route.ts": {
-    "mtime": 1788827120.0977716,
+  "/Users/aazevedo/dev/plataforma-licitante/web/app/(app)/logout/route.ts": {
+    "mtime": 1787419341.5841374,
     "hash": "ecb8ed5abaa94f073d39c445a7646c08"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/app/(app)/dashboard/page.tsx": {
-    "mtime": 1788827120.0959022,
+  "/Users/aazevedo/dev/plataforma-licitante/web/app/(app)/dashboard/page.tsx": {
+    "mtime": 1787711708.928782,
     "hash": "53c2fa351c943598d6062984c44ba651"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/app/(app)/invite/[token]/actions.ts": {
-    "mtime": 1788827120.0964944,
+  "/Users/aazevedo/dev/plataforma-licitante/web/app/(app)/invite/[token]/actions.ts": {
+    "mtime": 1787701842.06002,
     "hash": "6a4a3712b93f697db82edfdb8a8c4b6a"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/app/(app)/invite/[token]/page.tsx": {
-    "mtime": 1788827120.096702,
+  "/Users/aazevedo/dev/plataforma-licitante/web/app/(app)/invite/[token]/page.tsx": {
+    "mtime": 1787701842.0537515,
     "hash": "e6654d1876ab2f99d2b4bdc52e05d4e7"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/app/(app)/procurement/[sourceId]/actions.ts": {
-    "mtime": 1788833698.7381687,
+  "/Users/aazevedo/dev/plataforma-licitante/web/app/(app)/procurement/[sourceId]/actions.ts": {
+    "mtime": 1788873596.9307773,
     "hash": "e1397a7f046a2f82364c03899df8ce5f"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/app/(app)/procurement/[sourceId]/page.tsx": {
-    "mtime": 1788833999.4992235,
+  "/Users/aazevedo/dev/plataforma-licitante/web/app/(app)/procurement/[sourceId]/page.tsx": {
+    "mtime": 1788873596.9311252,
     "hash": "7923426ae02fd20154f19543eff6df40"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/app/(app)/procurements/page.tsx": {
-    "mtime": 1788827120.0987709,
+  "/Users/aazevedo/dev/plataforma-licitante/web/app/(app)/procurements/page.tsx": {
+    "mtime": 1787740882.6832643,
     "hash": "244daf159f79cf1c8f1de50155a174a9"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/app/(app)/login/actions.ts": {
-    "mtime": 1788827120.0972903,
+  "/Users/aazevedo/dev/plataforma-licitante/web/app/(app)/radar/page.tsx": {
+    "mtime": 1788873597.1592915,
+    "hash": "83856f0884976dc4521f4ba53aaf4903"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/app/(app)/radar/[id]/analyze-action.ts": {
+    "mtime": 1788873597.1588871,
+    "hash": "be4314b59b98e3a0af18eea1cd349baa"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/app/(app)/radar/[id]/actions.ts": {
+    "mtime": 1788873597.1587923,
+    "hash": "a1cf60c03fd368c8caa2ab462777993d"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/app/(app)/radar/[id]/page.tsx": {
+    "mtime": 1788873597.1590748,
+    "hash": "cd68a422aeb1faf5703b881b8783b477"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/app/(app)/login/actions.ts": {
+    "mtime": 1787701842.0818207,
     "hash": "eb4f9838bbf933f059a6b89ea4e1cf40"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/app/(app)/login/page.tsx": {
-    "mtime": 1788827120.097511,
+  "/Users/aazevedo/dev/plataforma-licitante/web/app/(app)/login/page.tsx": {
+    "mtime": 1787701842.07681,
     "hash": "8287b302d41cf45f961bc2baee8d2484"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/app/(app)/email/unsubscribe/route.ts": {
-    "mtime": 1788827120.0961986,
+  "/Users/aazevedo/dev/plataforma-licitante/web/app/(app)/email/unsubscribe/route.ts": {
+    "mtime": 1788440849.1139238,
     "hash": "738b690ffef1d4e329597d642c85d666"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/app/(app)/company/actions.ts": {
-    "mtime": 1788827120.093747,
+  "/Users/aazevedo/dev/plataforma-licitante/web/app/(app)/company/actions.ts": {
+    "mtime": 1787703554.6130211,
     "hash": "26d31f85dcf372930696076449661fd5"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/app/(app)/company/page.tsx": {
-    "mtime": 1788827120.0946949,
+  "/Users/aazevedo/dev/plataforma-licitante/web/app/(app)/company/page.tsx": {
+    "mtime": 1787695721.3855214,
     "hash": "d89b6db515775fe37b31dacef4b72308"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/app/(app)/company/profile/actions.ts": {
-    "mtime": 1788827120.0951166,
+  "/Users/aazevedo/dev/plataforma-licitante/web/app/(app)/company/profile/actions.ts": {
+    "mtime": 1787695721.3856456,
     "hash": "dfa1b55a7e21549e9bc761f7b5b0a8e1"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/app/(app)/company/profile/page.tsx": {
-    "mtime": 1788827120.0952895,
+  "/Users/aazevedo/dev/plataforma-licitante/web/app/(app)/company/profile/page.tsx": {
+    "mtime": 1787695721.3857417,
     "hash": "9ff1df4663db25835127ca513c8faa0c"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/app/(app)/company/users/actions.ts": {
-    "mtime": 1788827120.0955064,
+  "/Users/aazevedo/dev/plataforma-licitante/web/app/(app)/company/users/actions.ts": {
+    "mtime": 1788441167.6336598,
     "hash": "235cb086016317234b715da5f742b7a6"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/app/(app)/company/users/page.tsx": {
-    "mtime": 1788827120.0956035,
+  "/Users/aazevedo/dev/plataforma-licitante/web/app/(app)/company/users/page.tsx": {
+    "mtime": 1787695721.385859,
     "hash": "ded6837943cb1bad03f3458c2a24c4ce"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/app/(app)/company/documents/actions.ts": {
-    "mtime": 1788827120.0942237,
+  "/Users/aazevedo/dev/plataforma-licitante/web/app/(app)/company/documents/actions.ts": {
+    "mtime": 1787693267.7856479,
     "hash": "f3902094c79cccefed32fe0e66b2898c"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/app/(app)/company/documents/page.tsx": {
-    "mtime": 1788827120.094527,
+  "/Users/aazevedo/dev/plataforma-licitante/web/app/(app)/company/documents/page.tsx": {
+    "mtime": 1787695721.3852873,
     "hash": "521845966506bbe59b279a2537ed3389"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/app/(app)/company/documents/[id]/download/route.ts": {
-    "mtime": 1788827120.0940142,
+  "/Users/aazevedo/dev/plataforma-licitante/web/app/(app)/company/documents/[id]/download/route.ts": {
+    "mtime": 1787693267.7855334,
     "hash": "e0a42b7028b64bbca0dbbed6c197e371"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/app/api/internal/recommend/run/route.ts": {
-    "mtime": 1788827120.1006794,
+  "/Users/aazevedo/dev/plataforma-licitante/web/app/api/internal/recommend/run/route.ts": {
+    "mtime": 1787711195.4438605,
     "hash": "4753b3e6540b7c03fbfa23f7e20b3261"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/app/api/internal/match/run/route.ts": {
-    "mtime": 1788827120.1003683,
+  "/Users/aazevedo/dev/plataforma-licitante/web/app/api/internal/match/run/route.ts": {
+    "mtime": 1787710735.033629,
     "hash": "fcbdfb085d79fd6ae187c2061c4d63a5"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/app/api/internal/email/digest/route.test.ts": {
-    "mtime": 1788827120.0996258,
+  "/Users/aazevedo/dev/plataforma-licitante/web/app/api/internal/radar/run/route.ts": {
+    "mtime": 1788873597.1596475,
+    "hash": "04dc797fd2086863f61bc4b4b891fa40"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/app/api/internal/email/digest/route.test.ts": {
+    "mtime": 1788440849.1917686,
     "hash": "a9ef2237a456ecf9c744b4013a0a76b2"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/app/api/internal/email/digest/route.ts": {
-    "mtime": 1788827120.0998747,
+  "/Users/aazevedo/dev/plataforma-licitante/web/app/api/internal/email/digest/route.ts": {
+    "mtime": 1788438259.4276283,
     "hash": "28ff19d3122d3b6cd11869726d5a81ca"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/app/api/internal/email/bounces/route.ts": {
-    "mtime": 1788827120.0994186,
+  "/Users/aazevedo/dev/plataforma-licitante/web/app/api/internal/email/bounces/route.ts": {
+    "mtime": 1788441577.207736,
     "hash": "65ac7c469c0a9935ca74ab597be3fffb"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/app/api/internal/email/send/route.ts": {
-    "mtime": 1788827120.1000679,
+  "/Users/aazevedo/dev/plataforma-licitante/web/app/api/internal/email/send/route.ts": {
+    "mtime": 1788438089.4889638,
     "hash": "e34fe5f5bd72210e1b2ad63571983c33"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/components/opportunity-feedback.tsx": {
-    "mtime": 1788827120.1095355,
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/opportunity-feedback.tsx": {
+    "mtime": 1787711708.9299116,
     "hash": "94d362b52c51d523cd3bd2ddbabf82b3"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/components/cnae-editor.tsx": {
-    "mtime": 1788827120.1035893,
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/radar-why.tsx": {
+    "mtime": 1788873597.1608236,
+    "hash": "e905c63835a108866eebbf87cdd4648b"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/cnae-editor.tsx": {
+    "mtime": 1787693267.78734,
     "hash": "2d060eeee037f1a7b7265702a596a633"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/components/users-table.tsx": {
-    "mtime": 1788827120.1134403,
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/users-table.tsx": {
+    "mtime": 1787701842.1002107,
     "hash": "48b280bf98ac17ef59e4e7a23ef9faf5"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/components/filters.tsx": {
-    "mtime": 1788827120.105643,
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/filters.tsx": {
+    "mtime": 1787740888.3371353,
     "hash": "7d54471c06777c828150a13b2d3cb164"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/components/analysis-panel.tsx": {
-    "mtime": 1788834081.0484319,
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/analysis-panel.tsx": {
+    "mtime": 1788873596.9312572,
     "hash": "5a182c75e3630207ab28ca28ef4e417f"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/components/company-documents-table.tsx": {
-    "mtime": 1788827120.1038294,
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/radar-card.tsx": {
+    "mtime": 1788873597.1601965,
+    "hash": "37bee6fe857c330c77d72dba4eba087a"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/company-documents-table.tsx": {
+    "mtime": 1787693267.7874565,
     "hash": "711501aeb16cd83d7f0a4c68c12af0fc"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/components/profile-form.tsx": {
-    "mtime": 1788827120.1098871,
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/profile-form.tsx": {
+    "mtime": 1787701842.1093526,
     "hash": "30dc09f850b8e88d72f627c73a48cbd2"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/components/digest-banner.tsx": {
-    "mtime": 1788827120.1044075,
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/digest-banner.tsx": {
+    "mtime": 1787711708.929729,
     "hash": "5a2c379c93980152a7fc350d2b537653"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/components/opportunity-card.tsx": {
-    "mtime": 1788827120.1093254,
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/opportunity-card.tsx": {
+    "mtime": 1787711708.9298306,
     "hash": "f97714a7ba5dc1e48eb5c9aeabffd911"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/components/filter-chips.tsx": {
-    "mtime": 1788827120.1053507,
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/filter-chips.tsx": {
+    "mtime": 1787694301.0241828,
     "hash": "4945e1297f3b8033531f546266952c19"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/components/status-badge.tsx": {
-    "mtime": 1788827120.1104705,
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/status-badge.tsx": {
+    "mtime": 1787695721.3878484,
     "hash": "51071dbdb6b9ce1e77f2db9deced3c4f"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/components/document-upload-form.tsx": {
-    "mtime": 1788827120.1045196,
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/document-upload-form.tsx": {
+    "mtime": 1787693267.787668,
     "hash": "55dce85789b86d871742cc8134e2dfc2"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/components/invite-form.tsx": {
-    "mtime": 1788827120.1058352,
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/invite-form.tsx": {
+    "mtime": 1787701842.0952048,
     "hash": "18c8c56e60b8415b58fe67093815da77"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/components/procurement-card.tsx": {
-    "mtime": 1788827120.1097183,
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/procurement-card.tsx": {
+    "mtime": 1787740886.2633514,
     "hash": "1355b959f50502531387f2bafe89f5ee"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/components/multi-select.tsx": {
-    "mtime": 1788827120.1091373,
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/multi-select.tsx": {
+    "mtime": 1787694301.024866,
     "hash": "55d134e47bb8de650a883f903ac19375"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/components/citation-link.tsx": {
-    "mtime": 1788833900.3513777,
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/citation-link.tsx": {
+    "mtime": 1788873596.9314613,
     "hash": "7dcca9836f94021f21591f76792ec573"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/components/sidebar.tsx": {
-    "mtime": 1788827120.110082,
-    "hash": "956be7adf83ac57ccb9aaca66f433248"
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/sidebar.tsx": {
+    "mtime": 1788873597.1610289,
+    "hash": "3588851b45044ed86ef84f1c5f246029"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/components/items-table.tsx": {
-    "mtime": 1788827120.1059573,
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/items-table.tsx": {
+    "mtime": 1787694301.0245643,
     "hash": "3cdbb03d3e1d5ac6f3f34b3b674028c3"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/components/signup-form.tsx": {
-    "mtime": 1788827120.110247,
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/signup-form.tsx": {
+    "mtime": 1787701842.1048884,
     "hash": "34cf9345ced318f47130dbaafd703ab5"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/components/company-form.tsx": {
-    "mtime": 1788827120.104211,
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/company-form.tsx": {
+    "mtime": 1787701842.0904026,
     "hash": "28f930d845eaa63fdad38da9dd052d43"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/components/documents-list.tsx": {
-    "mtime": 1788827120.1048195,
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/documents-list.tsx": {
+    "mtime": 1787694301.0236828,
     "hash": "5ccfd4300366faac4c8ef9193070d7b9"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/components/analyze-button.tsx": {
-    "mtime": 1788834101.5934398,
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/analyze-button.tsx": {
+    "mtime": 1788873596.9313543,
     "hash": "154b43074bcfa76748f90bc07fcda3e2"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/components/ui/card.tsx": {
-    "mtime": 1788827120.1112506,
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/radar-analysis.tsx": {
+    "mtime": 1788873597.1599956,
+    "hash": "4363a269a78b5351fc577dbc09f695c8"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/radar-actions.tsx": {
+    "mtime": 1788873597.159838,
+    "hash": "9c65b70282995741892b999df932783a"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/ui/card.tsx": {
+    "mtime": 1787592560.3559096,
     "hash": "5e9aa9bdeb5b124d1618125314653690"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/components/ui/popover.tsx": {
-    "mtime": 1788827120.1120822,
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/ui/popover.tsx": {
+    "mtime": 1787527166.7781684,
     "hash": "ed1cb8f03784628b321cd7554b8c0b89"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/components/ui/command-search.tsx": {
-    "mtime": 1788827120.1113453,
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/ui/command-search.tsx": {
+    "mtime": 1787694301.02556,
     "hash": "631913cd657a6aaa22ad5b2d364b22dd"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/components/ui/toolbar.tsx": {
-    "mtime": 1788827120.1129608,
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/ui/toolbar.tsx": {
+    "mtime": 1787537781.053804,
     "hash": "9f4bcc626ad707ba3b202b0b708a40d0"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/components/ui/empty-state.tsx": {
-    "mtime": 1788827120.1115682,
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/ui/empty-state.tsx": {
+    "mtime": 1787527166.7775502,
     "hash": "c85ebd6a17e492ba52053e274ed7f2d2"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/components/ui/section.tsx": {
-    "mtime": 1788827120.1123545,
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/ui/section.tsx": {
+    "mtime": 1787527166.778407,
     "hash": "fe6fec5134c23d7f0e4e89933fbcac71"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/components/ui/status-dot.tsx": {
-    "mtime": 1788827120.11245,
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/ui/status-dot.tsx": {
+    "mtime": 1787527166.7785265,
     "hash": "f7cc90e24c73ccba1fb8497aca0ba21f"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/components/ui/search-box.tsx": {
-    "mtime": 1788827120.1122618,
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/ui/search-box.tsx": {
+    "mtime": 1787537776.1674795,
     "hash": "5cb571db19b0424ded899b06e4473736"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/components/ui/icons.tsx": {
-    "mtime": 1788827120.1117482,
-    "hash": "4b431fa994c1ff3b4858ef26cd379916"
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/ui/icons.tsx": {
+    "mtime": 1788873597.1611824,
+    "hash": "75c83a9f0b548181d43b09b04ae5be2f"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/components/ui/badge.tsx": {
-    "mtime": 1788827120.1108446,
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/ui/badge.tsx": {
+    "mtime": 1787527166.7768118,
     "hash": "4214326a630036a96c53b88d52782506"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/components/ui/table.tsx": {
-    "mtime": 1788827120.1127481,
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/ui/table.tsx": {
+    "mtime": 1787591743.8425405,
     "hash": "2f6fba6e0d996f46bb80c02c93307c90"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/components/ui/button.tsx": {
-    "mtime": 1788827120.1110806,
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/ui/button.tsx": {
+    "mtime": 1787537771.8157907,
     "hash": "c06db36c7b12a9ca3a01669059bdcda6"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/components/ui/top-bar.tsx": {
-    "mtime": 1788827120.1131763,
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/ui/top-bar.tsx": {
+    "mtime": 1788536066.4607837,
     "hash": "48c77dd5b8751599222215fe474182dc"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/components/ui/input.tsx": {
-    "mtime": 1788827120.1119373,
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/ui/input.tsx": {
+    "mtime": 1787527166.7780213,
     "hash": "5eda1d667109cb9c3260edd1b593f97b"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/components/charts/bar-list.tsx": {
-    "mtime": 1788827120.102539,
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/charts/bar-list.tsx": {
+    "mtime": 1787532758.3473384,
     "hash": "09bdf4ae77618209385b954b0db5b646"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/components/charts/daily-line.tsx": {
-    "mtime": 1788827120.1027555,
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/charts/daily-line.tsx": {
+    "mtime": 1787532758.3475862,
     "hash": "7b2d51ce72db7a47c4065d2820c36ce3"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/components/charts/status-stack.tsx": {
-    "mtime": 1788827120.103356,
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/charts/status-stack.tsx": {
+    "mtime": 1787694301.0235627,
     "hash": "91f315f95c0473d0fbce80bb35b63da6"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/components/charts/stat-tile.tsx": {
-    "mtime": 1788827120.1030703,
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/charts/stat-tile.tsx": {
+    "mtime": 1787527166.7721386,
     "hash": "e9d93bc199218cabbf99402360f501a5"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/components/marketing/hero.tsx": {
-    "mtime": 1788827120.1078758,
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/marketing/hero.tsx": {
+    "mtime": 1787672442.9155726,
     "hash": "3e49491aa114f365433aaecc58892ad8"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/components/marketing/fonts.ts": {
-    "mtime": 1788827120.107284,
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/marketing/fonts.ts": {
+    "mtime": 1787662844.2971087,
     "hash": "a2426e4ee44e483f983821053038354e"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/components/marketing/hero-visual.tsx": {
-    "mtime": 1788827120.10761,
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/marketing/hero-visual.tsx": {
+    "mtime": 1787672446.4810739,
     "hash": "87c8f782827e132f104aa660e353d618"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/components/marketing/site-header.tsx": {
-    "mtime": 1788827120.1090162,
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/marketing/site-header.tsx": {
+    "mtime": 1787666238.6677976,
     "hash": "005187fdb0280bc2666769cac6fe31ec"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/components/marketing/agente.tsx": {
-    "mtime": 1788827120.1061842,
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/marketing/agente.tsx": {
+    "mtime": 1787672455.9475229,
     "hash": "5a5ca5fff13a6ce28880b02c552f68ed"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/components/marketing/site-footer.tsx": {
-    "mtime": 1788827120.1088243,
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/marketing/site-footer.tsx": {
+    "mtime": 1787672473.1609178,
     "hash": "ce51b6c57a15a6daa38613068f0ce362"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/components/marketing/preco.tsx": {
-    "mtime": 1788827120.108541,
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/marketing/preco.tsx": {
+    "mtime": 1787672470.4328396,
     "hash": "369120bdded0498b71a94b0f7fa06026"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/components/marketing/brand.tsx": {
-    "mtime": 1788827120.1063786,
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/marketing/brand.tsx": {
+    "mtime": 1788536051.7133608,
     "hash": "2265193d6eadb9a1fda1385e8a86d0be"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/components/marketing/problema.tsx": {
-    "mtime": 1788827120.1086895,
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/marketing/problema.tsx": {
+    "mtime": 1787672463.8725348,
     "hash": "30c4a47486caa234de1304bb86a03da6"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/components/marketing/faq.tsx": {
-    "mtime": 1788827120.1069689,
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/marketing/faq.tsx": {
+    "mtime": 1787672468.4496286,
     "hash": "8a4e2ac4dae83a74fb278a4a35b6b8c2"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/components/marketing/como-funciona.tsx": {
-    "mtime": 1788827120.1065707,
+  "/Users/aazevedo/dev/plataforma-licitante/web/components/marketing/como-funciona.tsx": {
+    "mtime": 1787672462.2422905,
     "hash": "04ddbb4985b0a74be20a6e5355b55ff9"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/company-queries.ts": {
-    "mtime": 1788827120.116118,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/radar-analysis-queries.test.ts": {
+    "mtime": 1788873597.1613793,
+    "hash": "c80ade98d7bf9347a428fe40ee59651b"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/radar-detail-queries.ts": {
+    "mtime": 1788873597.1629553,
+    "hash": "df1702943974a11850f24ffeb5489578"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/company-queries.ts": {
+    "mtime": 1787703554.6148965,
     "hash": "d835915a5f7e38fb36156364f3f46c1a"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/recommendation-queries.test.ts": {
-    "mtime": 1788827120.125721,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/recommendation-queries.test.ts": {
+    "mtime": 1787711195.4443486,
     "hash": "968fe0aefca1d87582f0342926d4098c"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/match-batch.test.ts": {
-    "mtime": 1788827120.1215444,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/match-batch.test.ts": {
+    "mtime": 1787710735.0339549,
     "hash": "9f82c7702523a2c0d604c77c8fbcd214"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/status.ts": {
-    "mtime": 1788827120.1266136,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/radar-match-queries.test.ts": {
+    "mtime": 1788873597.1640728,
+    "hash": "80a5686103a6ce5c6d693ff8cb50f1aa"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/status.ts": {
+    "mtime": 1787695721.392219,
     "hash": "9465d384125c1ec91aabcd33071b46dc"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/cnpj-lookup.test.ts": {
-    "mtime": 1788827120.1155052,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/cnpj-lookup.test.ts": {
+    "mtime": 1787695721.3902605,
     "hash": "34a022d27c8e54e9250b1f936ac08e75"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/tenant-isolation.test.ts": {
-    "mtime": 1788827120.1268618,
-    "hash": "0226f7495dc287db1efbbfa7b093ff4d"
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/tenant-isolation.test.ts": {
+    "mtime": 1788873597.1644006,
+    "hash": "24415841dc826db1e8683a63ecc631e5"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/price-queries.ts": {
-    "mtime": 1788827120.1236603,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/price-queries.ts": {
+    "mtime": 1787694301.0281026,
     "hash": "69eb738b929861ef7722b535b89bcb70"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/internal-auth.ts": {
-    "mtime": 1788827120.1211622,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/internal-auth.ts": {
+    "mtime": 1787710735.0338123,
     "hash": "017be4add0d932b07cc9dacfc102ecae"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/br-validators.test.ts": {
-    "mtime": 1788827120.1151268,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/br-validators.test.ts": {
+    "mtime": 1787419341.5870104,
     "hash": "4fb8716199ce7bf47e72ddc5c0dee030"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/signup-queries.test.ts": {
-    "mtime": 1788827120.1261833,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/radar-detail-queries.test.ts": {
+    "mtime": 1788873597.1627352,
+    "hash": "4efd95d0971302182eaf983d972e2d99"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/signup-queries.test.ts": {
+    "mtime": 1787703554.6150339,
     "hash": "55e1f6cdc5ef345e4526049b1e47ede7"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/analysis-labels.ts": {
-    "mtime": 1788833891.8741536,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/analysis-labels.ts": {
+    "mtime": 1788873596.932323,
     "hash": "45c6ad5d47d3dc948d3d495c40648556"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/auth.test.ts": {
-    "mtime": 1788827120.114732,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/radar-analysis.test.ts": {
+    "mtime": 1788873597.1617837,
+    "hash": "12ea4a0949d6d3aa0480c288d0b269f0"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/radar-analysis.ts": {
+    "mtime": 1788873597.162023,
+    "hash": "c5ea77b5d9db320ecd204dca64d03480"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/radar-engine.ts": {
+    "mtime": 1788873597.1636634,
+    "hash": "17be433646ff92adb6fa44dfa05d8322"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/auth.test.ts": {
+    "mtime": 1787419341.5866132,
     "hash": "4077c97ebbc4c5236f80e1bc858dee32"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/portals.ts": {
-    "mtime": 1788827120.1232414,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/radar-batch.test.ts": {
+    "mtime": 1788873597.1622465,
+    "hash": "e526976ab2dc88adc70e6a22d532c25d"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/portals.ts": {
+    "mtime": 1787694301.0277693,
     "hash": "d49a4085e59e8e8e8cb9f18d888e8897"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/procurement-detail-queries.ts": {
-    "mtime": 1788827120.1238797,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/procurement-detail-queries.ts": {
+    "mtime": 1787694301.0282393,
     "hash": "6b0035acbdc71b491399092326d83e02"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/digest-queries.ts": {
-    "mtime": 1788827120.116992,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/digest-queries.ts": {
+    "mtime": 1787711708.9304156,
     "hash": "2f0c02e30f957913e1562070121e6aa2"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/uploads.ts": {
-    "mtime": 1788827120.1274319,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/uploads.ts": {
+    "mtime": 1787693267.7904432,
     "hash": "4e419f8c4352de681d1badc1650c63b6"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/match-batch.ts": {
-    "mtime": 1788827120.121667,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/match-batch.ts": {
+    "mtime": 1787710735.034052,
     "hash": "9e969957bdea703efe2bffe0a039e3ed"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/format.test.ts": {
-    "mtime": 1788827120.120603,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/format.test.ts": {
+    "mtime": 1787695721.390912,
     "hash": "fa894dbb869a409d16a85871202a1375"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/opportunity-queries.ts": {
-    "mtime": 1788827120.1230724,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/opportunity-queries.ts": {
+    "mtime": 1787710735.0348444,
     "hash": "f1544f86b7df9b99e728003c377854e5"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/recommend.ts": {
-    "mtime": 1788827120.1255083,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/recommend.ts": {
+    "mtime": 1787711195.444232,
     "hash": "f0f7cf007c52082e14e91dd4a0a59b65"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/document-queries.ts": {
-    "mtime": 1788827120.1174521,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/document-queries.ts": {
+    "mtime": 1787693267.789559,
     "hash": "dc335a193723e55ce8e327c91af3ffbe"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/br-validators.ts": {
-    "mtime": 1788827120.1153002,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/br-validators.ts": {
+    "mtime": 1787419341.5871968,
     "hash": "7412cbdc6e6d9ac51517d75b283ce11f"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/digest-queries.test.ts": {
-    "mtime": 1788827120.1167722,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/digest-queries.test.ts": {
+    "mtime": 1787711708.9302092,
     "hash": "aed36ea5c84165dfd5b42be912ce5bcd"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/signup-queries.ts": {
-    "mtime": 1788827120.12637,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/signup-queries.ts": {
+    "mtime": 1788441167.6347673,
     "hash": "bbf511f4ad516c7b2ea0f35aab04b10a"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/opportunity-queries.test.ts": {
-    "mtime": 1788827120.1229548,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/opportunity-queries.test.ts": {
+    "mtime": 1787710735.034708,
     "hash": "39a771a1ddcfed9286e5b5208547c750"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/normalize.test.ts": {
-    "mtime": 1788827120.1226623,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/normalize.test.ts": {
+    "mtime": 1787683578.820449,
     "hash": "5aa78d9f027b606207fbaee2bc649e29"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/cnpj-lookup.ts": {
-    "mtime": 1788827120.1157053,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/cnpj-lookup.ts": {
+    "mtime": 1787695721.3904238,
     "hash": "5320f19dd0c2faa9805a3c629a330f2e"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/profile-queries.ts": {
-    "mtime": 1788827120.1249301,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/profile-queries.ts": {
+    "mtime": 1787695721.3921082,
     "hash": "91ad470e463ec63a7136731241462337"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/types.ts": {
-    "mtime": 1788827120.1270995,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/types.ts": {
+    "mtime": 1787695721.3923342,
     "hash": "b22e71fda4b2fa2d0da26850a5af8875"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/procurement-queries.test.ts": {
-    "mtime": 1788827120.1241515,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/procurement-queries.test.ts": {
+    "mtime": 1787740623.7415798,
     "hash": "b5bb86c8ea5b3967bc2c2e7705ec6f98"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/profile-queries.test.ts": {
-    "mtime": 1788827120.1246507,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/profile-queries.test.ts": {
+    "mtime": 1787695721.3919966,
     "hash": "acad48bf5a60808962cd58fb8f1df753"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/recommend.test.ts": {
-    "mtime": 1788827120.1252327,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/recommend.test.ts": {
+    "mtime": 1787711195.4440808,
     "hash": "2800301ebfa45f924152c3666c54b77b"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/price-queries.test.ts": {
-    "mtime": 1788827120.12345,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/price-queries.test.ts": {
+    "mtime": 1787694301.0279298,
     "hash": "82218d3ca90c8601fe0909797b91ab9e"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/format.ts": {
-    "mtime": 1788827120.120766,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/format.ts": {
+    "mtime": 1786072577.431797,
     "hash": "208b88f259a6827c89dfa5bf852a32a4"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/stats-queries.ts": {
-    "mtime": 1788827120.1264637,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/stats-queries.ts": {
+    "mtime": 1787694301.0293286,
     "hash": "22c3c49a07404caa826515c4416aa099"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/company-queries.test.ts": {
-    "mtime": 1788827120.1158917,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/company-queries.test.ts": {
+    "mtime": 1787703554.614627,
     "hash": "d8a532e4367cd9c0afef6a414ff63651"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/analysis-queries.ts": {
-    "mtime": 1788833878.2677965,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/radar-list-queries.test.ts": {
+    "mtime": 1788873597.1638603,
+    "hash": "7b8c74a04a480a3957ffdae4c6b27480"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/radar-labels.ts": {
+    "mtime": 1788873597.1637568,
+    "hash": "eb15e3b54fe9c713da416462b3274eda"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/analysis-queries.ts": {
+    "mtime": 1788873596.932568,
     "hash": "b2362a6a882d7f607eee61b53a0fed9b"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/internal-auth.test.ts": {
-    "mtime": 1788827120.120939,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/internal-auth.test.ts": {
+    "mtime": 1787710735.0337212,
     "hash": "7a6d36f3e138384c2af3c77829c7237a"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/enrichment-queries.ts": {
-    "mtime": 1788827120.1204355,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/enrichment-queries.ts": {
+    "mtime": 1787694301.026556,
     "hash": "98cf13a480dc4a0664ff1dd55d1e6a43"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/analysis-queries.test.ts": {
-    "mtime": 1788834027.0860279,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/radar-analysis-queries.ts": {
+    "mtime": 1788873597.1615415,
+    "hash": "a00b16390d2cee4fb1979db7d1bc16c1"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/analysis-queries.test.ts": {
+    "mtime": 1788873596.9324496,
     "hash": "da1293410392b824b73081c74067da2d"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/normalize.ts": {
-    "mtime": 1788827120.1228366,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/normalize.ts": {
+    "mtime": 1787695721.3918703,
     "hash": "f049bc65338c32b80bb5c2aac7e29800"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/document-queries.test.ts": {
-    "mtime": 1788827120.117259,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/radar-engine.test.ts": {
+    "mtime": 1788873597.163437,
+    "hash": "43169fafb74143e172a6fef3cd2f954a"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/document-queries.test.ts": {
+    "mtime": 1787693267.789436,
     "hash": "e7aa6e3315787a1ac8b2a597e7d1f3bf"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/user-queries.test.ts": {
-    "mtime": 1788827120.1276212,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/user-queries.test.ts": {
+    "mtime": 1787693267.7905407,
     "hash": "d38c1d490f7afa3ade18b0971a50da7f"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/match-engine.test.ts": {
-    "mtime": 1788827120.1218574,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/radar-match-queries.ts": {
+    "mtime": 1788873597.1641884,
+    "hash": "13b7e7552530f8aeee4dfb6643571b0b"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/match-engine.test.ts": {
+    "mtime": 1787695721.3910954,
     "hash": "b6a55eba43e6cfb69337a373a837c87e"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/match-engine.ts": {
-    "mtime": 1788827120.1219757,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/radar-batch.ts": {
+    "mtime": 1788873597.1625564,
+    "hash": "2825eb740c8d96a0737c0e1f79956a66"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/match-engine.ts": {
+    "mtime": 1787710735.0342982,
     "hash": "dcdc99cc024538a22dcce45c15234334"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/procurement-queries.ts": {
-    "mtime": 1788827120.1244342,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/radar-list-queries.ts": {
+    "mtime": 1788873597.1639643,
+    "hash": "50a2752b586ae28e796e7fc64f1fab1d"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/procurement-queries.ts": {
+    "mtime": 1787740526.7916684,
     "hash": "0876a917d3930a69ebc25ca6f1939b63"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/user-queries.ts": {
-    "mtime": 1788827120.1279218,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/user-queries.ts": {
+    "mtime": 1788441167.635109,
     "hash": "b63474bc2bf95b6808d36ee0fd26e2ad"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/db.ts": {
-    "mtime": 1788827120.1165857,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/db.ts": {
+    "mtime": 1787693267.7893088,
     "hash": "c9c8ca21bf5a348a855320c9c4b759fc"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/match-queries.test.ts": {
-    "mtime": 1788827120.122187,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/match-queries.test.ts": {
+    "mtime": 1787710735.0344489,
     "hash": "230ad1769a1977c5f2b317dc8dc0340f"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/match-queries.ts": {
-    "mtime": 1788827120.1224139,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/match-queries.ts": {
+    "mtime": 1787710735.034597,
     "hash": "219ab108ba18615137b9184654c79285"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/auth.ts": {
-    "mtime": 1788827120.1149626,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/auth.ts": {
+    "mtime": 1787695721.3900127,
     "hash": "368830f37b026b763b285d1ca2f1dbbb"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/uploads.test.ts": {
-    "mtime": 1788827120.1272597,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/uploads.test.ts": {
+    "mtime": 1787703554.615262,
     "hash": "b4cb6416514386e7d74c04be0d16f83f"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/recommendation-queries.ts": {
-    "mtime": 1788827120.1259584,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/recommendation-queries.ts": {
+    "mtime": 1787711195.4444816,
     "hash": "3feff0692e761b61a9d6347cd6fc5ffd"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/agent/llm.ts": {
-    "mtime": 1788827120.114573,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/agent/llm.ts": {
+    "mtime": 1787695721.388516,
     "hash": "ed2b6defb353c8cd196a52194d63221e"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/agent/embed.test.ts": {
-    "mtime": 1788827120.1140661,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/agent/embed.test.ts": {
+    "mtime": 1787885540.4478233,
     "hash": "d049a123c2fb3f394fe224eab4d13b25"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/agent/embed.ts": {
-    "mtime": 1788827120.1143315,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/agent/embed.ts": {
+    "mtime": 1787885540.4482045,
     "hash": "7a2751492b5c774601d2f12f8c458b2c"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/email/outbox.ts": {
-    "mtime": 1788827120.1192458,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/email/outbox.ts": {
+    "mtime": 1788440849.1532836,
     "hash": "f899007a4b3f831b181b268479d12484"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/email/bounces.test.ts": {
-    "mtime": 1788827120.1177459,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/email/bounces.test.ts": {
+    "mtime": 1788446803.2021594,
     "hash": "f2f13e91ac64989bc476d1e3a3703bb9"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/email/unsubscribe.ts": {
-    "mtime": 1788827120.1202445,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/email/unsubscribe.ts": {
+    "mtime": 1788440849.1145482,
     "hash": "3ea5160b8467a004f317defa16e56ea6"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/email/templates.test.ts": {
-    "mtime": 1788827120.1197982,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/email/templates.test.ts": {
+    "mtime": 1788437633.0859833,
     "hash": "c674ad2d70099682c56f00847e4006cd"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/email/templates.ts": {
-    "mtime": 1788827120.1200242,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/email/templates.ts": {
+    "mtime": 1788437633.0861201,
     "hash": "9db4d2c2f59e1d046c33126c26614d78"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/email/digest-batch.ts": {
-    "mtime": 1788827120.1185737,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/email/digest-batch.ts": {
+    "mtime": 1788440849.1924622,
     "hash": "8810afdc8e199c4d3816c8dea4851e9a"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/email/outbox.test.ts": {
-    "mtime": 1788827120.1189334,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/email/outbox.test.ts": {
+    "mtime": 1788440849.152984,
     "hash": "61c874d6b78eea0f6f0ad014b2f0e1ad"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/email/layout.ts": {
-    "mtime": 1788827120.1187415,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/email/layout.ts": {
+    "mtime": 1788437633.0858378,
     "hash": "7c6f07bbd15722733978ee35f7f067e0"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/email/sender.test.ts": {
-    "mtime": 1788827120.1194398,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/email/sender.test.ts": {
+    "mtime": 1788441167.5972798,
     "hash": "3139c1ff36e90285088e11f291f8621c"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/email/digest-batch.test.ts": {
-    "mtime": 1788827120.118361,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/email/digest-batch.test.ts": {
+    "mtime": 1788440849.1920478,
     "hash": "6938ac7ff40099473fb980b153b5c61a"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/email/bounces.ts": {
-    "mtime": 1788827120.1179357,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/email/bounces.ts": {
+    "mtime": 1788446771.0986948,
     "hash": "15d6ad72a9cfb83f69ca5d9902c247b0"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/email/callsites.test.ts": {
-    "mtime": 1788827120.1181924,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/email/callsites.test.ts": {
+    "mtime": 1788535167.0209272,
     "hash": "07bad72cbd8658b82e28b4850a2c6162"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/lib/email/sender.ts": {
-    "mtime": 1788827120.1196392,
+  "/Users/aazevedo/dev/plataforma-licitante/web/lib/email/sender.ts": {
+    "mtime": 1788441167.5975795,
     "hash": "df7b2ad239e79542e7d5d4ec43b2770c"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tests/test_sync_integration.py": {
-    "mtime": 1788827120.0813346,
+  "/Users/aazevedo/dev/plataforma-licitante/tests/test_sync_integration.py": {
+    "mtime": 1787703691.1358914,
     "hash": "c44ba4d222468398c0776a3e30d4d7e2"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tests/test_analyze_worker.py": {
-    "mtime": 1788831333.3275735,
+  "/Users/aazevedo/dev/plataforma-licitante/tests/test_analyze_worker.py": {
+    "mtime": 1788873596.9292536,
     "hash": "37845dfec02942ecca9297c80dedb958"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tests/test_cli_discovery.py": {
-    "mtime": 1788827120.0777407,
+  "/Users/aazevedo/dev/plataforma-licitante/tests/test_cli_discovery.py": {
+    "mtime": 1787691977.7011511,
     "hash": "94baf09786d0dc9c75b650a1ecabfb29"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tests/conftest.py": {
-    "mtime": 1788827120.0773456,
+  "/Users/aazevedo/dev/plataforma-licitante/tests/conftest.py": {
+    "mtime": 1787703691.1351686,
     "hash": "c2b585c38f349d3e06c99ffc7eb82369"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tests/test_sync_procurements.py": {
-    "mtime": 1788827120.081708,
+  "/Users/aazevedo/dev/plataforma-licitante/tests/test_sync_procurements.py": {
+    "mtime": 1787703756.7872393,
     "hash": "ee400aeb91d60d764986904c9d5018a7"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tests/test_cnae_seed.py": {
-    "mtime": 1788827120.0784929,
+  "/Users/aazevedo/dev/plataforma-licitante/tests/test_enrich_plan_embed.py": {
+    "mtime": 1788873597.1576557,
+    "hash": "77cb4aaf63eb9287c869a989bf0dc100"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/tests/test_cnae_seed.py": {
+    "mtime": 1787692904.8148437,
     "hash": "af066f46fc442dfc2e46e2e33bc1e269"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tests/test_analyze_jobs.py": {
-    "mtime": 1788833333.5912611,
+  "/Users/aazevedo/dev/plataforma-licitante/tests/test_analyze_jobs.py": {
+    "mtime": 1788873596.9288807,
     "hash": "de33941b9b2592e2a51c91e8385a901f"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tests/test_sync_contracts.py": {
-    "mtime": 1788827120.0808992,
+  "/Users/aazevedo/dev/plataforma-licitante/tests/test_sync_contracts.py": {
+    "mtime": 1787703775.3675385,
     "hash": "82af009fe6186a5dcc8ec6f36e4ddf0c"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tests/test_llm.py": {
-    "mtime": 1788827120.080116,
+  "/Users/aazevedo/dev/plataforma-licitante/tests/test_llm.py": {
+    "mtime": 1787950212.3447645,
     "hash": "fa5268130be8173e13ffd46dab741b3b"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tests/test_sync_plans.py": {
-    "mtime": 1788827120.0815034,
+  "/Users/aazevedo/dev/plataforma-licitante/tests/test_sync_plans.py": {
+    "mtime": 1787703775.368417,
     "hash": "b2f0d7a4d94be47eadc0f446d3780706"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tests/test_db.py": {
-    "mtime": 1788827120.0786588,
+  "/Users/aazevedo/dev/plataforma-licitante/tests/test_db.py": {
+    "mtime": 1787958492.9493113,
     "hash": "079120ef3f3108963c25ffe516c59bf6"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tests/test_enrich_documents.py": {
-    "mtime": 1788830532.2453227,
+  "/Users/aazevedo/dev/plataforma-licitante/tests/test_enrich_documents.py": {
+    "mtime": 1788873596.9295182,
     "hash": "bc488804a88df8265a7544da3865417e"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tests/test_sync_results.py": {
-    "mtime": 1788827120.0819159,
+  "/Users/aazevedo/dev/plataforma-licitante/tests/test_cli_radar.py": {
+    "mtime": 1788873597.157453,
+    "hash": "900216d148c503e6e9aa95bdc6c01d17"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/tests/test_sync_results.py": {
+    "mtime": 1787703691.1363776,
     "hash": "c64d48c5e75d0d3c01fe5497b14d548b"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tests/__init__.py": {
-    "mtime": 1788827120.0770888,
+  "/Users/aazevedo/dev/plataforma-licitante/tests/__init__.py": {
+    "mtime": 1787691895.9500275,
     "hash": "d32f4e1ca936fd11062d969bdd9f4329"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tests/test_status.py": {
-    "mtime": 1788833228.1415148,
+  "/Users/aazevedo/dev/plataforma-licitante/tests/test_status.py": {
+    "mtime": 1788873596.9296715,
     "hash": "f929fca2e22651041e2c7ee6481eba82"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tests/test_cli_email.py": {
-    "mtime": 1788827120.0779352,
+  "/Users/aazevedo/dev/plataforma-licitante/tests/test_cli_email.py": {
+    "mtime": 1788446822.9126089,
     "hash": "03417b1a5eee9ea8012421801bcdec02"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tests/test_cli_match_recommend.py": {
-    "mtime": 1788827120.07827,
+  "/Users/aazevedo/dev/plataforma-licitante/tests/test_cli_match_recommend.py": {
+    "mtime": 1787710388.716288,
     "hash": "2ba6ca50e76c8b662c85789015d02795"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tests/test_incremental.py": {
-    "mtime": 1788827120.0797772,
+  "/Users/aazevedo/dev/plataforma-licitante/tests/test_incremental.py": {
+    "mtime": 1787696317.0682998,
     "hash": "94ca62e57be77a7bf2f48b8c8ce8bdab"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tests/test_internal_api.py": {
-    "mtime": 1788827120.0799565,
+  "/Users/aazevedo/dev/plataforma-licitante/tests/test_internal_api.py": {
+    "mtime": 1787710388.7163866,
     "hash": "d5978a5c4748e013da96f836f3be6ebc"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tests/test_analyze_prompt.py": {
-    "mtime": 1788831351.0493143,
+  "/Users/aazevedo/dev/plataforma-licitante/tests/test_analyze_prompt.py": {
+    "mtime": 1788873596.9290023,
     "hash": "52b23146aca498799089fb5c6c206545"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tests/test_enrich_schema.py": {
-    "mtime": 1788827120.0792346,
+  "/Users/aazevedo/dev/plataforma-licitante/tests/test_enrich_schema.py": {
+    "mtime": 1787886257.0785296,
     "hash": "ff3a7c124bc8ce9f8e79158191b33321"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tests/test_sync_details.py": {
-    "mtime": 1788827120.0811522,
+  "/Users/aazevedo/dev/plataforma-licitante/tests/test_sync_details.py": {
+    "mtime": 1787885635.0703785,
     "hash": "6970936ce891bb7f847558505a8805d7"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tests/test_fence.py": {
-    "mtime": 1788827120.079599,
+  "/Users/aazevedo/dev/plataforma-licitante/tests/test_fence.py": {
+    "mtime": 1787885635.0701957,
     "hash": "76164d6b94971cc7cc23869b7da53e52"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tests/test_backfill.py": {
-    "mtime": 1788827120.0775414,
+  "/Users/aazevedo/dev/plataforma-licitante/tests/test_backfill.py": {
+    "mtime": 1787885635.0700624,
     "hash": "179147964c4979746ba48d252329ab9b"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tests/test_pncp_client.py": {
-    "mtime": 1788827120.0803027,
+  "/Users/aazevedo/dev/plataforma-licitante/tests/test_pncp_client.py": {
+    "mtime": 1787692008.281039,
     "hash": "d374a73019779417d248804657674507"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tests/test_runs.py": {
-    "mtime": 1788827120.0805151,
+  "/Users/aazevedo/dev/plataforma-licitante/tests/test_runs.py": {
+    "mtime": 1787692008.280909,
     "hash": "3feadd1e0f627b3951850fa48bec78b7"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tests/test_enrich_embed.py": {
-    "mtime": 1788827120.0790591,
+  "/Users/aazevedo/dev/plataforma-licitante/tests/test_enrich_embed.py": {
+    "mtime": 1787692904.8150868,
     "hash": "0b5a8ac72c342a66ce56b1eb826c0aba"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tests/test_analyze_schema.py": {
-    "mtime": 1788831106.195636,
+  "/Users/aazevedo/dev/plataforma-licitante/tests/test_analyze_schema.py": {
+    "mtime": 1788873596.9291272,
     "hash": "bbe7090d497e472247557dd623b793a9"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/src/lixto/db.py": {
-    "mtime": 1788827120.072258,
+  "/Users/aazevedo/dev/plataforma-licitante/src/lixto/db.py": {
+    "mtime": 1787701902.8529186,
     "hash": "3ccb7e108e80d0411a2823a96902a18d"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/src/lixto/internal_api.py": {
-    "mtime": 1788827120.0737028,
-    "hash": "28dd9d1fdbe4e65ee319ebfe139c59d5"
+  "/Users/aazevedo/dev/plataforma-licitante/src/lixto/internal_api.py": {
+    "mtime": 1788873597.1573374,
+    "hash": "c7ea884629a07e1555ea36494a533e45"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/src/lixto/fence.py": {
-    "mtime": 1788827120.0735123,
+  "/Users/aazevedo/dev/plataforma-licitante/src/lixto/fence.py": {
+    "mtime": 1787885635.0694191,
     "hash": "d2acc01c4be4881ccdd6f7ae1a52de7f"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/src/lixto/__init__.py": {
-    "mtime": 1788827120.069034,
+  "/Users/aazevedo/dev/plataforma-licitante/src/lixto/__init__.py": {
+    "mtime": 1787691789.188979,
     "hash": "1eb0674f1dfd33b0fd17f951ac355b23"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/src/lixto/llm.py": {
-    "mtime": 1788827120.0740023,
+  "/Users/aazevedo/dev/plataforma-licitante/src/lixto/llm.py": {
+    "mtime": 1787950212.338689,
     "hash": "023eab35ffbf82f875e1e0371dfade68"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/src/lixto/cnae_seed.py": {
-    "mtime": 1788827120.072076,
+  "/Users/aazevedo/dev/plataforma-licitante/src/lixto/cnae_seed.py": {
+    "mtime": 1787692904.8139024,
     "hash": "b12f660ca5b219a52b81ea7434c3dfa7"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/src/lixto/pncp_client.py": {
-    "mtime": 1788827120.0743346,
+  "/Users/aazevedo/dev/plataforma-licitante/src/lixto/pncp_client.py": {
+    "mtime": 1787692008.2810113,
     "hash": "139b6ff43635eed92c3aac8d6f384363"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/src/lixto/settings.py": {
-    "mtime": 1788827120.0747113,
+  "/Users/aazevedo/dev/plataforma-licitante/src/lixto/settings.py": {
+    "mtime": 1787710388.7161546,
     "hash": "fd570ea80625d3504af48cc0b242f2bb"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/src/lixto/runs.py": {
-    "mtime": 1788827120.0745344,
+  "/Users/aazevedo/dev/plataforma-licitante/src/lixto/runs.py": {
+    "mtime": 1787691820.9695835,
     "hash": "95eff078e51c3d235bf8102629086d6e"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/src/lixto/status.py": {
-    "mtime": 1788833214.561919,
+  "/Users/aazevedo/dev/plataforma-licitante/src/lixto/status.py": {
+    "mtime": 1788873596.9287376,
     "hash": "5ef2fa0c7b070f41e52c14efb89e1315"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/src/lixto/cli/sync.py": {
-    "mtime": 1788827120.071836,
+  "/Users/aazevedo/dev/plataforma-licitante/src/lixto/cli/sync.py": {
+    "mtime": 1787696317.067304,
     "hash": "d1d28fe3d20dc3cd7097c8e808f81fb3"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/src/lixto/cli/db.py": {
-    "mtime": 1788827120.0699837,
+  "/Users/aazevedo/dev/plataforma-licitante/src/lixto/cli/db.py": {
+    "mtime": 1787691892.4579468,
     "hash": "605968bc7c77b88a691b7b7d67e19421"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/src/lixto/cli/enrich.py": {
-    "mtime": 1788832125.3747237,
+  "/Users/aazevedo/dev/plataforma-licitante/src/lixto/cli/enrich.py": {
+    "mtime": 1788873596.9267828,
     "hash": "651c86b33435dbdc63ef6f1ea08ca703"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/src/lixto/cli/results.py": {
-    "mtime": 1788827120.0713413,
+  "/Users/aazevedo/dev/plataforma-licitante/src/lixto/cli/results.py": {
+    "mtime": 1787696545.4054902,
     "hash": "5da21a110d152c877865132498454f36"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/src/lixto/cli/__init__.py": {
-    "mtime": 1788827120.069246,
+  "/Users/aazevedo/dev/plataforma-licitante/src/lixto/cli/radar.py": {
+    "mtime": 1788873597.1570666,
+    "hash": "0e98980d6c1c1e31d23e3f3c6c500af3"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/src/lixto/cli/__init__.py": {
+    "mtime": 1787692081.9443057,
     "hash": "774d48cc1ed55d221ab74b7e0c76089f"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/src/lixto/cli/cnae.py": {
-    "mtime": 1788827120.0696836,
+  "/Users/aazevedo/dev/plataforma-licitante/src/lixto/cli/cnae.py": {
+    "mtime": 1787692904.8136644,
     "hash": "8372934b724031b4a49cfaf1a3e42090"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/src/lixto/cli/recommend.py": {
-    "mtime": 1788827120.071179,
+  "/Users/aazevedo/dev/plataforma-licitante/src/lixto/cli/recommend.py": {
+    "mtime": 1787710388.7156258,
     "hash": "6917ead651f2ffc3ce93159ee1ae0403"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/src/lixto/cli/backfill.py": {
-    "mtime": 1788827120.0694945,
+  "/Users/aazevedo/dev/plataforma-licitante/src/lixto/cli/backfill.py": {
+    "mtime": 1787885635.0693073,
     "hash": "d3ba5a841efbe7fe9def749312668a21"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/src/lixto/cli/email.py": {
-    "mtime": 1788827120.0702465,
+  "/Users/aazevedo/dev/plataforma-licitante/src/lixto/cli/email.py": {
+    "mtime": 1788446813.8552742,
     "hash": "f70237b953548bb094a427931571d375"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/src/lixto/cli/plans.py": {
-    "mtime": 1788827120.0710046,
-    "hash": "514433fe9b5fd5667365203af10fff3d"
+  "/Users/aazevedo/dev/plataforma-licitante/src/lixto/cli/plans.py": {
+    "mtime": 1788873597.1565704,
+    "hash": "acfccd9b225ed84e65df89c41caa57fa"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/src/lixto/cli/contracts.py": {
-    "mtime": 1788827120.0698833,
+  "/Users/aazevedo/dev/plataforma-licitante/src/lixto/cli/contracts.py": {
+    "mtime": 1787697354.991894,
     "hash": "921517d11824738bb93ef23a1cf0e4f0"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/src/lixto/cli/analyze.py": {
-    "mtime": 1788833342.896549,
+  "/Users/aazevedo/dev/plataforma-licitante/src/lixto/cli/analyze.py": {
+    "mtime": 1788873596.92456,
     "hash": "bd501cad95908aae1032bd7c37d3975f"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/src/lixto/cli/status.py": {
-    "mtime": 1788827120.0715837,
+  "/Users/aazevedo/dev/plataforma-licitante/src/lixto/cli/status.py": {
+    "mtime": 1787696317.0672045,
     "hash": "7540fcc28af4f4586fa054a81c93eac4"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/src/lixto/cli/match.py": {
-    "mtime": 1788827120.07083,
+  "/Users/aazevedo/dev/plataforma-licitante/src/lixto/cli/match.py": {
+    "mtime": 1787710388.7155197,
     "hash": "8c587b426a968708c534761eeb38343c"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/src/lixto/enrich/embed.py": {
-    "mtime": 1788827120.0728936,
+  "/Users/aazevedo/dev/plataforma-licitante/src/lixto/enrich/embed.py": {
+    "mtime": 1787701911.4245882,
     "hash": "50ef7a9cd078bc4ebd8331e1fc44a6d0"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/src/lixto/enrich/documents.py": {
-    "mtime": 1788830431.3807516,
+  "/Users/aazevedo/dev/plataforma-licitante/src/lixto/enrich/plan_embed.py": {
+    "mtime": 1788873597.157196,
+    "hash": "2da9ff4e01ec7f06884c77182e5e9c04"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/src/lixto/enrich/documents.py": {
+    "mtime": 1788873596.927813,
     "hash": "54de22e043c750554dc85aa43fd17430"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/src/lixto/enrich/__init__.py": {
-    "mtime": 1788833372.9981341,
+  "/Users/aazevedo/dev/plataforma-licitante/src/lixto/enrich/__init__.py": {
+    "mtime": 1788873596.9275558,
     "hash": "c0babfa99ae835f89e76acd0f8ed7bfb"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/src/lixto/enrich/schema.py": {
-    "mtime": 1788827120.073081,
+  "/Users/aazevedo/dev/plataforma-licitante/src/lixto/enrich/schema.py": {
+    "mtime": 1787886191.2478735,
     "hash": "0b56fa41cb70b6a2ac507ea057635b90"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/src/lixto/analyze/worker.py": {
-    "mtime": 1788831351.049593,
+  "/Users/aazevedo/dev/plataforma-licitante/src/lixto/analyze/worker.py": {
+    "mtime": 1788873596.9244504,
     "hash": "0705856d3fa97dc45387f9dd6ee32b84"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/src/lixto/analyze/__init__.py": {
-    "mtime": 1788832125.3769786,
+  "/Users/aazevedo/dev/plataforma-licitante/src/lixto/analyze/__init__.py": {
+    "mtime": 1788873596.9239419,
     "hash": "f7d41903ff3ec9a39ed7865d5e70bc91"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/src/lixto/analyze/jobs.py": {
-    "mtime": 1788833342.8965619,
+  "/Users/aazevedo/dev/plataforma-licitante/src/lixto/analyze/jobs.py": {
+    "mtime": 1788873596.9240508,
     "hash": "551b238784ea99819480f5aefea37245"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/src/lixto/analyze/prompt.py": {
-    "mtime": 1788830889.4860806,
+  "/Users/aazevedo/dev/plataforma-licitante/src/lixto/analyze/prompt.py": {
+    "mtime": 1788873596.9241872,
     "hash": "d4874cbad20e122cf08fd98805814ad4"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/src/lixto/analyze/schema.py": {
-    "mtime": 1788831351.0494556,
+  "/Users/aazevedo/dev/plataforma-licitante/src/lixto/analyze/schema.py": {
+    "mtime": 1788873596.92431,
     "hash": "5f6ad7a0e9208a4ded3c851a4d73ac25"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/src/lixto/sync/results.py": {
-    "mtime": 1788827120.0768857,
+  "/Users/aazevedo/dev/plataforma-licitante/src/lixto/sync/results.py": {
+    "mtime": 1787703691.1350536,
     "hash": "55f299661e4d76d7534e2e983291081c"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/src/lixto/sync/__init__.py": {
-    "mtime": 1788827120.075268,
+  "/Users/aazevedo/dev/plataforma-licitante/src/lixto/sync/__init__.py": {
+    "mtime": 1787703748.9341183,
     "hash": "5571e12affa65bbcefc1986e396fc20e"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/src/lixto/sync/details.py": {
-    "mtime": 1788827120.0760038,
+  "/Users/aazevedo/dev/plataforma-licitante/src/lixto/sync/details.py": {
+    "mtime": 1787885635.069779,
     "hash": "0a97375bc35c4903f6e8bb4f2375099d"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/src/lixto/sync/backfill.py": {
-    "mtime": 1788827120.0755155,
+  "/Users/aazevedo/dev/plataforma-licitante/src/lixto/sync/backfill.py": {
+    "mtime": 1787696317.067707,
     "hash": "016f6720345212efcbd07ac0f134b153"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/src/lixto/sync/plans.py": {
-    "mtime": 1788827120.076395,
+  "/Users/aazevedo/dev/plataforma-licitante/src/lixto/sync/plans.py": {
+    "mtime": 1787703691.1343107,
     "hash": "22df8a01c4c15a24d6d08eecbf851eb7"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/src/lixto/sync/contracts.py": {
-    "mtime": 1788827120.0757897,
+  "/Users/aazevedo/dev/plataforma-licitante/src/lixto/sync/contracts.py": {
+    "mtime": 1787703691.1338995,
     "hash": "44edf7dab7d0eba4290d48a832a8b086"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/src/lixto/sync/procurements.py": {
-    "mtime": 1788827120.0766459,
+  "/Users/aazevedo/dev/plataforma-licitante/src/lixto/sync/procurements.py": {
+    "mtime": 1787703691.1346567,
     "hash": "5fc04e13eb70d0ca9babaee3341fa6f1"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/src/lixto/sync/incremental.py": {
-    "mtime": 1788827120.0761993,
+  "/Users/aazevedo/dev/plataforma-licitante/src/lixto/sync/incremental.py": {
+    "mtime": 1787696317.0679355,
     "hash": "20ad6f330306375306dbbfa4c53a7468"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/PRODUCT.md": {
-    "mtime": 1788832125.3496585,
-    "hash": "fd7be983e095693edb3e55f59ffc044c"
+  "/Users/aazevedo/dev/plataforma-licitante/PRODUCT.md": {
+    "mtime": 1788873607.9126859,
+    "hash": "4ff3ed8a0fb52e6a1445ab448fbd37cb"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/STATE.md": {
-    "mtime": 1788834148.1110656,
-    "hash": "f57d4dfbf9f15cd470afed41f5205409"
+  "/Users/aazevedo/dev/plataforma-licitante/STATE.md": {
+    "mtime": 1788873642.7117918,
+    "hash": "7d5e23d805777713721a283b13ebbef5"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/README.md": {
-    "mtime": 1788834364.672274,
-    "hash": "5a3b79a84c25ab40f5af7fb5aa1fe274"
+  "/Users/aazevedo/dev/plataforma-licitante/README.md": {
+    "mtime": 1788873597.1440215,
+    "hash": "4699bde5b4fe6ab479817af0c67429fc"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/docker-compose.yml": {
-    "mtime": 1788827120.0305464,
+  "/Users/aazevedo/dev/plataforma-licitante/docker-compose.yml": {
+    "mtime": 1787691989.3082414,
     "hash": "f2eb554b784078bb9acfd3bfb9439d75"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/AGENTS.md": {
-    "mtime": 1788834362.0424047,
+  "/Users/aazevedo/dev/plataforma-licitante/AGENTS.md": {
+    "mtime": 1788873596.9170167,
     "hash": "2d942a3b07ce55c9a2b042a00039ceeb"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/CLAUDE.md": {
-    "mtime": 1788834218.554935,
-    "hash": "d6519f8383b0053944dd030d2c2dcafc"
+  "/Users/aazevedo/dev/plataforma-licitante/CLAUDE.md": {
+    "mtime": 1788873623.02853,
+    "hash": "59d57ef7e602a80acd1e43cfb19c84cb"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/analysis-lixto-spend.md": {
-    "mtime": 1788827120.0303535,
+  "/Users/aazevedo/dev/plataforma-licitante/analysis-lixto-spend.md": {
+    "mtime": 1787884758.609657,
     "hash": "5e4c69b6691b3299a4841154467a2d5a"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tickets/117-sender-hardening.md": {
-    "mtime": 1788827120.0855534,
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/117-sender-hardening.md": {
+    "mtime": 1788441170.266987,
     "hash": "91ac674c7ee6c3164f63c2e18ca9d4e2"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tickets/115-unsubscribe-security.md": {
-    "mtime": 1788827120.0850208,
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/115-unsubscribe-security.md": {
+    "mtime": 1788440858.6601276,
     "hash": "0c3609f667f31405271685b4df4efb90"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tickets/93-digest-ui.md": {
-    "mtime": 1788827120.0905328,
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/93-digest-ui.md": {
+    "mtime": 1787711710.1009448,
     "hash": "c41bc0e731afa62d13de9e33250e6fd6"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tickets/119-mta-dns-hardening.md": {
-    "mtime": 1788827120.0857587,
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/119-mta-dns-hardening.md": {
+    "mtime": 1788440861.2620537,
     "hash": "f9bb0fcc5b8d72ae49df765cfd0a2b37"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tickets/83-rename-config-deploy.md": {
-    "mtime": 1788827120.0884516,
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/83-rename-config-deploy.md": {
+    "mtime": 1787697003.291344,
     "hash": "6a92c50dd2f978cbe3f74bdbbc21965d"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tickets/87-review-fixes-sync.md": {
-    "mtime": 1788827120.0893047,
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/87-review-fixes-sync.md": {
+    "mtime": 1787703691.3677323,
     "hash": "288566d13f0d4b4e3f4e6d045d8d5e80"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tickets/92-cli-triggers.md": {
-    "mtime": 1788827120.0903442,
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/92-cli-triggers.md": {
+    "mtime": 1787710388.9515915,
     "hash": "8dff3eed851d694b9480b5aff43f32b8"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tickets/91-recommendations.md": {
-    "mtime": 1788827120.0901802,
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/91-recommendations.md": {
+    "mtime": 1787711196.593512,
     "hash": "cda5d01f32cd11129ad990261a6df2c1"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tickets/78-sync-contracts.md": {
-    "mtime": 1788827120.0874634,
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/78-sync-contracts.md": {
+    "mtime": 1787697355.2709475,
     "hash": "06431f2226ca9b265bde8115bceeea9d"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tickets/101-fence-details-backfill.md": {
-    "mtime": 1788827120.0823858,
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/101-fence-details-backfill.md": {
+    "mtime": 1787885635.0810676,
     "hash": "845cdc24f7397b1f263129ec1c1055e5"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tickets/81-web-procurements.md": {
-    "mtime": 1788827120.0879924,
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/81-web-procurements.md": {
+    "mtime": 1787694302.2450445,
     "hash": "008c3257acef45536b21326cff852916"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tickets/99-docs-semantic-search.md": {
-    "mtime": 1788827120.0915823,
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/99-docs-semantic-search.md": {
+    "mtime": 1787741108.8530488,
     "hash": "0e56235d215ad5ef083d95066a9fa413"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tickets/95-docs-schedules.md": {
-    "mtime": 1788827120.0908544,
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/95-docs-schedules.md": {
+    "mtime": 1787711905.1811593,
     "hash": "4bd1d6eb935f48a84ce0b28c71142d66"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tickets/113-digest-cli-status.md": {
-    "mtime": 1788827120.0846977,
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/113-digest-cli-status.md": {
+    "mtime": 1788438507.4465744,
     "hash": "ee87bf5c86b4d140cc32d57722321afd"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tickets/134-web-analyze-button.md": {
-    "mtime": 1788833780.5677576,
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/134-web-analyze-button.md": {
+    "mtime": 1788873596.9301467,
     "hash": "66d5d6e6b40874234dec53a93dd68c20"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tickets/114-email-docs-env.md": {
-    "mtime": 1788827120.0848448,
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/114-email-docs-env.md": {
+    "mtime": 1788438733.7065992,
     "hash": "114b0b23f2a05cf25a40103bab6df2b5"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tickets/88-review-fixes-web.md": {
-    "mtime": 1788827120.0894997,
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/88-review-fixes-web.md": {
+    "mtime": 1787703555.7322736,
     "hash": "0ea77218dbb910c9776c595fe8a9a6b6"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tickets/131-analysis-schema-page-extraction.md": {
-    "mtime": 1788832125.3565016,
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/131-analysis-schema-page-extraction.md": {
+    "mtime": 1788873596.9297912,
     "hash": "3535f342aaa7ab82acdf955045982bae"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tickets/123-chat-docs-env.md": {
-    "mtime": 1788827120.0864618,
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/123-chat-docs-env.md": {
+    "mtime": 1788535499.6643064,
     "hash": "c1f4c0f8daab8afccec9674a9d52b5b3"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tickets/112-email-callsites.md": {
-    "mtime": 1788827120.0845387,
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/112-email-callsites.md": {
+    "mtime": 1788438099.8797314,
     "hash": "0aa244785882faaa1bf0ab846ad6e96d"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tickets/79-enrichment-port.md": {
-    "mtime": 1788827120.0876434,
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/129-radar-ai-analysis.md": {
+    "mtime": 1788873597.1584284,
+    "hash": "fb65e8951575187afab155cdf8834f84"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/79-enrichment-port.md": {
+    "mtime": 1787692905.057942,
     "hash": "d538f6a551cdf1aa7d760429c60bf4e9"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tickets/136-docs-env-schedules.md": {
-    "mtime": 1788834148.0879066,
-    "hash": "d0194f93d4c1b0e9b0af2996e072f4fc"
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/136-docs-env-schedules.md": {
+    "mtime": 1788873596.930372,
+    "hash": "ff024b066e8f815eee9798e6b7c9a275"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tickets/97-chat-semantic-search.md": {
-    "mtime": 1788827120.0912206,
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/97-chat-semantic-search.md": {
+    "mtime": 1787740831.3823452,
     "hash": "08a71e3aff32eb8061e3bcf92421b9fe"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tickets/122-remove-chat.md": {
-    "mtime": 1788827120.0863075,
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/122-remove-chat.md": {
+    "mtime": 1788535233.2005563,
     "hash": "12475cd1d17d32d23b7059133fe6666f"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tickets/107-ocr-scanned-pdfs.md": {
-    "mtime": 1788827120.0835075,
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/107-ocr-scanned-pdfs.md": {
+    "mtime": 1787958496.5782332,
     "hash": "b200c0bb921a7073aef3508b3e9fc1a6"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tickets/77-sync-plans.md": {
-    "mtime": 1788827120.0872018,
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/77-sync-plans.md": {
+    "mtime": 1787701680.18915,
     "hash": "b444df60fa556e892541081886c9b1d8"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tickets/76-sync-results.md": {
-    "mtime": 1788827120.0870154,
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/125-plan-item-embeddings.md": {
+    "mtime": 1788873597.1578743,
+    "hash": "96bc143b1ebb6654d25da55f2162537a"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/76-sync-results.md": {
+    "mtime": 1787696545.6441376,
     "hash": "3e283a97358bbf9856b204b182e21ca2"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tickets/103-tier0-me-epp.md": {
-    "mtime": 1788827120.0827727,
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/103-tier0-me-epp.md": {
+    "mtime": 1787886347.2964106,
     "hash": "bf538b2f70291ccd334b6a4f81879735"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tickets/74-lixto-foundation.md": {
-    "mtime": 1788827120.086677,
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/126-radar-company-match.md": {
+    "mtime": 1788873597.1579807,
+    "hash": "645d36e603033783b8c9dfd6abd58b5a"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/124-radar-schema-detection.md": {
+    "mtime": 1788873597.1577754,
+    "hash": "1b8bd82f72f731f5d9ce52f6c505865e"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/74-lixto-foundation.md": {
+    "mtime": 1787692144.6938903,
     "hash": "149c80d97adcac95bb4ef8ad11bfb18f"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tickets/98-procurements-page-semantic.md": {
-    "mtime": 1788827120.091414,
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/98-procurements-page-semantic.md": {
+    "mtime": 1787740932.9841502,
     "hash": "aa78c6ee95badccc38a0e48ac290de99"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tickets/82-web-agent.md": {
-    "mtime": 1788827120.088206,
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/82-web-agent.md": {
+    "mtime": 1787695722.5746121,
     "hash": "36f91b8244870d2a196b923a7757b401"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tickets/94-chat-opportunity-tools.md": {
-    "mtime": 1788827120.0906842,
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/94-chat-opportunity-tools.md": {
+    "mtime": 1787711463.9933887,
     "hash": "73cf4e633c6f1ddd69e2c3227c6245ec"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tickets/105-status-cost.md": {
-    "mtime": 1788827120.0831351,
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/105-status-cost.md": {
+    "mtime": 1787886217.2262368,
     "hash": "03e2c3e7a8aeb7d5627f493eee589dee"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tickets/120-bounce-ingestion.md": {
-    "mtime": 1788827120.085933,
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/120-bounce-ingestion.md": {
+    "mtime": 1788445336.8424816,
     "hash": "ab6ebbfb11d260c3d5323f40b623aff6"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tickets/121-enqueue-in-transaction.md": {
-    "mtime": 1788827120.0861263,
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/121-enqueue-in-transaction.md": {
+    "mtime": 1788441170.2704456,
     "hash": "a1e14b4906073a7ede08a144ce23c4c3"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tickets/90-batch-match.md": {
-    "mtime": 1788827120.089984,
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/90-batch-match.md": {
+    "mtime": 1787710751.4617414,
     "hash": "9acb1a3bb61142855a2925de5b0d53da"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tickets/84-infra-cutover.md": {
-    "mtime": 1788827120.088663,
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/84-infra-cutover.md": {
+    "mtime": 1787706763.3301785,
     "hash": "4721ea8c79c0f920ccafabbfb2c44fb5"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tickets/108-email-outbox-schema.md": {
-    "mtime": 1788827120.0837116,
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/108-email-outbox-schema.md": {
+    "mtime": 1788437635.264474,
     "hash": "0c32e1ca1ab75b94f3489490942f39a3"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tickets/102-enrich-fence-cap-usage.md": {
-    "mtime": 1788827120.082581,
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/102-enrich-fence-cap-usage.md": {
+    "mtime": 1787886031.0342982,
     "hash": "5535ff8bb7fa06283293397e6b970d08"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tickets/89-review-fixes-env-docs.md": {
-    "mtime": 1788827120.089678,
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/128-radar-detail-actions.md": {
+    "mtime": 1788873597.1582043,
+    "hash": "6ce5f3e8d1657b59ccd53573f71c1326"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/89-review-fixes-env-docs.md": {
+    "mtime": 1787703099.8307984,
     "hash": "2c0e5b19ed7403d288b732520db0e114"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tickets/104-web-embed-dims.md": {
-    "mtime": 1788827120.082952,
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/104-web-embed-dims.md": {
+    "mtime": 1787885552.7505808,
     "hash": "1b281cddc4d124f31c156caca16a6881"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tickets/118-digest-dedupe-fix.md": {
-    "mtime": 1788827120.0856519,
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/118-digest-dedupe-fix.md": {
+    "mtime": 1788440861.2028863,
     "hash": "2c17154d3875d7da555a26bff228d35c"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tickets/86-docs.md": {
-    "mtime": 1788827120.0891275,
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/86-docs.md": {
+    "mtime": 1787702557.9068546,
     "hash": "5f1aa0e8073c505a8f239dcfbeacace6"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tickets/106-docs-env-go-live.md": {
-    "mtime": 1788827120.0833147,
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/106-docs-env-go-live.md": {
+    "mtime": 1787886659.8752258,
     "hash": "083403035ee8693b2ffde83543fc3371"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tickets/100-llm-providers-usage.md": {
-    "mtime": 1788827120.082115,
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/100-llm-providers-usage.md": {
+    "mtime": 1787885699.4376438,
     "hash": "6ba4cc19e9b332f6f50f2cf2c134f578"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tickets/75-sync-procurements.md": {
-    "mtime": 1788827120.0868468,
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/75-sync-procurements.md": {
+    "mtime": 1787696317.325744,
     "hash": "e4fcb0e8c0d60d2386a96e0334c135ee"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tickets/80-web-foundation.md": {
-    "mtime": 1788827120.0878148,
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/80-web-foundation.md": {
+    "mtime": 1787693268.9065385,
     "hash": "475f6ca7b11e087dcc8cc4d4fd6af706"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tickets/116-outbox-durability.md": {
-    "mtime": 1788827120.085206,
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/116-outbox-durability.md": {
+    "mtime": 1788440860.0797102,
     "hash": "419a2ea4de718486cefce5bfb24c8a64"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tickets/132-analyze-worker.md": {
-    "mtime": 1788832125.3597217,
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/132-analyze-worker.md": {
+    "mtime": 1788873596.929911,
     "hash": "d76416ae94b8b477b28491077f14635c"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tickets/135-web-analysis-panel.md": {
-    "mtime": 1788834148.084921,
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/135-web-analysis-panel.md": {
+    "mtime": 1788873596.9302557,
     "hash": "0abe0755fdb563c1c5fa987d1fc2d8a1"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tickets/110-email-templates.md": {
-    "mtime": 1788827120.0841243,
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/130-radar-docs-schedules.md": {
+    "mtime": 1788873597.1585271,
+    "hash": "467824eee60c4a7c9ffbde44131cc8f9"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/110-email-templates.md": {
+    "mtime": 1788437635.2648497,
     "hash": "4b10b75df0fb3989c3cb806c67ae2c60"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tickets/109-mta-terraform-dns.md": {
-    "mtime": 1788827120.0839286,
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/109-mta-terraform-dns.md": {
+    "mtime": 1788437838.7677698,
     "hash": "bf7d4d6606a90215ddc0ae5f8d48371a"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tickets/96-hybrid-query-builder.md": {
-    "mtime": 1788827120.0910494,
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/96-hybrid-query-builder.md": {
+    "mtime": 1787740713.0997021,
     "hash": "541dddab474455c789bad6d5ee945f03"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tickets/111-smtp-worker.md": {
-    "mtime": 1788827120.0843189,
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/111-smtp-worker.md": {
+    "mtime": 1788438099.8793368,
     "hash": "ce4c217bc70d4243568b9aedc171e2ef"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tickets/85-purge-legacy.md": {
-    "mtime": 1788827120.0889127,
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/127-radar-list-page.md": {
+    "mtime": 1788873597.1580904,
+    "hash": "5e34f840ff456e91c5dca5bfc15c47ee"
+  },
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/85-purge-legacy.md": {
+    "mtime": 1787702021.8359332,
     "hash": "02e04ab19237598b6bd332e225e470e3"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/tickets/133-analyze-jobs-drain.md": {
-    "mtime": 1788833425.0450213,
+  "/Users/aazevedo/dev/plataforma-licitante/tickets/133-analyze-jobs-drain.md": {
+    "mtime": 1788873596.9300365,
     "hash": "196a7f6b8c2f211b0ab07565953e480d"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/infra/terraform/README.md": {
-    "mtime": 1788827120.066732,
+  "/Users/aazevedo/dev/plataforma-licitante/infra/terraform/README.md": {
+    "mtime": 1788440849.2265294,
     "hash": "e7dcea2aad97038848805ca31b581813"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/README.md": {
-    "mtime": 1788827120.0934744,
+  "/Users/aazevedo/dev/plataforma-licitante/web/README.md": {
+    "mtime": 1786072360.2632458,
     "hash": "f15aaa42d5d299d091b1171097ea56ad"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/AGENTS.md": {
-    "mtime": 1788827120.0928698,
+  "/Users/aazevedo/dev/plataforma-licitante/web/AGENTS.md": {
+    "mtime": 1786072413.9700038,
     "hash": "01e8142356e15c3404e0d84c48187cd0"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/CLAUDE.md": {
-    "mtime": 1788827120.0931456,
+  "/Users/aazevedo/dev/plataforma-licitante/web/CLAUDE.md": {
+    "mtime": 1786072413.970085,
     "hash": "5c27369b226fcf2be8a6cfe52224e767"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/public/robots.txt": {
-    "mtime": 1788827120.1319847,
+  "/Users/aazevedo/dev/plataforma-licitante/web/public/robots.txt": {
+    "mtime": 1787417043.1480129,
     "hash": "5e0bd1c281a62a380d7a948085bfe2d1"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/docs/ARCHITECTURE.md": {
-    "mtime": 1788834319.0031242,
-    "hash": "68c1f25ca1f44daedf330f35b1173456"
+  "/Users/aazevedo/dev/plataforma-licitante/docs/ARCHITECTURE.md": {
+    "mtime": 1788873597.1442752,
+    "hash": "86a7890240282ec74a5388699416b221"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/docs/DATA_MODEL.md": {
-    "mtime": 1788834367.559213,
-    "hash": "54e3e9cbacd7917be6c6636dbd12005c"
+  "/Users/aazevedo/dev/plataforma-licitante/docs/DATA_MODEL.md": {
+    "mtime": 1788873597.1444116,
+    "hash": "a7225b22ff08de25678d765c00dfb6d3"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/docs/PNCP_API.md": {
-    "mtime": 1788827120.0313437,
+  "/Users/aazevedo/dev/plataforma-licitante/docs/PNCP_API.md": {
+    "mtime": 1787702347.363641,
     "hash": "73ed2b91a9e937c3672928e04ccf8101"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/docs/VISION.md": {
-    "mtime": 1788827120.031647,
-    "hash": "422c5039ce797bb9fab7bbacdccaae6b"
+  "/Users/aazevedo/dev/plataforma-licitante/docs/VISION.md": {
+    "mtime": 1788873597.1446772,
+    "hash": "fb2f3202b29f72231859e791ea754787"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/docs/WEB_DESIGN_DIRECTION.md": {
-    "mtime": 1788827120.0319629,
+  "/Users/aazevedo/dev/plataforma-licitante/docs/WEB_DESIGN_DIRECTION.md": {
+    "mtime": 1787527166.7646632,
     "hash": "99fe6f3718984b4c8ac303e33b17a88e"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/docs/WEB_STYLE.md": {
-    "mtime": 1788827120.0323148,
+  "/Users/aazevedo/dev/plataforma-licitante/docs/WEB_STYLE.md": {
+    "mtime": 1787701792.7728295,
     "hash": "f0a6e3b1bf6413009b4df6ecf293042f"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/docs/adr/001-lixto-data-model.md": {
-    "mtime": 1788827120.0326443,
+  "/Users/aazevedo/dev/plataforma-licitante/docs/adr/001-lixto-data-model.md": {
+    "mtime": 1788535416.4279475,
     "hash": "53c9d094f1bf259d7cacddae16858e81"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/docs/adr/002-transactional-email.md": {
-    "mtime": 1788827120.032948,
+  "/Users/aazevedo/dev/plataforma-licitante/docs/adr/002-transactional-email.md": {
+    "mtime": 1788437633.0423436,
     "hash": "dea72b7c6c4e61731f2500dcd35da076"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/docs/product/PRODUCT-cycle21.md": {
-    "mtime": 1788827120.033198,
+  "/Users/aazevedo/dev/plataforma-licitante/docs/product/PRODUCT-cycle21.md": {
+    "mtime": 1788427216.3971677,
     "hash": "2290fd4bf5981ef3aae0073e897eb2eb"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/docs/product/PRODUCT-cycle25.md": {
-    "mtime": 1788834201.4440253,
+  "/Users/aazevedo/dev/plataforma-licitante/docs/product/PRODUCT-cycle25.md": {
+    "mtime": 1788873596.9191775,
     "hash": "fd7be983e095693edb3e55f59ffc044c"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/public/logo.svg": {
-    "mtime": 1788827120.131627,
+  "/Users/aazevedo/dev/plataforma-licitante/web/public/logo.svg": {
+    "mtime": 1787527166.7797973,
     "hash": "c3ff2db5683e596dbe25dc421cfc1d42"
   },
-  "/Users/aazevedo/dev/plataforma-licitante/.claude/worktrees/cycle-24-tender-analysis/web/public/favicon.svg": {
-    "mtime": 1788827120.1313806,
+  "/Users/aazevedo/dev/plataforma-licitante/web/public/favicon.svg": {
+    "mtime": 1787527166.7796707,
     "hash": "67df2e5290eaea43329252692fabce29"
   }
 }

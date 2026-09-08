@@ -804,6 +804,32 @@ AI procurement operator.**
 **Completed**:
 - Removed the conversational `/lixto` chat page and agent loop (`POST /api/chat`, chat components) — the interface was unused surface with ongoing LLM budget risk. Proactive agent (match/recommend/digest) and all search tools remain; opportunity digest now surfaces through `/dashboard` and `/opportunities` list instead.
 
+### Cycle 24 — Future Procurement Radar V1 (built)
+
+**Completed**:
+- PCA ingestion + syncing: `lixto plans sync [--since YYYY-MM-DD] [--until YYYY-MM-DD]` from `/v1/pca/atualizacao` (enabled daily schedule)
+- Plan-item embeddings: `lixto plans embed [--limit N]` backfill pgvector vectors (1536 dims, same model as procurements) for semantic matching
+- Future opportunity detection: `lixto radar run [--company-id N]` detects all PCA items within horizon (configurable via `LIXTO_RADAR_HORIZON_DAYS`, default 365 days), scores once globally (opportunity score: will-it-happen), expires stale ones (past desired date or removed from plan)
+- Two-tier deterministic scoring: Opportunity score (PCA base + date bands + plan recency, weights from `LIXTO_RADAR_WEIGHT_*` env) + company match score (profile FTS, semantic similarity, state/value checks, minimum 40 to persist); zero LLM per item
+- Deterministic "why": Signal list (code + weight + detail) always explains score; copy uses conditional language ("previsto", "estimado")
+- On-demand AI analysis: `/radar/[id]` "Analisar com IA" button calls LLM once per opportunity×company (model: `LIXTO_RADAR_ANALYSIS_MODEL` fallback to `LIXTO_RECOMMEND_MODEL`), cached in `future_opportunity_analyses`; rate-limited via `LIXTO_RADAR_ANALYSIS_DAILY_CAP` (default 20/company/day)
+- UI routes: `/radar` (list, filter by period/state/value/score) and `/radar/[id]` (detail with signals, reasons, cached analysis, save/ignore action)
+- Schema: Five new tables in `migrations/005_radar.sql` (`plan_item_embeddings`, `future_opportunities`, `future_opportunity_matches`, `future_opportunity_actions`, `future_opportunity_analyses`); opportunities deliberately have no FK on item_number (items are replaced delete+insert on plan update; opportunity persists as proof of early discovery)
+- Status lifecycle: `predicted` (detected) → `procurement_found` (V2 linker) or `expired` (stale); `detected_at` immutable for lead-time analytics
+
+### Cycle 24+ roadmap — Radar V2 & V3
+
+**V2 — Linker + history** (planned):
+- Procurement linker: match `future_opportunities` against actual published procurements in PNCP (transition status to `procurement_found`, compute lead time)
+- History tracking: expiring-contract signals (supplier's contract ending, vendor may rebid)
+- Lead-time badge: "Found 45 days before publication" badge on Radar UI and digest
+- Clustering: Group PCA items by agency + PDM code (one "opportunity" per cluster) instead of per-item
+
+**V3 — Price registration & intelligence** (planned):
+- Price registration data: integrate supplier's historical contract prices (SISG, ComprasNet)
+- Price intelligence: "Typical price for this item is X; estimate is Y (±Z%)"
+- Preparation workflows: cost, delivery, staffing templates based on item class
+
 ### Cycle 20+ roadmap
 
 **High priority** (needed for production feedback loop):
