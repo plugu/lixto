@@ -1,11 +1,11 @@
 # STATE — rewrite after every ticket completes; never append. ≤30 lines total.
 
 ## Now
-- Cycle 24 (Future Procurement Radar V1, **mvp**): tickets 124–130 done (1 attempt each), rebased onto cycle 25 (`7f67387`), awaiting merge to main + deploy. Suites green before rebase: ruff, pytest 411, eslint, vitest 596, next build — re-run after rebase.
+- Cycle 24 (Future Procurement Radar V1, **mvp**) DEPLOYED 2026-09-08 13:23 UTC (`320ad04`, rebased onto cycle 25; suites green post-rebase: ruff, pytest 493, eslint, vitest 619, next build). Migration 005 applied on prod; manual `radar-run` → 200, runId 253, zeros (no PCA rows, no company profiles yet). Dokploy schedules: `plans-embed` 20 4 (`--limit 2000`, ON), `radar-run` 40 4 (ON), `radar-seed` manual-only chain; `plans-sync` still OFF pending volume decision (old note: ~200k rows/3 days).
 - Cycle 25 (AI Tender Analysis V1, **mvp**) DEPLOYED 2026-09-08: migration 006, `analyze-jobs` `*/2 * * * *` enabled; `analyze-run` cron stays DISABLED by decision (2026-09-08) — analysis is on-demand only.
 
 ## Next
-- Radar deploy: merge to main (lixto-web + lixto-cli autoDeploy; cli runs `lixto db init` on start → applies `005_radar.sql`); Dokploy `lixto-cli`: enable `plans-sync` (0 4 * * *), create `plans-embed` (20 4 * * *, `lixto plans embed`) and `radar-run` (40 4 * * *, `lixto radar run`); first manual run order: plans sync → plans embed → radar run. `LIXTO_RADAR_*` stay at defaults.
+- Radar go-live data: decide PCA ingestion volume (nationwide ~65k rows/day) → run `radar-seed` (adjust `--since`) then enable `plans-sync`; prod needs a company profile before matches appear.
 - Cycle 25 follow-ups: verify migration 006 on prod; smoke-test "Analisar com IA" on one open procurement. Do not enable `analyze-run` without the user.
 - Radar V2 candidates: prediction linker (`procurement_found` + lead-time badge), history/expiring-contract signals, agency+PDM clustering, digest inclusion, 👍/👎 feedback.
 - App-wide caveat: `notFound()` streams as HTTP 200 because of `app/loading.tsx` (UI correct) — own ticket if 404 status matters.
