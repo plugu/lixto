@@ -337,7 +337,7 @@ When moving Lixto to production ingestion:
 
 Code and migration `005_radar.sql` are deployed; all four Radar schedules exist on `lixto-cli` and are **disabled**. Nothing runs and nothing is spent until these steps:
 
-0. **Decide the LLM provider/model first** — `plans-embed` bills embedding tokens; `LIXTO_LLM_MODEL_EMBED` must be the same model already used by `enrich-embed` (vectors are compared against `company_profiles.embedding`). `LIXTO_RADAR_ANALYSIS_MODEL` (chat) can be anything OpenAI-compatible; falls back to `LIXTO_RECOMMEND_MODEL`.
+0. **Embedding model is decided: `gemini-embedding-001` @1536 stays** (2026-09-08 — #1 on MTEB-BR for Brazilian Portuguese; `text-embedding-3-small` is cheaper but weaker; see `experiments/ml-facets/REPORT.md`). Prerequisite: **enable billing on the Gemini project** — the free tier returns 429 after a few hundred calls/day. `LIXTO_LLM_MODEL_EMBED` must never change without a full re-embed (procurements, profiles, plan items). `LIXTO_RADAR_ANALYSIS_MODEL` (chat) can be anything OpenAI-compatible; falls back to `LIXTO_RECOMMEND_MODEL`.
 1. **Decide PCA volume.** `plans sync` is nationwide (no fence): roughly 65k rows/day. Cheap in tokens (zero), not in disk. If that is too much, add a fence before enabling (V2 idea: only agencies already present in `procurements`).
 2. **Seed once**: edit `radar-seed`'s `--since` (7–30 days back), `schedule.runManually`. Runs `plans sync --since … && plans embed --limit 2000 && radar run`. To skip embeddings entirely, drop the middle command — Radar still works on term matches.
 3. **Enable daily**: `plans-sync` (04:00) → `plans-embed` (04:20, optional) → `radar-run` (04:40). Timings assume plans sync finishes within 20 min; if not, the next day's run catches up.
