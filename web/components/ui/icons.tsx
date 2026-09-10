@@ -250,3 +250,29 @@ export function Radar({ size = 16, ...props }: IconProps) {
     </svg>
   );
 }
+
+export function Sun({ size = 16, ...props }: IconProps) {
+  return (
+    <svg {...base(size)} {...props}>
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2.5M12 19.5V22M4.2 4.2l1.8 1.8M18 18l1.8 1.8M2 12h2.5M19.5 12H22M4.2 19.8L6 18M18 6l1.8-1.8" />
+    </svg>
+  );
+}
+
+export function Moon({ size = 16, ...props }: IconProps) {
+  return (
+    <svg {...base(size)} {...props}>
+      <path d="M20 14.5A8.5 8.5 0 1110 3a6.5 6.5 0 0010 11.5z" />
+    </svg>
+  );
+}
+
+export function Monitor({ size = 16, ...props }: IconProps) {
+  return (
+    <svg {...base(size)} {...props}>
+      <rect x="3" y="4" width="18" height="13" rx="2" />
+      <path d="M8 21h8M12 17v4" />
+    </svg>
+  );
+}

@@ -1,4 +1,6 @@
-import Link from "next/link";
+"use client";
+
+import { applyCompatGate } from "@/components/filters";
 import { Badge } from "@/components/ui/badge";
 import { X } from "@/components/ui/icons";
 import type {
@@ -6,11 +8,10 @@ import type {
   ProcurementFilters,
   ProcurementKind,
 } from "@/lib/procurement-queries";
+import { useProcurementFilters } from "@/lib/procurement-url";
 import { STATUS_LABELS } from "@/lib/status";
 
-type RawSearchParams = Record<string, string | string[] | undefined>;
-
-type Chip = { key: string; label: string; href: string };
+type Chip = { key: string; label: string; remove: ProcurementFilters };
 
 const KIND_LABELS: Record<ProcurementKind, string> = {
   product: "Produto",
@@ -22,125 +23,114 @@ function formatValue(value: number): string {
   return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 }).format(value);
 }
 
-function toURLSearchParams(raw: RawSearchParams): URLSearchParams {
-  const params = new URLSearchParams();
-  for (const [key, value] of Object.entries(raw)) {
-    if (value === undefined) continue;
-    if (Array.isArray(value)) {
-      value.forEach((v) => params.append(key, v));
-    } else {
-      params.append(key, value);
-    }
-  }
-  return params;
+function orUndefined<T>(values: T[]): T[] | undefined {
+  return values.length > 0 ? values : undefined;
 }
 
-/** Rebuilds the current search params minus one value from one field (the
- * whole field, when `value` is omitted) — used to build each chip's "remove
- * this selection" link. Also drops `page` so removing a filter resets to
- * page 1. */
-function withoutValue(
-  searchParams: URLSearchParams,
-  field: string,
-  value?: string,
-): URLSearchParams {
-  const next = new URLSearchParams(searchParams);
-  next.delete("page");
-  if (value === undefined) {
-    next.delete(field);
-    return next;
-  }
-  const remaining = next.getAll(field).filter((v) => v !== value);
-  next.delete(field);
-  remaining.forEach((v) => next.append(field, v));
-  return next;
-}
-
-function buildHref(params: URLSearchParams): string {
-  const qs = params.toString();
-  return qs ? `/procurements?${qs}` : "/procurements";
-}
-
+/**
+ * Removable chips for the active filters. Each chip is a button that writes
+ * the reduced filter set through `useProcurementFilters()` — no href
+ * rebuilding, no document reload, and `page` resets because that hook always
+ * drops it on a filter change.
+ */
 export function FilterChips({
-  filters,
-  searchParams,
   modalityOptions,
+  showCompat,
 }: {
-  filters: ProcurementFilters;
-  searchParams: RawSearchParams;
   modalityOptions: ModalityOption[];
+  showCompat?: boolean;
 }) {
-  const params = toURLSearchParams(searchParams);
+  const { filters, pending, setFilters } = useProcurementFilters();
+  const active = applyCompatGate(filters, showCompat);
   const chips: Chip[] = [];
 
-  if (filters.q) {
-    chips.push({
-      key: "q",
-      label: `"${filters.q}"`,
-      href: buildHref(withoutValue(params, "q")),
-    });
+  if (active.q) {
+    chips.push({ key: "q", label: `"${active.q}"`, remove: { ...active, q: undefined } });
   }
 
-  filters.modalityIds?.forEach((id) => {
+  active.modalityIds?.forEach((id) => {
     const name = modalityOptions.find((m) => m.id === id)?.name ?? String(id);
     chips.push({
       key: `modality-${id}`,
       label: name,
-      href: buildHref(withoutValue(params, "modality", String(id))),
+      remove: {
+        ...active,
+        modalityIds: orUndefined(
+          (active.modalityIds ?? []).filter((v) => v !== id),
+        ),
+      },
     });
   });
 
-  filters.categories?.forEach((category) => {
+  active.categories?.forEach((category) => {
     chips.push({
       key: `category-${category}`,
       label: category,
-      href: buildHref(withoutValue(params, "category", category)),
+      remove: {
+        ...active,
+        categories: orUndefined(
+          (active.categories ?? []).filter((v) => v !== category),
+        ),
+      },
     });
   });
 
-  filters.portals?.forEach((portal) => {
+  active.portals?.forEach((portal) => {
     chips.push({
       key: `portal-${portal}`,
       label: portal,
-      href: buildHref(withoutValue(params, "portal", portal)),
+      remove: {
+        ...active,
+        portals: orUndefined((active.portals ?? []).filter((v) => v !== portal)),
+      },
     });
   });
 
-  filters.statuses?.forEach((status) => {
+  active.statuses?.forEach((status) => {
     chips.push({
       key: `status-${status}`,
       label: STATUS_LABELS[status],
-      href: buildHref(withoutValue(params, "status", status)),
+      remove: {
+        ...active,
+        statuses: orUndefined(
+          (active.statuses ?? []).filter((v) => v !== status),
+        ),
+      },
     });
   });
 
-  filters.states?.forEach((state) => {
+  active.states?.forEach((state) => {
     chips.push({
       key: `state-${state}`,
       label: state,
-      href: buildHref(withoutValue(params, "state", state)),
+      remove: {
+        ...active,
+        states: orUndefined((active.states ?? []).filter((v) => v !== state)),
+      },
     });
   });
 
-  if (filters.compat) {
+  if (active.compat) {
     chips.push({
       key: "compat",
       label: "Compatível com minha empresa",
-      href: buildHref(withoutValue(params, "compat")),
+      remove: { ...active, compat: undefined },
     });
   }
 
-  if (filters.kind) {
+  if (active.kind) {
     chips.push({
       key: "kind",
-      label: KIND_LABELS[filters.kind],
-      href: buildHref(withoutValue(params, "kind")),
+      label: KIND_LABELS[active.kind],
+      remove: { ...active, kind: undefined },
     });
   }
 
-  if (filters.valueMin !== undefined || filters.valueMax !== undefined) {
-    const min = filters.valueMin !== undefined ? formatValue(filters.valueMin) : undefined;
-    const max = filters.valueMax !== undefined ? formatValue(filters.valueMax) : undefined;
+  if (active.valueMin !== undefined || active.valueMax !== undefined) {
+    const min =
+      active.valueMin !== undefined ? formatValue(active.valueMin) : undefined;
+    const max =
+      active.valueMax !== undefined ? formatValue(active.valueMax) : undefined;
     const label =
       min !== undefined && max !== undefined
         ? `R$ ${min}–${max}`
@@ -150,33 +140,40 @@ export function FilterChips({
     chips.push({
       key: "value",
       label,
-      href: buildHref(withoutValue(withoutValue(params, "valueMin"), "valueMax")),
+      remove: { ...active, valueMin: undefined, valueMax: undefined },
     });
   }
 
   if (chips.length === 0) return null;
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div
+      aria-busy={pending}
+      className={`flex flex-wrap items-center gap-2 transition-opacity ${
+        pending ? "opacity-60" : ""
+      }`}
+    >
       {chips.map((chip) => (
-        <Link
+        <button
           key={chip.key}
-          href={chip.href}
+          type="button"
           title={`Remover ${chip.label}`}
+          onClick={() => setFilters(chip.remove)}
           className="rounded-[9999px] transition-opacity hover:opacity-70 focus:outline-none focus-visible:ring-[3px] focus-visible:ring-accent-soft"
         >
           <Badge tone="neutral">
             {chip.label}
             <X size={12} />
           </Badge>
-        </Link>
+        </button>
       ))}
-      <Link
-        href="/procurements"
+      <button
+        type="button"
+        onClick={() => setFilters({})}
         className="text-[13px] font-medium text-ink-muted hover:text-ink focus:outline-none focus-visible:ring-[3px] focus-visible:ring-accent-soft"
       >
         Limpar tudo
-      </Link>
+      </button>
     </div>
   );
 }

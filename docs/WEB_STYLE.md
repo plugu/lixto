@@ -9,21 +9,40 @@ first. Tokens live in `web/app/globals.css` `@theme`.
 
 ## Tokens
 
-| token | value | use |
-|---|---|---|
-| `--color-canvas` | `#FAF9F6` | page background |
-| `--color-surface` | `#FFFFFF` | table body, inputs, popovers, hero box |
-| `--color-surface-raised` | `#F3F1EC` | sidebar active, hover rows, toolbar pills, KPI tiles |
-| `--color-ink` | `#1C1B18` | primary text, primary button bg |
-| `--color-ink-muted` | `#6B6A64` | secondary text, labels, icons |
-| `--color-ink-faint` | `#A3A19A` | placeholders, tertiary |
-| `--color-line` | `#E8E6E0` | hairlines only |
-| `--color-accent` | `#2F6BB3` | links, active nav text, count badges, focus ring |
-| `--color-accent-soft` | `#E7EFF9` | accent chip bg, selected state bg |
-| `--color-ok` / `--color-ok-soft` | `#2E8B57` / `#E6F4EC` | status Aberta, fit alto |
-| `--color-warn` / `--color-warn-soft` | `#C8811A` / `#FBF0DF` | status Vai abrir, fit borderline |
-| `--color-off` / `--color-off-soft` | `#8A8884` / `#EFEEEA` | status Fechada, sem análise |
-| `--color-danger` | `#B4413C` | destructive, form errors |
+Palette is "Slate" cool neutrals (cycle 9). Every token is a Tailwind v4
+`@theme` custom property on `:root`; the dark column is applied by
+`app/globals.css` either automatically (`@media (prefers-color-scheme:
+dark)`, when the user hasn't overridden the theme) or manually
+(`:root[data-theme="dark"]`, set by the theme toggle). See "Dark mode"
+below.
+
+| token | light | dark | use |
+|---|---|---|---|
+| `--color-canvas` | `#f8fafc` | `#0b1220` | page background |
+| `--color-surface` | `#ffffff` | `#111827` | table body, inputs, popovers, hero box |
+| `--color-surface-raised` | `#f1f5f9` | `#1f2937` | sidebar active, hover rows, toolbar pills, KPI tiles |
+| `--color-ink` | `#0f172a` | `#e5e7eb` | primary text, primary button bg |
+| `--color-ink-muted` | `#64748b` | `#9ca3af` | secondary text, labels, icons |
+| `--color-ink-faint` | `#94a3b8` | `#6b7280` | placeholders, tertiary |
+| `--color-line` | `#e2e8f0` | `#273244` | hairlines only |
+| `--color-accent` | `#0f766e` | `#2dd4bf` | links, active nav text, count badges, focus ring |
+| `--color-accent-soft` | `#e5f4f2` | `#134e4a` | accent chip bg, selected state bg |
+| `--color-ok` / `--color-ok-soft` | `#15803d` / `#e8f5ec` | `#4ade80` / `#14532d` | status Aberta, fit alto |
+| `--color-warn` / `--color-warn-soft` | `#b45309` / `#faf0e2` | `#fbbf24` / `#78350f` | status Vai abrir, fit borderline |
+| `--color-off` / `--color-off-soft` | `#8a94a6` / `#eef1f5` | `#9ca3af` / `#1f2937` | status Fechada, sem análise |
+| `--color-danger` | `#be3536` | `#f87171` | destructive, form errors |
+
+## Dark mode
+
+`:root` sets `color-scheme: light dark`, so the app follows the OS scheme by
+default (via `@media (prefers-color-scheme: dark)`). The user can override this with the segmented toggle in the
+sidebar footer (`components/ui/theme-toggle.tsx`, "Tema do sistema" / "Tema
+claro" / "Tema escuro"), which writes `system`/`light`/`dark` to the `lixto.theme`
+`localStorage` key and mirrors it to `data-theme` on `<html>` (absent or `system` =
+follow OS preference). An inline script in `app/layout.tsx` reads `lixto.theme`
+before hydration and sets `data-theme` so there is no light→dark flash on
+reload. Marketing tokens (`--color-night*`, `--color-mint`, `--color-sand*`)
+are untouched by dark mode — the landing page is out of scope.
 
 **Legacy aliases** (kept valid until every page migrates in tickets 32–36 —
 do not remove): `--color-background→canvas`, `--color-card→surface`,
@@ -58,13 +77,13 @@ Shadow: none for structure. Only `--shadow-popover` (popovers) and
 
 ## Chrome
 
-- **Sidebar** (`components/sidebar.tsx`, client, `hidden md:flex`): 240px
-  expanded / 56px collapsed (state in `localStorage` key `plic.sidebar`,
+- **Sidebar** (`components/sidebar.tsx`, client, `hidden md:flex`): 240px (`w-60`)
+  expanded / 56px (`w-14`) collapsed (state in `localStorage` key `lixto.sidebar`,
   guarded try/catch — never throws if storage is unavailable); bg `canvas`,
   right hairline `line`; nav item 32px tall, 13px, icon 18px; active =
   `bg-surface-raised` + `ink` text, **no left accent bar**; hover =
-  `surface-raised` at ~60%. Logo row, `CommandSearch` trigger pill (⌘K),
-  footer = avatar initials circle + nome + empresa + ghost "Sair" button.
+  `surface-raised` at ~60%. Logo row, command palette trigger (`⌘K` or `?` to open),
+  footer = theme toggle (system/light/dark in `lixto.theme` localStorage) + avatar initials circle + nome + empresa + ghost "Sair" button.
   Returns `null` when logged out (no chrome on `/login`, `/signup`, …).
 - **TopBar** (`components/ui/top-bar.tsx`, client, `md:hidden`): mobile
   header with a Menu button opening a slide-over that renders the same nav
@@ -113,8 +132,9 @@ Shadow: none for structure. Only `--shadow-popover` (popovers) and
   separation by spacing (`gap-4`) and the eyebrow/title pair only.
 - `icons.tsx`: inline SVG, 1.5px stroke, round caps, `currentColor`; 16px in
   rows/toolbar, 20px in nav/empty states (pass `size`).
-- `CommandSearch`: ⌘K global listener + a dialog with a single GET input
-  submitting to `/licitacoes?q=`. Rendered inside the expanded sidebar.
+- `CommandSearch`: ⌘K (or `?`) global listener + a `cmdk` command palette dialog
+  with static nav items + live procurement search via server action. Rendered
+  inside the expanded sidebar; dialog portals to `<body>` for mobile.
 
 ## Table & toolbar rules
 

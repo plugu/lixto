@@ -1,24 +1,34 @@
 ---
-mode: prototype
+mode: mvp
 routing_profile: cloud
 parallel_default: sequential
 ---
 
-# Lixto — ML-instead-of-LLM facet benchmark (cycle 26)
+# Lixto — App fluidity (cycle 27)
 
 ## What / why
-Every enriched procurement costs an LLM call, and the provider question blocks Radar go-live. Most facets the match engine consumes are classification, not generation: `cnae_candidates`, `categories`, `requires_certification`, `requires_technical_certificate`, `complexity`, `keywords`/`concepts`, the embedding vector. Prod holds LLM-labelled `procurement_enrichments` rows plus PNCP CATMAT/CATSER item codes — free training labels. Measure whether cheap ML (TF-IDF + linear models, YAKE/KeyBERT, a local multilingual embedding model on the M4) reproduces the LLM, and what it costs, before touching the pipeline.
+The logged-in app (`web/app/(app)/*`) looks right but does not *feel* fluid. Root cause is the navigation model, not the visuals: every route is `force-dynamic`, no route has a `loading.tsx`, filters and ⌘K are plain GET forms, and dashboard/procurements await every query before painting. Each click freezes the old page until the server answers, then snaps. Actions (dismiss, interest, analyze) wait on the server and re-render the whole page.
 
-Throwaway code under `experiments/ml-facets/` with its own dependencies; `src/lixto` and `web/` untouched. Prod data pulled read-only over the Tailscale/socat bridge into a local scratch dataset. Step zero: fewer than ~1,000 labelled rows → stop and report.
+This cycle makes the app behave like a 2026 all-day tool (Linear, Attio, Vercel): instant feedback on every click, streamed pages, filters that apply on change, optimistic actions with undo, a real command palette, and the visual polish those unlock (answer-first dashboard, dark mode, touch targets). No new palette, typography or layout grid — the calm "Slate" language stays.
+
+Repo facts that shape the work:
+- Next 16.3 / React 19.2.8 stable: no `experimental.viewTransition`, no `ViewTransition` export. Cross-route fades use `next-view-transitions@0.3.5`.
+- URL state via `nuqs@2.10` (Next app-router adapter). URL contracts (`parseFilters`, `parseRadarFilters`, `parseChartScope`, `?view=`) do **not** change — server pages keep parsing `searchParams`.
+- Toasts via `sonner@2.0.8`; palette via `cmdk@1.1.1`.
+- `vitest` runs in node (no jsdom): tests cover `web/lib/*` logic only; UI is verified by `lint`, `build`, and curl runtime probes against `npm run dev` on :3000 with the dev probe session cookie `lixto_session=devprobe` (local DB, company 1).
+- `analysis_jobs.status` is only `queued|running|done|error` — no stages; progress UI derives from status + elapsed time, no migration.
 
 ## Primary user story
-As the Lixto owner choosing an LLM provider, I run one script and read a per-facet report: does ML match the LLM closely enough to replace it, and what does it save per 1,000 procurements.
+As a Lixto user clicking through Painel, Oportunidades, Radar and Licitações, every click responds within one frame (skeleton, pending pill, or optimistic change), filters apply as I change them, and I can reach any procurement or page from ⌘K without a full reload.
 
 ## Out of scope
-- Dossier, summary, GO/NO-GO, Radar "Analisar com IA" (generative — stay LLM)
-- Changes to `src/lixto`, `web/`, migrations, schedules, stored vectors
-- Deep models / fine-tuning / GPU
-- Production inference path (next cycle if numbers pass)
+- New colour palette, typography, or page layouts beyond the dashboard reorder
+- Python CLI, migrations, schedules, LLM provider decision
+- Marketing site (`web/app/page.tsx`, `components/marketing/*`)
+- Analysis job stages in the worker (would need a migration)
+- Mobile bottom navigation
 
 ## Success demo
-Done when `uv run experiments/ml-facets/bench.py` writes `experiments/ml-facets/REPORT.md` with, per target, held-out score vs LLM labels (thresholds: CNAE top-3 ≥80%, categories & flags F1 ≥0.8, keywords Jaccard ≥0.5, embeddings top-10 overlap ≥70%), coverage, ms/row on the M4, $/1k vs today's LLM cost, and a GO / NO-GO line.
+1. `cd web && npm run lint && npm run build && npm test` green.
+2. With `npm run dev` on :3000 and the dev DB: `curl -s -b lixto_session=devprobe localhost:3000/dashboard` streams (`Transfer-Encoding: chunked`) and the first chunk contains `data-skeleton`.
+3. In the browser: click Painel → Oportunidades → Radar → Licitações: each shows a skeleton/pending state immediately, no white flash; change a filter on Licitações: results update without "Aplicar" and without the sidebar remounting; dismiss an opportunity: card animates out, toast offers "Desfazer" and it comes back; ⌘K lists nav commands and live procurement results; system dark mode renders the app in dark tokens.

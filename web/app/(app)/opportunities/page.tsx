@@ -2,10 +2,10 @@
 // on top of every tab — it always reflects the last global match run,
 // independent of which slice the user is looking at.
 import type { Metadata } from "next";
-import Link from "next/link";
 import { DigestBanner } from "@/components/digest-banner";
 import { OpportunityCard } from "@/components/opportunity-card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { PillTabs } from "@/components/ui/pill-tabs";
 import { requireSession } from "@/lib/auth";
 import { getDigest } from "@/lib/digest-queries";
 import {
@@ -13,11 +13,16 @@ import {
   listOpportunities,
   type OpportunityRow,
 } from "@/lib/opportunity-queries";
+import {
+  OPPORTUNITY_VIEW_DEFAULT,
+  parseOpportunityView,
+  type OpportunityViewValue,
+} from "@/lib/url-state";
 
 export const metadata: Metadata = { title: "Oportunidades" };
 export const dynamic = "force-dynamic";
 
-type View = "attention" | "all" | "dismissed";
+type View = OpportunityViewValue;
 
 const TABS: { value: View; label: string }[] = [
   { value: "attention", label: "Atenção" },
@@ -32,11 +37,6 @@ const EMPTY_COPY: Record<View, string> = {
 };
 
 const LIST_LIMIT = 50;
-
-function parseView(raw: string | string[] | undefined): View {
-  const value = Array.isArray(raw) ? raw[0] : raw;
-  return value === "all" || value === "dismissed" ? value : "attention";
-}
 
 async function fetchList(companyId: number, view: View): Promise<OpportunityRow[]> {
   if (view === "dismissed") {
@@ -57,7 +57,7 @@ export default async function OpportunitiesPage({
 }: PageProps<"/opportunities">) {
   const session = await requireSession();
   const resolved = await searchParams;
-  const view = parseView(resolved.view);
+  const view = parseOpportunityView(resolved.view);
 
   const [digest, opportunities] = await Promise.all([
     getDigest(session.user.companyId),
@@ -72,21 +72,12 @@ export default async function OpportunitiesPage({
 
       <DigestBanner digest={digest} showLink={false} />
 
-      <nav aria-label="Filtrar oportunidades" className="flex items-center gap-1">
-        {TABS.map((tab) => (
-          <Link
-            key={tab.value}
-            href={tab.value === "attention" ? "/opportunities" : `/opportunities?view=${tab.value}`}
-            className={`rounded-[9999px] px-3 py-1 text-[13px] font-medium transition-colors ${
-              tab.value === view
-                ? "bg-ink text-surface"
-                : "bg-surface-raised text-ink-muted hover:bg-line/60 hover:text-ink"
-            }`}
-          >
-            {tab.label}
-          </Link>
-        ))}
-      </nav>
+      <PillTabs
+        param="view"
+        options={TABS}
+        defaultValue={OPPORTUNITY_VIEW_DEFAULT}
+        ariaLabel="Filtrar oportunidades"
+      />
 
       {opportunities.length === 0 ? (
         <EmptyState title={EMPTY_COPY[view]} />

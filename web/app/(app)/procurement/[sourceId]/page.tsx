@@ -1,3 +1,4 @@
+import { notFound } from "next/navigation";
 import { after } from "next/server";
 import { AnalysisPanel } from "@/components/analysis-panel";
 import { AnalyzeButton } from "@/components/analyze-button";
@@ -41,18 +42,7 @@ export default async function ProcurementDetailPage(
   const { sourceId } = await props.params;
   const detail = await fetchProcurementDetail(decodeSourceId(sourceId));
 
-  if (!detail) {
-    return (
-      <div className="page-wide flex flex-col gap-6">
-        <BackLink />
-        <Card>
-          <p className="py-16 text-center text-sm text-ink-muted">
-            Licitação não encontrada.
-          </p>
-        </Card>
-      </div>
-    );
-  }
+  if (!detail) notFound();
 
   const [items, documents, enrichment, prices, analysisState, analysis] =
     await Promise.all([

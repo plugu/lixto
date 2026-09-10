@@ -8,6 +8,7 @@
 // rather than reaching into a component that isn't ours to change.
 import Link from "next/link";
 import { Badge, type BadgeTone } from "@/components/ui/badge";
+import { Popover } from "@/components/ui/popover";
 import { OpportunityFeedback } from "@/components/opportunity-feedback";
 import { formatCurrencyBRL, formatDateBR } from "@/lib/format";
 import type { OpportunityRow } from "@/lib/opportunity-queries";
@@ -45,28 +46,25 @@ function reasonLabel(reason: Reason): string {
 function ReasonChip({ reason }: { reason: Reason }) {
   const label = reasonLabel(reason);
 
-  if (reason.weight < 0) {
-    if (reason.code === "exclusion") {
-      return (
-        <span
-          title={reason.detail}
-          className="inline-flex h-6 items-center rounded-[9999px] bg-danger/10 px-2.5 text-[13px] font-medium text-danger"
-        >
-          {label}
-        </span>
-      );
-    }
-    return (
-      <span title={reason.detail}>
-        <Badge tone="warn">{label}</Badge>
+  const chip =
+    reason.weight < 0 && reason.code === "exclusion" ? (
+      <span className="inline-flex h-6 items-center rounded-[9999px] bg-danger/10 px-2.5 text-[13px] font-medium text-danger max-md:min-h-11 max-md:px-3">
+        {label}
       </span>
+    ) : (
+      <Badge tone={reason.weight < 0 ? "warn" : "neutral"} touch>
+        {label}
+      </Badge>
     );
-  }
+
+  // Chips without a detail (rare, deterministic reasons with nothing more to
+  // say) render plain — no popover, nothing to tap for.
+  if (!reason.detail) return chip;
 
   return (
-    <span title={reason.detail}>
-      <Badge tone="neutral">{label}</Badge>
-    </span>
+    <Popover hover trigger={chip}>
+      <p className="max-w-xs text-[13px] text-ink-muted p-2">{reason.detail}</p>
+    </Popover>
   );
 }
 
@@ -99,11 +97,14 @@ export function OpportunityCard({ opportunity }: { opportunity: OpportunityRow }
   const reasons = (opportunity.reasons ?? []).slice(0, 4);
 
   return (
-    <div className="flex flex-col gap-2 rounded-[10px] border border-line bg-surface p-3.5">
+    <OpportunityFeedback
+      opportunityId={opportunity.id}
+      previousState={opportunity.state}
+    >
       <div className="flex items-start justify-between gap-3">
         <Link
           href={`/procurement/${encodeURIComponent(opportunity.source_id)}`}
-          className="line-clamp-2 text-sm font-medium text-ink hover:underline"
+          className="line-clamp-2 rounded-sm text-sm font-medium text-ink hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-accent-soft"
         >
           {opportunity.description || "—"}
         </Link>
@@ -137,17 +138,13 @@ export function OpportunityCard({ opportunity }: { opportunity: OpportunityRow }
 
       {opportunity.verdict ? (
         <details className="text-[13px] text-ink-muted">
-          <summary className="flex cursor-pointer list-none items-center gap-1.5">
+          <summary className="flex cursor-pointer list-none items-center gap-1.5 rounded-md focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-accent-soft">
             <VerdictBadge verdict={opportunity.verdict} />
             <span>Ver justificativa</span>
           </summary>
           <p className="mt-1.5 leading-5">{opportunity.rationale || "—"}</p>
         </details>
       ) : null}
-
-      <div className="pt-1">
-        <OpportunityFeedback opportunityId={opportunity.id} />
-      </div>
-    </div>
+    </OpportunityFeedback>
   );
 }

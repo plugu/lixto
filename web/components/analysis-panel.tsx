@@ -286,139 +286,141 @@ export function AnalysisPanel({
   );
 
   return (
-    <CollapsibleCard
-      eyebrow={`Análise com IA · v${analysis.version}`}
-      className="border-t-2 border-t-accent"
-    >
-      {/* Header */}
-      <div className="flex flex-wrap items-center gap-1.5">
-        {overallRisk && (
-          <Badge tone={overallRisk.tone}>{overallRisk.label}</Badge>
-        )}
-        {enrichment?.me_epp_exclusive && (
-          <Badge tone="neutral">Exclusiva ME/EPP</Badge>
-        )}
-        {enrichment?.me_epp_preference && (
-          <Badge tone="neutral">Preferência ME/EPP</Badge>
-        )}
-        {analysis.input_truncated && (
-          <Badge tone="warn">Documentos parcialmente lidos</Badge>
-        )}
-        <span className="text-xs text-ink-muted">
-          Analisado em {formatDateBR(analysis.analyzed_at, true)}
-        </span>
-      </div>
-
-      {/* Resumo */}
-      {(analysis.executive_summary || analysis.object_text) && (
-        <div className="flex flex-col gap-3">
-          {analysis.executive_summary && (
-            <p className="whitespace-pre-wrap text-sm text-ink">
-              {analysis.executive_summary}
-            </p>
+    <div id="analysis-panel" className="scroll-mt-6">
+      <CollapsibleCard
+        eyebrow={`Análise com IA · v${analysis.version}`}
+        className="border-t-2 border-t-accent"
+      >
+        {/* Header */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          {overallRisk && (
+            <Badge tone={overallRisk.tone}>{overallRisk.label}</Badge>
           )}
-          {analysis.object_text && (
-            <div className="flex flex-col gap-1">
-              <h3 className="text-xs font-medium uppercase tracking-[0.08em] text-ink-faint">
-                Objeto
-              </h3>
+          {enrichment?.me_epp_exclusive && (
+            <Badge tone="neutral">Exclusiva ME/EPP</Badge>
+          )}
+          {enrichment?.me_epp_preference && (
+            <Badge tone="neutral">Preferência ME/EPP</Badge>
+          )}
+          {analysis.input_truncated && (
+            <Badge tone="warn">Documentos parcialmente lidos</Badge>
+          )}
+          <span className="text-xs text-ink-muted">
+            Analisado em {formatDateBR(analysis.analyzed_at, true)}
+          </span>
+        </div>
+
+        {/* Resumo */}
+        {(analysis.executive_summary || analysis.object_text) && (
+          <div className="flex flex-col gap-3">
+            {analysis.executive_summary && (
               <p className="whitespace-pre-wrap text-sm text-ink">
-                {analysis.object_text}
+                {analysis.executive_summary}
               </p>
-            </div>
-          )}
-        </div>
-      )}
+            )}
+            {analysis.object_text && (
+              <div className="flex flex-col gap-1">
+                <h3 className="text-xs font-medium uppercase tracking-[0.08em] text-ink-faint">
+                  Objeto
+                </h3>
+                <p className="whitespace-pre-wrap text-sm text-ink">
+                  {analysis.object_text}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
 
-      {/* Dados principais */}
-      {basicFacts.length > 0 && (
-        <div className="flex flex-col gap-2">
-          <h3 className="text-xs font-medium uppercase tracking-[0.08em] text-ink-faint">
-            Dados principais
-          </h3>
-          <FactDl facts={basicFacts} documents={documents} />
-        </div>
-      )}
+        {/* Dados principais */}
+        {basicFacts.length > 0 && (
+          <div className="flex flex-col gap-2">
+            <h3 className="text-xs font-medium uppercase tracking-[0.08em] text-ink-faint">
+              Dados principais
+            </h3>
+            <FactDl facts={basicFacts} documents={documents} />
+          </div>
+        )}
 
-      {/* Prazos */}
-      {analysis.dates.length > 0 && (
-        <div className="flex flex-col gap-2">
-          <h3 className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-[0.08em] text-ink-faint">
-            <Calendar size={14} /> Prazos
-          </h3>
-          <DatesTable dates={analysis.dates} documents={documents} />
-        </div>
-      )}
+        {/* Prazos */}
+        {analysis.dates.length > 0 && (
+          <div className="flex flex-col gap-2">
+            <h3 className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-[0.08em] text-ink-faint">
+              <Calendar size={14} /> Prazos
+            </h3>
+            <DatesTable dates={analysis.dates} documents={documents} />
+          </div>
+        )}
 
-      {/* Participação e habilitação */}
-      {analysis.requirements.length > 0 && (
-        <CollapsibleCard title="Participação e habilitação" defaultOpen>
-          <RequirementsByCategory analysis={analysis} documents={documents} />
-        </CollapsibleCard>
-      )}
+        {/* Participação e habilitação */}
+        {analysis.requirements.length > 0 && (
+          <CollapsibleCard title="Participação e habilitação" defaultOpen>
+            <RequirementsByCategory analysis={analysis} documents={documents} />
+          </CollapsibleCard>
+        )}
 
-      {/* Condições comerciais */}
-      {commercialFacts.length > 0 && (
-        <CollapsibleCard title="Condições comerciais" defaultOpen={false}>
-          <FactDl facts={commercialFacts} documents={documents} />
-        </CollapsibleCard>
-      )}
+        {/* Condições comerciais */}
+        {commercialFacts.length > 0 && (
+          <CollapsibleCard title="Condições comerciais" defaultOpen={false}>
+            <FactDl facts={commercialFacts} documents={documents} />
+          </CollapsibleCard>
+        )}
 
-      {/* Penalidades */}
-      {analysis.penalties.length > 0 && (
-        <CollapsibleCard title="Penalidades" defaultOpen={false}>
-          <ul className="flex flex-col gap-2">
-            {analysis.penalties.map((penalty) => (
-              <li key={penalty.sequence} className="text-sm text-ink">
-                <p>{penalty.description}</p>
-                {penalty.basis && (
-                  <p className="text-ink-muted">{penalty.basis}</p>
-                )}
-                <CitationLinks
-                  citations={penalty.citations}
-                  documents={documents}
-                />
-              </li>
-            ))}
-          </ul>
-        </CollapsibleCard>
-      )}
+        {/* Penalidades */}
+        {analysis.penalties.length > 0 && (
+          <CollapsibleCard title="Penalidades" defaultOpen={false}>
+            <ul className="flex flex-col gap-2">
+              {analysis.penalties.map((penalty) => (
+                <li key={penalty.sequence} className="text-sm text-ink">
+                  <p>{penalty.description}</p>
+                  {penalty.basis && (
+                    <p className="text-ink-muted">{penalty.basis}</p>
+                  )}
+                  <CitationLinks
+                    citations={penalty.citations}
+                    documents={documents}
+                  />
+                </li>
+              ))}
+            </ul>
+          </CollapsibleCard>
+        )}
 
-      {/* Riscos e alertas */}
-      {risks.length > 0 && (
-        <CollapsibleCard title="Riscos e alertas" defaultOpen>
-          <RisksList risks={risks} documents={documents} />
-        </CollapsibleCard>
-      )}
+        {/* Riscos e alertas */}
+        {risks.length > 0 && (
+          <CollapsibleCard title="Riscos e alertas" defaultOpen>
+            <RisksList risks={risks} documents={documents} />
+          </CollapsibleCard>
+        )}
 
-      {/* Contradições e alterações */}
-      {contradictions.length > 0 && (
-        <CollapsibleCard title="Contradições e alterações" defaultOpen={false}>
-          <RisksList risks={contradictions} documents={documents} />
-        </CollapsibleCard>
-      )}
+        {/* Contradições e alterações */}
+        {contradictions.length > 0 && (
+          <CollapsibleCard title="Contradições e alterações" defaultOpen={false}>
+            <RisksList risks={contradictions} documents={documents} />
+          </CollapsibleCard>
+        )}
 
-      {/* Informações não encontradas */}
-      {analysis.missing.length > 0 && (
-        <CollapsibleCard
-          title="Informações não encontradas"
-          defaultOpen={false}
-        >
-          <ul className="flex flex-col gap-1.5 text-sm text-ink">
-            {analysis.missing.map((missing) => (
-              <li key={missing.sequence}>
-                <span className="font-medium">{missing.field}</span>
-                {missing.note && (
-                  <>
-                    {" "}
-                    — <span className="text-ink-muted">{missing.note}</span>
-                  </>
-                )}
-              </li>
-            ))}
-          </ul>
-        </CollapsibleCard>
-      )}
-    </CollapsibleCard>
+        {/* Informações não encontradas */}
+        {analysis.missing.length > 0 && (
+          <CollapsibleCard
+            title="Informações não encontradas"
+            defaultOpen={false}
+          >
+            <ul className="flex flex-col gap-1.5 text-sm text-ink">
+              {analysis.missing.map((missing) => (
+                <li key={missing.sequence}>
+                  <span className="font-medium">{missing.field}</span>
+                  {missing.note && (
+                    <>
+                      {" "}
+                      — <span className="text-ink-muted">{missing.note}</span>
+                    </>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </CollapsibleCard>
+        )}
+      </CollapsibleCard>
+    </div>
   );
 }

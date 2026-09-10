@@ -226,7 +226,6 @@ Items included in the Radar are those whose desired date is on or after today an
 
 - **`/radar`**: List opportunities, filter by state (predicted/expired), period (1m/3m/6m/1y), value band, min score. Cards show title, agency, estimated value, desired date, opportunity score + top signals, company match score (for logged-in user's company).
 - **`/radar/[id]`**: Detail view. Agency, PCA item, value, quantity, date, PDM code/classification. Opportunity signals and company match reasons. "Analyze with AI" button + cached analysis. Save / ignore action.
-- **Note**: `notFound()` responses stream as HTTP 200 because of `app/loading.tsx`; the not-found UI still renders.
 
 ### Status Lifecycle
 
@@ -352,6 +351,26 @@ One pass (`lixto analyze run`) replaces cycle 18's enrichment: processes every f
 3. Cron `lixto analyze jobs` drains queued jobs, same worker, bypasses fence but respects per-company cap.
 
 **Deterministic reprocessing**: If document set hash changes (new/updated PDFs), `version` increments and the dossier is marked stale; re-run fetches the new set.
+
+## Web app interaction model (Cycle 27)
+
+**Loading boundaries**: Each route (`/dashboard`, `/procurements`, `/radar`, `/opportunities`, etc.) has a per-route `loading.tsx` skeleton. No root `loading.tsx`; streams begin immediately with skeleton + fast metadata, then `Suspense` boundaries paint results on arrival. Per-page `loading.tsx` + route-level Suspense sections = instant visual feedback on every navigation.
+
+**URL state**: Three files own the URL contract:
+- `lib/url-state.ts` — shared literals and parsers for pill-tab groups (`CHART_SCOPES`, `OPPORTUNITY_VIEWS`, `RADAR_VIEWS`)
+- `lib/procurement-url.ts` — builds/parses `/procurements` query strings (filters, page); client-only implementation mirrored by server-side `parseFilters` in `lib/procurement-queries.ts`
+- `lib/radar-url.ts` — builds/parses `/radar` query strings; mirrors server-side `parseRadarFilters`
+
+**Filter semantics**: Filters apply on `onChange` via `useTransition` + `startTransition(router.push())` — no "Aplicar" button, no page remount. Server page re-runs instantly.
+
+**Optimistic actions**: Dismiss/interest buttons use `useOptimistic` to animate the card out immediately; `sonner` toast offers "Desfazer" (undo) + refetch on approval. Pattern shown in `components/opportunity-feedback.tsx`.
+
+**Keyboard + palette**: 
+- `lib/keyboard-shortcuts.ts` binds `g o/r/p/l` (nav) and `?` (palette).
+- `components/ui/command-search.tsx` (`cmdk`) opens on `?`, lists static nav + live procurement results via `paletteSearchAction`.
+- Nav shortcuts hint rendered in sidebar.
+
+**Theme**: `--color-*` tokens in `app/globals.css` @theme block. `:root` defaults to OS scheme; user toggle writes `light`/`dark` to `lixto.theme` localStorage, sets `data-theme` on `<html>`. Inline script in `app/layout.tsx` reads the key before hydration to avoid flash.
 
 ## API Contracts
 

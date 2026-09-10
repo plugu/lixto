@@ -12,8 +12,9 @@
 import { pool } from "./db";
 import type { Reason } from "./match-engine";
 import type { Signal } from "./radar-engine";
+import { RADAR_VIEW_DEFAULT, RADAR_VIEWS, type RadarViewValue } from "./url-state";
 
-export type RadarView = "all" | "saved" | "ignored";
+export type RadarView = RadarViewValue;
 
 export type RadarPeriod = 30 | 60 | 90 | 180 | 365;
 
@@ -60,7 +61,9 @@ function parsePeriod(raw: string | undefined): RadarPeriod | null {
 
 function parseView(raw: string | string[] | undefined): RadarView {
   const value = firstValue(raw);
-  return value === "saved" || value === "ignored" ? value : "all";
+  return (RADAR_VIEWS as readonly string[]).includes(value ?? "")
+    ? (value as RadarView)
+    : RADAR_VIEW_DEFAULT;
 }
 
 /** Parses raw (possibly array-valued, from Next's searchParams) query values

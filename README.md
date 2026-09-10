@@ -78,9 +78,13 @@ Opens at `http://localhost:3000`. Routes:
 - `/login`, `/signup`, `/invite/[token]` — authentication
 - `/company/profile` — match profile (CNAEs, products, keywords, states, value range)
 - `/company/users`, `/company/documents` — team & habilitação
-- `/procurements` — list/search open tenders
-- `/procurement/[sourceId]` — detail, items, edital download
-- `/dashboard` — system status
+- `/dashboard` — system status, opportunity counts
+- `/opportunities` — company's matched procurements by state (matched/analyzed/dismissed)
+- `/radar` — future procurements from annual plans (opportunity detection + company match)
+- `/procurements` — list/search open tenders with filters
+- `/procurement/[sourceId]` — detail, items, analysis, edital download
+
+**Keyboard shortcuts**: `⌘K` (or `Ctrl+K`) opens the global command palette for nav + live search. Single-letter chords (`g` then `o/r/p/l`) jump to Oportunidades/Radar/Painel/Licitações. `?` also opens the palette. **Dark mode**: System preference by default; toggle in sidebar footer.
 
 ## Environment Variables
 

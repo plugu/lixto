@@ -2,6 +2,7 @@
 // bound param across these queries is the top-7 portal allowlist.
 import { pool } from "./db";
 import { ACTIVE_PORTALS } from "./portals";
+import { CHART_SCOPE_DEFAULT, CHART_SCOPES, type ChartScopeValue } from "./url-state";
 
 export type StatusCounts = {
   total: number;
@@ -47,7 +48,7 @@ export async function fetchStatusCounts(): Promise<StatusCounts> {
 }
 
 /** Scope for the breakdown charts: actionable slices or the whole base. */
-export type ChartScope = "open" | "upcoming" | "all";
+export type ChartScope = ChartScopeValue;
 
 const SCOPE_PREDICATES: Record<ChartScope, string> = {
   open: ` AND ${OPEN}`,
@@ -57,7 +58,9 @@ const SCOPE_PREDICATES: Record<ChartScope, string> = {
 
 export function parseChartScope(raw: string | string[] | undefined): ChartScope {
   const value = Array.isArray(raw) ? raw[0] : raw;
-  return value === "upcoming" || value === "all" ? value : "open";
+  return (CHART_SCOPES as readonly string[]).includes(value ?? "")
+    ? (value as ChartScope)
+    : CHART_SCOPE_DEFAULT;
 }
 
 /** Top N categories by count with the tail folded into "Outras". */

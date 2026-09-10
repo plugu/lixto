@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { Link } from "next-view-transitions";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
@@ -11,6 +11,7 @@ import {
   type SidebarSession,
 } from "@/components/sidebar";
 import { Logo } from "@/components/marketing/brand";
+import { CommandSearchButton } from "@/components/ui/command-search";
 import { Menu, X } from "./icons";
 
 export function TopBar({ session }: { session: SidebarSession | null }) {
@@ -21,17 +22,25 @@ export function TopBar({ session }: { session: SidebarSession | null }) {
 
   return (
     <header className="flex h-12 items-center justify-between border-b border-line bg-canvas px-4 md:hidden">
-      <Link href="/dashboard" aria-label="Lixto" className="flex items-center text-ink">
+      <Link
+        href="/dashboard"
+        aria-label="Lixto"
+        className="flex items-center text-ink focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-accent-soft rounded-md"
+      >
         <Logo compact />
       </Link>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        aria-label="Abrir menu"
-        className="flex h-8 w-8 items-center justify-center rounded-md text-ink-muted hover:bg-surface-raised hover:text-ink"
-      >
-        <Menu size={20} />
-      </button>
+      <div className="flex items-center gap-1">
+        {/* Opens the same palette the sidebar mounts (cmdk portals to body). */}
+        <CommandSearchButton />
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label="Abrir menu"
+          className="flex h-8 w-8 items-center justify-center rounded-md text-ink-muted hover:bg-surface-raised hover:text-ink focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-accent-soft"
+        >
+          <Menu size={20} />
+        </button>
+      </div>
 
       {open ? (
         <div className="fixed inset-0 z-50 flex">
@@ -51,7 +60,7 @@ export function TopBar({ session }: { session: SidebarSession | null }) {
                 type="button"
                 onClick={() => setOpen(false)}
                 aria-label="Fechar menu"
-                className="flex h-8 w-8 items-center justify-center rounded-md text-ink-muted hover:bg-surface-raised hover:text-ink"
+                className="flex h-8 w-8 items-center justify-center rounded-md text-ink-muted hover:bg-surface-raised hover:text-ink focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-accent-soft"
               >
                 <X size={18} />
               </button>
@@ -62,7 +71,8 @@ export function TopBar({ session }: { session: SidebarSession | null }) {
                 key={item.href}
                 href={item.href}
                 onClick={() => setOpen(false)}
-                className={`flex h-9 items-center gap-2.5 rounded-md px-3 text-[13px] font-medium ${
+                aria-current={isActive(pathname, item.href) ? "page" : undefined}
+                className={`flex h-11 items-center gap-2.5 rounded-md px-3 text-[13px] font-medium focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-accent-soft ${
                   isActive(pathname, item.href)
                     ? "bg-surface-raised text-ink"
                     : "text-ink-muted hover:bg-surface-raised/60 hover:text-ink"
@@ -81,7 +91,8 @@ export function TopBar({ session }: { session: SidebarSession | null }) {
                 key={item.href}
                 href={item.href}
                 onClick={() => setOpen(false)}
-                className={`flex h-9 items-center gap-2.5 rounded-md px-3 text-[13px] font-medium ${
+                aria-current={isActive(pathname, item.href) ? "page" : undefined}
+                className={`flex h-11 items-center gap-2.5 rounded-md px-3 text-[13px] font-medium focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-accent-soft ${
                   isActive(pathname, item.href)
                     ? "bg-surface-raised text-ink"
                     : "text-ink-muted hover:bg-surface-raised/60 hover:text-ink"
@@ -97,7 +108,8 @@ export function TopBar({ session }: { session: SidebarSession | null }) {
                     key={item.href}
                     href={item.href}
                     onClick={() => setOpen(false)}
-                    className={`flex h-9 items-center gap-2.5 rounded-md px-3 text-[13px] font-medium ${
+                    aria-current={isActive(pathname, item.href) ? "page" : undefined}
+                    className={`flex h-11 items-center gap-2.5 rounded-md px-3 text-[13px] font-medium focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-accent-soft ${
                       isActive(pathname, item.href)
                         ? "bg-surface-raised text-ink"
                         : "text-ink-muted hover:bg-surface-raised/60 hover:text-ink"
@@ -113,7 +125,7 @@ export function TopBar({ session }: { session: SidebarSession | null }) {
             <form action="/logout" method="post" className="px-1">
               <button
                 type="submit"
-                className="text-[13px] font-medium text-ink-muted hover:text-ink"
+                className="flex h-11 items-center text-[13px] font-medium text-ink-muted hover:text-ink focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-accent-soft rounded-md"
               >
                 Sair
               </button>

@@ -45,6 +45,54 @@
   --shadow-popover: 0 8px 24px rgba(24, 24, 27, 0.1);
 }
 
+:root {
+  color-scheme: light dark;
+}
+
+/* Dark mode — follows the OS scheme unless the user picked "light" via the
+ * toggle (data-theme="light" on <html>). Contrast checked ≥4.5:1 for
+ * ink/ink-muted on canvas/surface and accent on accent-soft (cycle 27). */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-canvas: #0b1220;
+    --color-surface: #111827;
+    --color-surface-raised: #1f2937;
+    --color-ink: #e5e7eb;
+    --color-ink-muted: #9ca3af;
+    --color-ink-faint: #6b7280;
+    --color-line: #273244;
+    --color-accent: #2dd4bf;
+    --color-accent-soft: #134e4a;
+    --color-ok: #4ade80;
+    --color-ok-soft: #14532d;
+    --color-warn: #fbbf24;
+    --color-warn-soft: #78350f;
+    --color-off: #9ca3af;
+    --color-off-soft: #1f2937;
+    --color-danger: #f87171;
+  }
+}
+
+/* Manual override — set by the theme toggle regardless of OS scheme. */
+:root[data-theme="dark"] {
+  --color-canvas: #0b1220;
+  --color-surface: #111827;
+  --color-surface-raised: #1f2937;
+  --color-ink: #e5e7eb;
+  --color-ink-muted: #9ca3af;
+  --color-ink-faint: #6b7280;
+  --color-line: #273244;
+  --color-accent: #2dd4bf;
+  --color-accent-soft: #134e4a;
+  --color-ok: #4ade80;
+  --color-ok-soft: #14532d;
+  --color-warn: #fbbf24;
+  --color-warn-soft: #78350f;
+  --color-off: #9ca3af;
+  --color-off-soft: #1f2937;
+  --color-danger: #f87171;
+}
+
 html,
 body {
   min-height: 100%;
@@ -133,6 +181,19 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .mkt-sweep,
   .mkt-pulse {
+    animation: none;
+  }
+}
+
+/* View transitions: cross-fade route changes. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 150ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
     animation: none;
   }
 }

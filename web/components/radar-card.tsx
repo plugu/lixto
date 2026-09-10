@@ -4,8 +4,14 @@
 //
 // Label maps moved to web/lib/radar-labels.ts (ticket 128) so the detail
 // page's "why" tables can share them.
+//
+// This card is read-only (list view): Salvar/Ignorar/Desfazer only exist on
+// /radar/[id] (components/radar-actions.tsx), which owns the optimistic exit
+// animation + "Desfazer" toast added in ticket 147. There is nothing to
+// animate here — `action_state` just reflects whatever that page last set.
 import Link from "next/link";
 import { Badge, type BadgeTone } from "@/components/ui/badge";
+import { Popover } from "@/components/ui/popover";
 import { formatCurrencyBRL, formatDateBR } from "@/lib/format";
 import type { Reason, ReasonCode } from "@/lib/match-engine";
 import { chipLabel } from "@/lib/radar-labels";
@@ -23,28 +29,24 @@ type Chip = { code: SignalCode | ReasonCode; weight: number; detail: string };
 function EvidenceChip({ chip }: { chip: Chip }) {
   const label = chipLabel(chip.code);
 
-  if (chip.weight < 0) {
-    if (chip.code === "exclusion") {
-      return (
-        <span
-          title={chip.detail}
-          className="inline-flex h-6 items-center rounded-[9999px] bg-danger/10 px-2.5 text-[13px] font-medium text-danger"
-        >
-          {label}
-        </span>
-      );
-    }
-    return (
-      <span title={chip.detail}>
-        <Badge tone="warn">{label}</Badge>
+  const badge =
+    chip.weight < 0 && chip.code === "exclusion" ? (
+      <span className="inline-flex h-6 items-center rounded-[9999px] bg-danger/10 px-2.5 text-[13px] font-medium text-danger max-md:min-h-11 max-md:px-3">
+        {label}
       </span>
+    ) : (
+      <Badge tone={chip.weight < 0 ? "warn" : "neutral"} touch>
+        {label}
+      </Badge>
     );
-  }
+
+  // Chips without a detail render plain — no popover, nothing to tap for.
+  if (!chip.detail) return badge;
 
   return (
-    <span title={chip.detail}>
-      <Badge tone="neutral">{label}</Badge>
-    </span>
+    <Popover hover trigger={badge}>
+      <p className="max-w-xs text-[13px] text-ink-muted p-2">{chip.detail}</p>
+    </Popover>
   );
 }
 
@@ -83,7 +85,7 @@ export function RadarCard({ opportunity }: { opportunity: RadarListRow }) {
       <div className="flex items-start justify-between gap-3">
         <Link
           href={`/radar/${opportunity.id}`}
-          className="line-clamp-2 text-sm font-medium text-ink hover:underline"
+          className="line-clamp-2 rounded-sm text-sm font-medium text-ink hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-accent-soft"
         >
           {opportunity.title}
         </Link>

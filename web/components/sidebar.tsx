@@ -1,12 +1,16 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { Link } from "next-view-transitions";
+import { usePathname, useRouter } from "next/navigation";
 import type { ComponentType } from "react";
-import { useSyncExternalStore } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 import { Logo, LogoMark } from "@/components/marketing/brand";
 import { Button } from "@/components/ui/button";
-import { CommandSearch } from "@/components/ui/command-search";
+import {
+  CommandPalette,
+  CommandSearch,
+  openCommandPalette,
+} from "@/components/ui/command-search";
 import {
   Building,
   Chart,
@@ -18,6 +22,14 @@ import {
   Tag,
   Users,
 } from "@/components/ui/icons";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
+import {
+  formatShortcut,
+  NAV_SHORTCUTS,
+  PALETTE_SHORTCUT,
+  type ShortcutBinding,
+  useKeyboardShortcuts,
+} from "@/lib/keyboard-shortcuts";
 // Chart is still used by the "Painel" nav item below.
 
 export type SidebarSession = {
@@ -117,20 +129,27 @@ function NavLink({
   icon: ComponentType<{ size?: number }>;
   collapsed: boolean;
 }) {
+  const shortcut = NAV_SHORTCUTS[href];
   const pathname = usePathname();
   const active = isActive(pathname, href);
   return (
     <Link
       href={href}
       title={collapsed ? label : undefined}
-      className={`flex h-8 items-center gap-2.5 rounded-md px-3 text-[13px] font-medium transition-colors ${
+      aria-current={active ? "page" : undefined}
+      className={`relative flex h-8 items-center gap-2.5 rounded-md px-3 text-[13px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-accent-soft ${
         active
-          ? "bg-surface-raised text-ink"
+          ? "before:absolute before:left-0 before:top-1/2 before:h-4 before:w-0.5 before:-translate-y-1/2 before:rounded-full before:bg-accent bg-surface-raised text-ink font-semibold"
           : "text-ink-muted hover:bg-surface-raised/60 hover:text-ink"
       } ${collapsed ? "justify-center px-0" : ""}`}
     >
       <Icon size={18} />
       {collapsed ? null : <span>{label}</span>}
+      {collapsed || !shortcut ? null : (
+        <span className="ml-auto text-[11px] text-ink-faint">
+          {formatShortcut(shortcut)}
+        </span>
+      )}
     </Link>
   );
 }
@@ -141,6 +160,22 @@ export function Sidebar({ session }: { session: SidebarSession | null }) {
     getCollapsedSnapshot,
     getCollapsedServerSnapshot,
   );
+  const router = useRouter();
+
+  // `g o` / `g r` / `g p` / `g l` jump between sections, `?` opens the
+  // palette. Bound here (the sidebar is mounted on every app route) and left
+  // empty when logged out, so /login keeps its plain keyboard.
+  const bindings = useMemo<ShortcutBinding[]>(() => {
+    if (!session) return [];
+    return [
+      ...Object.entries(NAV_SHORTCUTS).map(([href, sequence]) => ({
+        sequence,
+        run: () => router.push(href),
+      })),
+      { sequence: PALETTE_SHORTCUT, run: openCommandPalette },
+    ];
+  }, [router, session]);
+  useKeyboardShortcuts(bindings);
 
   function toggle() {
     setCollapsedStore(!collapsed);
@@ -154,6 +189,7 @@ export function Sidebar({ session }: { session: SidebarSession | null }) {
       className={`hidden h-screen shrink-0 flex-col gap-6 border-r border-line bg-canvas py-5 md:flex ${
         collapsed ? "w-14 px-2" : "w-60 px-3"
       }`}
+      style={{ viewTransitionName: "sidebar" }}
     >
       <div
         className={`flex items-center ${
@@ -163,7 +199,7 @@ export function Sidebar({ session }: { session: SidebarSession | null }) {
         <Link
           href="/dashboard"
           aria-label="Lixto"
-          className="flex items-center text-ink"
+          className="flex items-center text-ink focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-accent-soft rounded-md"
         >
           {collapsed ? <LogoMark className="h-6 w-6" /> : <Logo />}
         </Link>
@@ -171,12 +207,15 @@ export function Sidebar({ session }: { session: SidebarSession | null }) {
           type="button"
           onClick={toggle}
           aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
-          className="flex h-7 w-7 items-center justify-center rounded-md text-ink-muted hover:bg-surface-raised hover:text-ink"
+          className="flex h-7 w-7 items-center justify-center rounded-md text-ink-muted hover:bg-surface-raised hover:text-ink focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-accent-soft"
         >
           <SidebarIcon size={16} />
         </button>
       </div>
 
+      {/* Mounted once for the whole app: cmdk portals the dialog to <body>,
+          so the mobile top bar and the `?` shortcut open this same one. */}
+      <CommandPalette role={session.role} />
       {collapsed ? null : <CommandSearch />}
 
       <nav aria-label="Navegação principal" className="flex flex-col gap-0.5">
@@ -221,7 +260,14 @@ export function Sidebar({ session }: { session: SidebarSession | null }) {
 
       <div className="flex-1" />
 
+      {collapsed ? null : (
+        <div className="px-1">
+          <ThemeToggle />
+        </div>
+      )}
+
       <div className={`flex items-center gap-2 px-1 ${collapsed ? "flex-col" : ""}`}>
+        {collapsed ? <ThemeToggle collapsed /> : null}
         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-raised text-[12px] font-semibold text-ink">
           {initials(session.name)}
         </span>

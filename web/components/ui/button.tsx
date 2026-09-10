@@ -1,12 +1,15 @@
-import Link from "next/link";
+import { Link } from "next-view-transitions";
 import type { AnchorHTMLAttributes, ButtonHTMLAttributes } from "react";
 
 export type ButtonVariant = "primary" | "secondary" | "ghost" | "pill";
 export type ButtonSize = "sm" | "md";
 
+// `min-h-11 md:min-h-0` keeps the desktop heights (30px/40px) but grows the
+// tap target to the 44px WCAG minimum below `md`, where hover isn't
+// available to compensate for a small target.
 const SIZE_CLASSES: Record<ButtonSize, string> = {
-  sm: "h-[30px] px-3 text-[13px]",
-  md: "h-10 px-4 text-sm",
+  sm: "h-[30px] px-3 text-[13px] min-h-11 md:min-h-0",
+  md: "h-10 px-4 text-sm min-h-11 md:min-h-0",
 };
 
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {

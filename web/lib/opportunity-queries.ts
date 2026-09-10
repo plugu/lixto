@@ -13,6 +13,15 @@
 import { pool } from "./db";
 import type { Reason } from "./match-engine";
 
+/** This file otherwise keeps its `pool.query(...)` calls inline (ticket 93);
+ * `restoreOpportunityState`/`deleteRecentFeedback` (ticket 147) get pure
+ * `build*` counterparts, following web/lib/radar-detail-queries.ts, so the
+ * undo path's SQL can be tenant-tested without a live DB. */
+export type SqlQuery = {
+  text: string;
+  values: unknown[];
+};
+
 /** Score at or above which an opportunity "deserves attention" (PRODUCT §1). */
 export const ATTENTION_SCORE = 70;
 
@@ -217,6 +226,77 @@ export async function setOpportunityState(
       WHERE id = $2 AND company_id = $1`,
     [companyId, opportunityId, state],
   );
+}
+
+/**
+ * Undo for "Descartar" (ticket 147): puts a dismissed opportunity back to
+ * whatever state it was in before, but only from `dismissed` — if the row
+ * moved on since (another tab, a rerun), the toast's "Desfazer" quietly
+ * becomes a no-op instead of clobbering newer state.
+ */
+export function buildRestoreOpportunityState(
+  companyId: number,
+  opportunityId: number,
+  previousState: OpportunityState,
+): SqlQuery {
+  const text = `
+    UPDATE opportunities
+       SET state = $3, updated_at = now()
+     WHERE id = $2 AND company_id = $1 AND state = 'dismissed'`;
+  return { text, values: [companyId, opportunityId, previousState] };
+}
+
+export async function restoreOpportunityState(
+  companyId: number,
+  opportunityId: number,
+  previousState: OpportunityState,
+): Promise<void> {
+  const { text, values } = buildRestoreOpportunityState(
+    companyId,
+    opportunityId,
+    previousState,
+  );
+  await pool.query(text, values);
+}
+
+/**
+ * Undo companion for `insertFeedback` (ticket 147): removes the feedback row
+ * the click just wrote, scoped to this user/kind and to the last 2 minutes so
+ * "Desfazer" can only ever retract the toast that is still on screen, never
+ * an older, already-acted-upon signal. Ownership goes through a join on
+ * `opportunities.company_id`, same idiom as `insertFeedback`'s INSERT...SELECT.
+ */
+export function buildDeleteRecentFeedback(
+  companyId: number,
+  opportunityId: number,
+  userId: number,
+  kind: "accepted" | "rejected",
+): SqlQuery {
+  const text = `
+    DELETE FROM opportunity_feedback f
+          USING opportunities o
+          WHERE f.opportunity_id = o.id
+            AND o.company_id = $1
+            AND f.opportunity_id = $2
+            AND f.user_id = $3
+            AND f.kind = $4
+            AND f.created_at > now() - interval '2 minutes'`;
+  return { text, values: [companyId, opportunityId, userId, kind] };
+}
+
+export async function deleteRecentFeedback(
+  companyId: number,
+  opportunityId: number,
+  userId: number,
+  kind: "accepted" | "rejected",
+): Promise<void> {
+  const { text, values } = buildDeleteRecentFeedback(
+    companyId,
+    opportunityId,
+    userId,
+    kind,
+  );
+  await pool.query(text, values);
 }
 
 /** Writes the learning-loop row. The INSERT ... SELECT verifies ownership in

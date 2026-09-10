@@ -26,6 +26,15 @@ import {
   type RadarProfile,
 } from "./radar-match-queries";
 import { buildClearRadarAction, buildSetRadarAction } from "./radar-detail-queries";
+import {
+  buildDeleteRecentFeedback,
+  buildRestoreOpportunityState,
+} from "./opportunity-queries";
+
+// Not registered here: `buildCommandSearchQuery` (lib/command-search-queries.ts,
+// the ⌘K palette). Procurements are public, globally-ingested data, so that
+// builder takes no `company_id` and has no tenant boundary to assert — its
+// shape is covered by lib/command-search-queries.test.ts instead.
 
 const COMPANY_ID = 42;
 const USER_ID = 1;
@@ -176,5 +185,20 @@ describe("Tenant isolation - all builders bind company_id", () => {
 
     expect(/company_id\s*=\s*\$\d/.test(text)).toBe(true);
     expect(values[0]).toBe(COMPANY_ID);
+  });
+
+  it("buildRestoreOpportunityState binds company_id and guards on dismissed", () => {
+    const { text, values } = buildRestoreOpportunityState(COMPANY_ID, 9, "matched");
+
+    expect(text).toContain("WHERE id = $2 AND company_id = $1 AND state = 'dismissed'");
+    expect(values).toEqual([COMPANY_ID, 9, "matched"]);
+  });
+
+  it("buildDeleteRecentFeedback binds company_id via the opportunities join", () => {
+    const { text, values } = buildDeleteRecentFeedback(COMPANY_ID, 9, USER_ID, "rejected");
+
+    expect(text).toContain("USING opportunities o");
+    expect(/o\.company_id\s*=\s*\$1/.test(text)).toBe(true);
+    expect(values).toEqual([COMPANY_ID, 9, USER_ID, "rejected"]);
   });
 });

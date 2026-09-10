@@ -8,11 +8,13 @@ import { pool } from "./db";
 import {
   ATTENTION_SCORE,
   MATCH_SCORE,
+  deleteRecentFeedback,
   getLastRun,
   getOpportunity,
   insertFeedback,
   insertMatch,
   listOpportunities,
+  restoreOpportunityState,
   setOpportunityState,
   upsertOpportunity,
 } from "./opportunity-queries";
@@ -193,6 +195,30 @@ describe("insertFeedback", () => {
     expect(text).toContain("FROM opportunities o");
     expect(text).toContain("WHERE o.id = $2 AND o.company_id = $1");
     expect(values).toEqual([4, 9, 2, "rejected", "fora do escopo"]);
+  });
+});
+
+describe("restoreOpportunityState", () => {
+  it("guards the update on state='dismissed' and binds both ids", async () => {
+    await restoreOpportunityState(4, 9, "matched");
+    const [text, values] = query.mock.calls[0];
+    expect(text).toContain("WHERE id = $2 AND company_id = $1 AND state = 'dismissed'");
+    expect(values).toEqual([4, 9, "matched"]);
+  });
+});
+
+describe("deleteRecentFeedback", () => {
+  it("scopes the delete to the user, kind, ownership and a 2 minute window", async () => {
+    await deleteRecentFeedback(4, 9, 2, "rejected");
+    const [text, values] = query.mock.calls[0];
+    expect(text).toContain("DELETE FROM opportunity_feedback f");
+    expect(text).toContain("USING opportunities o");
+    expect(text).toContain("o.company_id = $1");
+    expect(text).toContain("f.opportunity_id = $2");
+    expect(text).toContain("f.user_id = $3");
+    expect(text).toContain("f.kind = $4");
+    expect(text).toContain("interval '2 minutes'");
+    expect(values).toEqual([4, 9, 2, "rejected"]);
   });
 });
 
