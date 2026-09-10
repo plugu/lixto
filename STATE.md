@@ -1,11 +1,11 @@
 # STATE — rewrite after every ticket completes; never append. ≤30 lines total.
 
 ## Now
-- Cycle 27 (App fluidity, **mvp**, `web/`): tickets 140–152 ALL DONE, each on attempt 1. Awaiting approval 2 of 2 (diff review) → commit → push (Dokploy autoDeploy `lixto-web`).
+- Cycle 27 (App fluidity, **mvp**, `web/`): DEPLOYED `a11a6fe` 2026-09-10 20:29 UTC (Dokploy autoDeploy, done). Tickets 140–152 all attempt 1. Prod smoke: /, /login 200; auth redirects OK; theme script present. Next cycle: TBD.
 - Verified 2026-09-09: lint 0 errors, `npm test` 687/687, build green; live walkthrough on :3000 (dashboard streaming, PillTabs, live filters `?state=SP`, ⌘K results, dismiss→toast→Desfazer restore, dark/light toggle) all OK.
 
 ## Next
-- Commit cycle 27 (uncommitted: 44 M, 1 D, 26 new + tickets 140–152 + graphify-out). Then deploy and re-check prod in browser.
+- Logged-in prod walkthrough still to do by the user (skeletons, ⌘K, filters, dark mode).
 - Known/harmless: in a hidden tab the View Transitions `ready` promise rejects (`InvalidStateError`) on each nav — seen only via automation; invisible tabs skip transitions by spec.
 - Small follow-ups (not ticketed): Escape should close `details` filter popovers; dev `.env.local` embedding model 404s on Gemini (`text-embedding-3-small`) so local semantic search degrades to keyword.
 - Cycle 26 CLOSED `ccfb5a7` (ML facets all NO-GO). Radar schedules OFF until LLM provider decision; `analyze-run` cron OFF by decision.
