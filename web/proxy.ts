@@ -25,14 +25,8 @@ const PUBLIC_PREFIXES = [
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // `/` is the public marketing page for everyone, logged in or not.
   if (pathname === "/") {
-    // `/` is the public marketing page for logged-out visitors, but a
-    // logged-in session should still land on the dashboard.
-    if (request.cookies.get(SESSION_COOKIE)?.value) {
-      const url = request.nextUrl.clone();
-      url.pathname = "/dashboard";
-      return NextResponse.redirect(url);
-    }
     return NextResponse.next();
   }
 
