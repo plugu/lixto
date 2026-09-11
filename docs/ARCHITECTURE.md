@@ -366,7 +366,7 @@ One pass (`lixto analyze run`) replaces cycle 18's enrichment: processes every f
 **Optimistic actions**: Dismiss/interest buttons use `useOptimistic` to animate the card out immediately; `sonner` toast offers "Desfazer" (undo) + refetch on approval. Pattern shown in `components/opportunity-feedback.tsx`.
 
 **Keyboard + palette**: 
-- `lib/keyboard-shortcuts.ts` binds `g o/r/p/l` (nav) and `?` (palette).
+- `lib/keyboard-shortcuts.ts` binds `g r/p/l` (nav) and `?` (palette).
 - `components/ui/command-search.tsx` (`cmdk`) opens on `?`, lists static nav + live procurement results via `paletteSearchAction`.
 - Nav shortcuts hint rendered in sidebar.
 

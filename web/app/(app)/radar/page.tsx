@@ -15,6 +15,7 @@
 // "previsto", never a fact.
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { RadarHeader } from "@/components/radar-header";
 import { RadarFilterToolbar } from "@/components/radar/filter-toolbar";
 import { Results } from "@/components/radar/results";
 import { ResultsSkeleton } from "@/components/radar/results-skeleton";
@@ -27,7 +28,7 @@ import {
 } from "@/lib/radar-list-queries";
 import { RADAR_VIEW_DEFAULT } from "@/lib/url-state";
 
-export const metadata: Metadata = { title: "Radar" };
+export const metadata: Metadata = { title: "Radar · Futuras" };
 export const dynamic = "force-dynamic";
 
 const VIEW_TABS: { value: RadarView; label: string }[] = [
@@ -56,6 +57,8 @@ export default async function RadarPage({
 
   return (
     <div className="flex flex-col gap-6">
+      <RadarHeader active="future" />
+
       <PillTabs
         param="view"
         options={VIEW_TABS}

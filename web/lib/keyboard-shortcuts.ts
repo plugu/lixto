@@ -28,8 +28,8 @@ export const CHORD_WINDOW_MS = 1000;
 /** Nav shortcuts, keyed by the href they jump to. The sidebar renders these
  * as hints (`G O`) and binds them through `useKeyboardShortcuts`. */
 export const NAV_SHORTCUTS: Record<string, ShortcutSequence> = {
-  "/opportunities": "g o",
-  "/radar": "g r",
+  // "/radar" (future tenders) is a tab inside the same page; one chord.
+  "/opportunities": "g r",
   "/dashboard": "g p",
   "/procurements": "g l",
 };
@@ -99,7 +99,7 @@ export function useKeyboardShortcuts(bindings: readonly ShortcutBinding[]) {
       );
 
       // A dead end restarts the chord from the key just pressed, so "x g o"
-      // still jumps to Oportunidades.
+      // still jumps to Radar.
       if (!matched && !pending && keys.length > 0) {
         candidate = [key];
         matched = bindings.find(

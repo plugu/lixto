@@ -82,8 +82,10 @@ function setCollapsedStore(next: boolean) {
 
 export const NAV_ITEMS = [
   { href: "/dashboard", label: "Painel", icon: Chart },
-  { href: "/opportunities", label: "Oportunidades", icon: Tag },
-  { href: "/radar", label: "Radar", icon: Radar },
+  // One entry for both halves of Radar: /opportunities (open tenders that
+  // match the company) and /radar (future ones from annual plans). The page
+  // header carries the tabs; the live half comes first.
+  { href: "/opportunities", label: "Radar", icon: Radar },
   { href: "/procurements", label: "Licitações", icon: List },
 ] as const;
 
@@ -103,8 +105,13 @@ export function isActive(pathname: string, href: string): boolean {
   if (href === "/procurements") {
     return pathname === href || pathname.startsWith("/procurement/");
   }
-  if (href === "/radar") {
-    return pathname === href || pathname.startsWith("/radar/");
+  if (href === "/opportunities") {
+    return (
+      pathname === href ||
+      pathname.startsWith("/opportunities/") ||
+      pathname === "/radar" ||
+      pathname.startsWith("/radar/")
+    );
   }
   return pathname === href || pathname.startsWith(`${href}/`);
 }
@@ -161,7 +168,7 @@ export function Sidebar({ session }: { session: SidebarSession | null }) {
   );
   const router = useRouter();
 
-  // `g o` / `g r` / `g p` / `g l` jump between sections, `?` opens the
+  // `g r` / `g p` / `g l` jump between sections, `?` opens the
   // palette. Bound here (the sidebar is mounted on every app route) and left
   // empty when logged out, so /login keeps its plain keyboard.
   const bindings = useMemo<ShortcutBinding[]>(() => {

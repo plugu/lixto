@@ -122,7 +122,7 @@ Key facts:
 | Embeddings/LLM (web) | `web/lib/agent/embed.ts`, `web/lib/agent/llm.ts` (semantic search, recommend) |
 | Database queries | `web/lib/*-queries.ts` |
 | URL state & filters | `web/lib/url-state.ts`, `web/lib/procurement-url.ts`, `web/lib/radar-url.ts` (URL contracts, no root form builders) |
-| Keyboard shortcuts | `web/lib/keyboard-shortcuts.ts` (bindings: `g o/r/p/l`, `?`; pure chord matcher) |
+| Keyboard shortcuts | `web/lib/keyboard-shortcuts.ts` (bindings: `g r/p/l`, `?`; pure chord matcher) |
 | Command palette | `web/components/ui/command-search.tsx`, `web/lib/command-search-queries.ts` (⌘K live search) |
 | Theme toggle | `web/components/ui/theme-toggle.tsx` (`lixto.theme` localStorage, `data-theme` on `<html>`) |
 | Dark mode tokens | `web/app/globals.css` (`@theme` block with `--color-*` custom properties) |

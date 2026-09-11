@@ -3,6 +3,7 @@
 // independent of which slice the user is looking at.
 import type { Metadata } from "next";
 import { DigestBanner } from "@/components/digest-banner";
+import { RadarHeader } from "@/components/radar-header";
 import { OpportunityCard } from "@/components/opportunity-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PillTabs } from "@/components/ui/pill-tabs";
@@ -19,7 +20,7 @@ import {
   type OpportunityViewValue,
 } from "@/lib/url-state";
 
-export const metadata: Metadata = { title: "Oportunidades" };
+export const metadata: Metadata = { title: "Radar" };
 export const dynamic = "force-dynamic";
 
 type View = OpportunityViewValue;
@@ -66,9 +67,7 @@ export default async function OpportunitiesPage({
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="font-display text-[30px] leading-[34px] text-ink">
-        Oportunidades
-      </h1>
+      <RadarHeader active="open" />
 
       <DigestBanner digest={digest} showLink={false} />
 
