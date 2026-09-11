@@ -30,7 +30,6 @@ import {
   type ShortcutBinding,
   useKeyboardShortcuts,
 } from "@/lib/keyboard-shortcuts";
-// Chart is still used by the "Painel" nav item below.
 
 export type SidebarSession = {
   name: string;
@@ -82,9 +81,9 @@ function setCollapsedStore(next: boolean) {
 }
 
 export const NAV_ITEMS = [
+  { href: "/dashboard", label: "Painel", icon: Chart },
   { href: "/opportunities", label: "Oportunidades", icon: Tag },
   { href: "/radar", label: "Radar", icon: Radar },
-  { href: "/dashboard", label: "Painel", icon: Chart },
   { href: "/procurements", label: "Licitações", icon: List },
 ] as const;
 

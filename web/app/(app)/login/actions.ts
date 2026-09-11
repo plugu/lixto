@@ -15,7 +15,9 @@ export async function loginAction(formData: FormData): Promise<void> {
     redirect(`/login?${params.toString()}`);
   }
 
-  // Only allow same-origin relative targets (no "//evil.com").
-  const target = next.startsWith("/") && !next.startsWith("//") ? next : "/";
+  // Only allow same-origin relative targets (no "//evil.com"). Without a
+  // `next`, land on the dashboard: `/` is the public marketing page.
+  const target =
+    next.startsWith("/") && !next.startsWith("//") ? next : "/dashboard";
   redirect(target);
 }
