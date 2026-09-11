@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { Logo } from "@/components/marketing/brand";
 import { loginAction } from "./actions";
 import { Field, Input } from "@/components/ui/input";
 import { Button, LinkButton } from "@/components/ui/button";
@@ -18,7 +20,9 @@ export default async function LoginPage({
 
   return (
     <div className="mx-auto flex min-h-[70vh] max-w-sm flex-col items-center justify-center gap-10">
-      <span className="font-display text-2xl italic text-ink">Lixto</span>
+      <Link href="/" aria-label="Lixto" className="flex items-center text-ink">
+        <Logo />
+      </Link>
 
       <div className="flex w-full flex-col gap-6">
         <div className="flex flex-col gap-1 text-center">

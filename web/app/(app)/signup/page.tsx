@@ -1,10 +1,14 @@
+import Link from "next/link";
+import { Logo } from "@/components/marketing/brand";
 import { SignupForm } from "@/components/signup-form";
 import { LinkButton } from "@/components/ui/button";
 
 export default function SignupPage() {
   return (
     <div className="mx-auto flex max-w-sm flex-col items-center gap-10 py-10">
-      <span className="font-display text-2xl italic text-ink">Lixto</span>
+      <Link href="/" aria-label="Lixto" className="flex items-center text-ink">
+        <Logo />
+      </Link>
 
       <div className="flex w-full flex-col gap-6">
         <div className="flex flex-col gap-1 text-center">
