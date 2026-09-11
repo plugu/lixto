@@ -38,7 +38,7 @@ export const metadata: Metadata = {
 
 export default function Home() {
   return (
-    <div className={`${editorial.variable} flex-1 bg-canvas text-ink`}>
+    <div className={`${editorial.variable} theme-light-lock flex-1 bg-canvas text-ink`}>
       <SiteHeader />
       <main>
         <Hero />

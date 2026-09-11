@@ -93,6 +93,30 @@
   --color-danger: #f87171;
 }
 
+/* Theme lock — the public marketing site (app/page.tsx) is designed light
+ * and reuses the semantic tokens above, so it re-declares the light values
+ * on its own root and opts out of the OS/toggle dark scheme. Keep in sync
+ * with the @theme block. */
+.theme-light-lock {
+  color-scheme: light;
+  --color-canvas: #f8fafc;
+  --color-surface: #ffffff;
+  --color-surface-raised: #f1f5f9;
+  --color-ink: #0f172a;
+  --color-ink-muted: #64748b;
+  --color-ink-faint: #94a3b8;
+  --color-line: #e2e8f0;
+  --color-accent: #0f766e;
+  --color-accent-soft: #e5f4f2;
+  --color-ok: #15803d;
+  --color-ok-soft: #e8f5ec;
+  --color-warn: #b45309;
+  --color-warn-soft: #faf0e2;
+  --color-off: #8a94a6;
+  --color-off-soft: #eef1f5;
+  --color-danger: #be3536;
+}
+
 html,
 body {
   min-height: 100%;
