@@ -16,6 +16,7 @@ export default async function AppLayout({
         name: session.user.name,
         company: session.company.tradeName ?? session.company.legalName,
         role: session.user.role,
+        isSuperadmin: session.user.isSuperadmin,
       }
     : null;
 

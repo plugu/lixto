@@ -35,6 +35,7 @@ export type SidebarSession = {
   name: string;
   company: string;
   role: string;
+  isSuperadmin: boolean;
 };
 
 const STORAGE_KEY = "lixto.sidebar";
@@ -99,6 +100,10 @@ export const COMPANY_ADMIN_ITEMS = [
   { href: "/company/documents", label: "Documentos", icon: FileText },
 ] as const;
 
+export const SUPERADMIN_ITEMS = [
+  { href: "/admin/companies", label: "Empresas", icon: Users },
+] as const;
+
 export function isActive(pathname: string, href: string): boolean {
   if (href === "/") return pathname === "/";
   if (href === "/company") return pathname === "/company";
@@ -112,6 +117,9 @@ export function isActive(pathname: string, href: string): boolean {
       pathname === "/radar" ||
       pathname.startsWith("/radar/")
     );
+  }
+  if (href === "/admin/companies") {
+    return pathname === href || pathname.startsWith("/admin/companies/");
   }
   return pathname === href || pathname.startsWith(`${href}/`);
 }
@@ -221,7 +229,7 @@ export function Sidebar({ session }: { session: SidebarSession | null }) {
 
       {/* Mounted once for the whole app: cmdk portals the dialog to <body>,
           so the mobile top bar and the `?` shortcut open this same one. */}
-      <CommandPalette role={session.role} />
+      <CommandPalette role={session.role} isSuperadmin={session.isSuperadmin} />
       {collapsed ? null : <CommandSearch />}
 
       <nav aria-label="Navegação principal" className="flex flex-col gap-0.5">
@@ -253,6 +261,25 @@ export function Sidebar({ session }: { session: SidebarSession | null }) {
         ))}
         {session.role === "admin"
           ? COMPANY_ADMIN_ITEMS.map((item) => (
+              <NavLink
+                key={item.href}
+                href={item.href}
+                label={item.label}
+                icon={item.icon}
+                collapsed={collapsed}
+              />
+            ))
+          : null}
+
+        {session.isSuperadmin
+          ? collapsed
+            ? <div className="my-2 h-px bg-line" />
+            : <p className="mt-5 px-3 pb-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-faint">
+                Administração
+              </p>
+          : null}
+        {session.isSuperadmin
+          ? SUPERADMIN_ITEMS.map((item) => (
               <NavLink
                 key={item.href}
                 href={item.href}

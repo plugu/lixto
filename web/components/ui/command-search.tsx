@@ -32,6 +32,7 @@ import {
   COMPANY_ADMIN_ITEMS,
   COMPANY_ITEMS,
   NAV_ITEMS,
+  SUPERADMIN_ITEMS,
 } from "@/components/sidebar";
 import { Search } from "@/components/ui/icons";
 import type { CommandSearchRow } from "@/lib/command-search-queries";
@@ -182,7 +183,7 @@ export function CommandSearchButton() {
   );
 }
 
-export function CommandPalette({ role }: { role: string }) {
+export function CommandPalette({ role, isSuperadmin }: { role: string; isSuperadmin: boolean }) {
   const open = useSyncExternalStore(
     subscribePalette,
     getPaletteSnapshot,
@@ -257,8 +258,9 @@ export function CommandPalette({ role }: { role: string }) {
       ...NAV_ITEMS,
       ...COMPANY_ITEMS,
       ...(role === "admin" ? COMPANY_ADMIN_ITEMS : []),
+      ...(isSuperadmin ? SUPERADMIN_ITEMS : []),
     ],
-    [role],
+    [role, isSuperadmin],
   );
 
   const needle = normalize(trimmed);

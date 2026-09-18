@@ -8,6 +8,7 @@ import {
   COMPANY_ITEMS,
   isActive,
   NAV_ITEMS,
+  SUPERADMIN_ITEMS,
   type SidebarSession,
 } from "@/components/sidebar";
 import { Logo } from "@/components/marketing/brand";
@@ -104,6 +105,30 @@ export function TopBar({ session }: { session: SidebarSession | null }) {
             ))}
             {session.role === "admin"
               ? COMPANY_ADMIN_ITEMS.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setOpen(false)}
+                    aria-current={isActive(pathname, item.href) ? "page" : undefined}
+                    className={`flex h-11 items-center gap-2.5 rounded-md px-3 text-[13px] font-medium focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-accent-soft ${
+                      isActive(pathname, item.href)
+                        ? "bg-surface-raised text-ink"
+                        : "text-ink-muted hover:bg-surface-raised/60 hover:text-ink"
+                    }`}
+                  >
+                    <item.icon size={18} />
+                    {item.label}
+                  </Link>
+                ))
+              : null}
+
+            {session.isSuperadmin ? (
+              <p className="mt-4 px-3 pb-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-faint">
+                Administração
+              </p>
+            ) : null}
+            {session.isSuperadmin
+              ? SUPERADMIN_ITEMS.map((item) => (
                   <Link
                     key={item.href}
                     href={item.href}
