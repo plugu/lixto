@@ -1,34 +1,41 @@
 ---
-mode: mvp
+mode: production
 routing_profile: cloud
 parallel_default: sequential
 ---
 
-# Lixto — App fluidity (cycle 27)
+# Lixto — Gated signup + superadmin (cycle 28)
 
 ## What / why
-The logged-in app (`web/app/(app)/*`) looks right but does not *feel* fluid. Root cause is the navigation model, not the visuals: every route is `force-dynamic`, no route has a `loading.tsx`, filters and ⌘K are plain GET forms, and dashboard/procurements await every query before painting. Each click freezes the old page until the server answers, then snaps. Actions (dismiss, interest, analyze) wait on the server and re-render the whole page.
-
-This cycle makes the app behave like a 2026 all-day tool (Linear, Attio, Vercel): instant feedback on every click, streamed pages, filters that apply on change, optimistic actions with undo, a real command palette, and the visual polish those unlock (answer-first dashboard, dark mode, touch targets). No new palette, typography or layout grid — the calm "Slate" language stays.
+Today `/signup` creates the company and its first admin, opens a session and drops the visitor straight into the app. Anyone with a CNPJ gets full access, including LLM-spending features, with no human in the loop. This cycle turns signup into an application: the company starts **pending**, a platform **superadmin** (initially only the owner) approves or rejects it from a new menu entry, and email tells the applicant where they stand at each step.
 
 Repo facts that shape the work:
-- Next 16.3 / React 19.2.8 stable: no `experimental.viewTransition`, no `ViewTransition` export. Cross-route fades use `next-view-transitions@0.3.5`.
-- URL state via `nuqs@2.10` (Next app-router adapter). URL contracts (`parseFilters`, `parseRadarFilters`, `parseChartScope`, `?view=`) do **not** change — server pages keep parsing `searchParams`.
-- Toasts via `sonner@2.0.8`; palette via `cmdk@1.1.1`.
-- `vitest` runs in node (no jsdom): tests cover `web/lib/*` logic only; UI is verified by `lint`, `build`, and curl runtime probes against `npm run dev` on :3000 with the dev probe session cookie `lixto_session=devprobe` (local DB, company 1).
-- `analysis_jobs.status` is only `queued|running|done|error` — no stages; progress UI derives from status + elapsed time, no migration.
+- `users.role` (`admin|member`) is a *company* role; there is no platform role. Superadmin is a new per-user flag, granted only by CLI, never from the UI.
+- `companies` has no status column. Approval is per company; a new migration `migrations/007_company_approval.sql` adds it (schema 1.0 tables in `001_core.sql` are extended by ALTER, not rewritten; read `docs/adr/001-lixto-data-model.md` first).
+- Email goes through `web/lib/email/outbox.ts` + `templates.ts` (typed `TemplatePayloads`), drained by the `email-worker` schedule. New mails are new template keys, same pipeline.
+- Auth gates live in `web/lib/auth.ts` (`getSession`, `requireSession`, `requireAdmin`, `login`); sidebar nav in `web/components/sidebar.tsx` gates on `session.role`.
+- Invites (`/company/users`, `/invite`) are created by an already-approved company's admin and stay ungated.
 
 ## Primary user story
-As a Lixto user clicking through Painel, Oportunidades, Radar and Licitações, every click responds within one frame (skeleton, pending pill, or optimistic change), filters apply as I change them, and I can reach any procurement or page from ⌘K without a full reload.
+As the Lixto owner, I receive an email when a company signs up, open **Administração → Empresas** from the sidebar, see its CNPJ, razão social, admin name/email and signup date, and click *Aprovar* or *Rejeitar* (with an optional reason). The applicant receives "estamos avaliando seu cadastro" right after signup, then "acesso liberado" or "cadastro não aprovado", and can only log in once approved.
+
+## Behaviour
+- Signup: creates company (`pending`) + admin user, **no session**; redirects to `/signup/recebido` ("Cadastro recebido, estamos avaliando"). Enqueues `signup_received` to the applicant and `signup_pending_admin` to every superadmin.
+- Login while pending or rejected: correct credentials do **not** create a session; login page shows "conta em análise" / "cadastro não aprovado". `getSession` also refuses sessions of non-approved companies (defence in depth).
+- Approve: company → `approved`, records who/when, enqueues `signup_approved` (link to `/login`). Reject: → `rejected` with optional reason, enqueues `signup_rejected`. Both idempotent; rejecting an approved company is allowed (revokes access, sessions die on next request).
+- Superadmin flag: `users.is_superadmin BOOLEAN NOT NULL DEFAULT false`; granted/revoked by `lixto users grant-superadmin <email>` / `revoke-superadmin`. Superadmin sees an extra sidebar group **Administração** with **Empresas** (`/admin/companies`, tabs Pendentes / Aprovadas / Rejeitadas, pending count badge). Non-superadmins get 404 on `/admin/*`.
+- Migration backfills every existing company as `approved` so prod users are untouched. Owner's user gets the flag via CLI after deploy.
 
 ## Out of scope
-- New colour palette, typography, or page layouts beyond the dashboard reorder
-- Python CLI, migrations, schedules, LLM provider decision
-- Marketing site (`web/app/page.tsx`, `components/marketing/*`)
-- Analysis job stages in the worker (would need a migration)
-- Mobile bottom navigation
+- Granting superadmin from the UI; superadmin managing users inside companies
+- Per-user approval of invitees; per-seat limits or plans
+- Editing company data from the admin page; audit log beyond approved/rejected by+at
+- Marketing site copy; Python-side changes beyond the one CLI command
+- Rate limiting / captcha on signup
 
 ## Success demo
-1. `cd web && npm run lint && npm run build && npm test` green.
-2. With `npm run dev` on :3000 and the dev DB: `curl -s -b lixto_session=devprobe localhost:3000/dashboard` streams (`Transfer-Encoding: chunked`) and the first chunk contains `data-skeleton`.
-3. In the browser: click Painel → Oportunidades → Radar → Licitações: each shows a skeleton/pending state immediately, no white flash; change a filter on Licitações: results update without "Aplicar" and without the sidebar remounting; dismiss an opportunity: card animates out, toast offers "Desfazer" and it comes back; ⌘K lists nav commands and live procurement results; system dark mode renders the app in dark tokens.
+Done when I can sign up a fresh CNPJ on prod, get the "estamos avaliando" email and no access, see the pending company under Administração → Empresas as superadmin, approve it, receive the "acesso liberado" email, and log in with those credentials.
+
+1. `cd web && npm run lint && npm run build && npm test` green; `ruff check src && pytest` green.
+2. Dev DB + `npm run dev`: signup → 303 to `/signup/recebido`, no `Set-Cookie`; `emails` outbox holds `signup_received` + `signup_pending_admin`; login with those credentials → 200 with "conta em análise", no cookie; `lixto users grant-superadmin <dev email>` → sidebar shows Administração (curl with `lixto_session=devprobe`); approve → outbox holds `signup_approved`; login now sets cookie.
+3. Prod: after deploy + migration + CLI grant, the demo sentence above end-to-end.
