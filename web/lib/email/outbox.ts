@@ -26,7 +26,11 @@ export type EmailTemplate =
   | "welcome"
   | "invite"
   | "password_reset"
-  | "daily_digest";
+  | "daily_digest"
+  | "signup_received"
+  | "signup_pending_admin"
+  | "signup_approved"
+  | "signup_rejected";
 
 export type EmailStatus =
   | "queued"

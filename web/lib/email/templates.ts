@@ -41,6 +41,20 @@ export type TemplatePayloads = {
     attentionCount: number;
     attention: DigestAttentionItem[];
   };
+  signup_received: { userName: string; companyName: string };
+  signup_pending_admin: {
+    companyName: string;
+    taxId: string;
+    adminName: string;
+    adminEmail: string;
+    adminUrl: string;
+  };
+  signup_approved: { userName: string; companyName: string; loginUrl: string };
+  signup_rejected: {
+    userName: string;
+    companyName: string;
+    reason: string | null;
+  };
 };
 
 export type RenderedEmail = { subject: string; html: string; text: string };
@@ -60,6 +74,15 @@ function truncate(value: string, max: number): string {
 
 function paragraph(text: string): string {
   return `<p style="margin:0 0 16px 0;">${text}</p>`;
+}
+
+/** Formats 14 digits as `00.000.000/0000-00`; any other input (already
+ * formatted, partial, non-numeric) passes through unchanged rather than
+ * guessing. */
+function formatCnpj(taxId: string): string {
+  const digits = taxId.replace(/\D/g, "");
+  if (digits.length !== 14) return taxId;
+  return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8, 12)}-${digits.slice(12, 14)}`;
 }
 
 function renderWelcome(p: TemplatePayloads["welcome"]): RenderedEmail {
@@ -133,6 +156,113 @@ function renderPasswordReset(
     "Recebemos um pedido de redefinição de senha para sua conta no Lixto.",
     `Este link é válido por ${p.expiresMinutes} minutos e só pode ser usado uma vez. Se você não solicitou, ignore este e-mail.`,
     `Redefinir senha: ${p.resetUrl}`,
+  ].join("\n\n");
+
+  return { subject, html, text };
+}
+
+function renderSignupReceived(
+  p: TemplatePayloads["signup_received"],
+): RenderedEmail {
+  const subject = `Recebemos o cadastro da ${p.companyName}`;
+  const bodyHtml = [
+    paragraph(
+      `Olá, ${escapeHtml(p.userName)}. Obrigado por cadastrar a <strong>${escapeHtml(
+        p.companyName,
+      )}</strong> no Lixto.`,
+    ),
+    paragraph("Estamos avaliando os dados da sua empresa."),
+    paragraph(
+      "Você receberá outro e-mail assim que o acesso for liberado.",
+    ),
+  ].join("\n");
+
+  const html = renderLayout({ title: subject, bodyHtml, preheader: subject });
+
+  const text = [
+    `Olá, ${p.userName}.`,
+    `Obrigado por cadastrar a ${p.companyName} no Lixto.`,
+    "Estamos avaliando os dados da sua empresa.",
+    "Você receberá outro e-mail assim que o acesso for liberado.",
+  ].join("\n\n");
+
+  return { subject, html, text };
+}
+
+function renderSignupPendingAdmin(
+  p: TemplatePayloads["signup_pending_admin"],
+): RenderedEmail {
+  const subject = `Nova empresa aguardando aprovação: ${p.companyName}`;
+  const taxId = formatCnpj(p.taxId);
+  const bodyHtml = [
+    paragraph(
+      `A empresa <strong>${escapeHtml(p.companyName)}</strong> (CNPJ ${escapeHtml(
+        taxId,
+      )}) se cadastrou no Lixto e aguarda aprovação.`,
+    ),
+    paragraph(
+      `Administrador: ${escapeHtml(p.adminName)} (${escapeHtml(p.adminEmail)}).`,
+    ),
+    renderButton(p.adminUrl, "Revisar cadastro"),
+  ].join("\n");
+
+  const html = renderLayout({ title: subject, bodyHtml, preheader: subject });
+
+  const text = [
+    `A empresa ${p.companyName} (CNPJ ${taxId}) se cadastrou no Lixto e aguarda aprovação.`,
+    `Administrador: ${p.adminName} (${p.adminEmail}).`,
+    `Revisar cadastro: ${p.adminUrl}`,
+  ].join("\n\n");
+
+  return { subject, html, text };
+}
+
+function renderSignupApproved(
+  p: TemplatePayloads["signup_approved"],
+): RenderedEmail {
+  const subject = `Acesso liberado: ${p.companyName} no Lixto`;
+  const bodyHtml = [
+    paragraph(
+      `Olá, ${escapeHtml(p.userName)}. O cadastro da <strong>${escapeHtml(
+        p.companyName,
+      )}</strong> foi aprovado e o acesso ao Lixto foi liberado.`,
+    ),
+    renderButton(p.loginUrl, "Entrar no Lixto"),
+  ].join("\n");
+
+  const html = renderLayout({ title: subject, bodyHtml, preheader: subject });
+
+  const text = [
+    `Olá, ${p.userName}.`,
+    `O cadastro da ${p.companyName} foi aprovado e o acesso ao Lixto foi liberado.`,
+    `Entrar no Lixto: ${p.loginUrl}`,
+  ].join("\n\n");
+
+  return { subject, html, text };
+}
+
+function renderSignupRejected(
+  p: TemplatePayloads["signup_rejected"],
+): RenderedEmail {
+  const subject = `Cadastro da ${p.companyName} não aprovado`;
+  const hasReason = Boolean(p.reason && p.reason.length > 0);
+  const bodyHtml = [
+    paragraph(
+      `Olá, ${escapeHtml(p.userName)}. O cadastro da <strong>${escapeHtml(
+        p.companyName,
+      )}</strong> não foi aprovado neste momento.`,
+    ),
+    ...(hasReason ? [paragraph(`Motivo: ${escapeHtml(p.reason as string)}`)] : []),
+    paragraph("Se tiver dúvidas, basta responder a este e-mail."),
+  ].join("\n");
+
+  const html = renderLayout({ title: subject, bodyHtml, preheader: subject });
+
+  const text = [
+    `Olá, ${p.userName}.`,
+    `O cadastro da ${p.companyName} não foi aprovado neste momento.`,
+    ...(hasReason ? [`Motivo: ${p.reason}`] : []),
+    "Se tiver dúvidas, basta responder a este e-mail.",
   ].join("\n\n");
 
   return { subject, html, text };
@@ -236,6 +366,22 @@ export function renderTemplate<T extends keyof TemplatePayloads>(
       );
     case "daily_digest":
       return renderDailyDigest(payload as TemplatePayloads["daily_digest"]);
+    case "signup_received":
+      return renderSignupReceived(
+        payload as TemplatePayloads["signup_received"],
+      );
+    case "signup_pending_admin":
+      return renderSignupPendingAdmin(
+        payload as TemplatePayloads["signup_pending_admin"],
+      );
+    case "signup_approved":
+      return renderSignupApproved(
+        payload as TemplatePayloads["signup_approved"],
+      );
+    case "signup_rejected":
+      return renderSignupRejected(
+        payload as TemplatePayloads["signup_rejected"],
+      );
     default:
       throw new Error(`Unknown email template: ${String(template)}`);
   }

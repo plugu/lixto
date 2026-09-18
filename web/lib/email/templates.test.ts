@@ -162,6 +162,89 @@ describe("renderTemplate", () => {
     expect(reset.html).not.toContain("unsubscribe");
   });
 
+  it("renders the signup_received subject and no CTA", () => {
+    const payload: TemplatePayloads["signup_received"] = {
+      userName: "Maria",
+      companyName: "Acme Ltda",
+    };
+    const email = renderTemplate("signup_received", payload);
+    expect(email.subject).toBe("Recebemos o cadastro da Acme Ltda");
+    expect(email.html).toContain("Acme Ltda");
+    expect(email.html).toContain("Estamos avaliando os dados da sua empresa");
+    expect(email.text.length).toBeGreaterThan(0);
+  });
+
+  it("renders the signup_pending_admin subject, CTA and formatted CNPJ", () => {
+    const payload: TemplatePayloads["signup_pending_admin"] = {
+      companyName: "Acme Ltda",
+      taxId: "12345678000195",
+      adminName: "João",
+      adminEmail: "joao@acme.com",
+      adminUrl: "https://app.lixto.com.br/admin/companies/1",
+    };
+    const email = renderTemplate("signup_pending_admin", payload);
+    expect(email.subject).toBe(
+      "Nova empresa aguardando aprovação: Acme Ltda",
+    );
+    expect(email.html).toContain("12.345.678/0001-95");
+    expect(email.html).toContain(`href="${payload.adminUrl}"`);
+    expect(email.html).toContain("Revisar cadastro");
+    expect(email.text.length).toBeGreaterThan(0);
+  });
+
+  it("renders the signup_approved subject and CTA", () => {
+    const payload: TemplatePayloads["signup_approved"] = {
+      userName: "Maria",
+      companyName: "Acme Ltda",
+      loginUrl: "https://app.lixto.com.br/login",
+    };
+    const email = renderTemplate("signup_approved", payload);
+    expect(email.subject).toBe("Acesso liberado: Acme Ltda no Lixto");
+    expect(email.html).toContain(`href="${payload.loginUrl}"`);
+    expect(email.html).toContain("Entrar no Lixto");
+    expect(email.text.length).toBeGreaterThan(0);
+  });
+
+  it("renders the signup_rejected subject with a reason", () => {
+    const payload: TemplatePayloads["signup_rejected"] = {
+      userName: "Maria",
+      companyName: "Acme Ltda",
+      reason: "CNPJ inválido",
+    };
+    const email = renderTemplate("signup_rejected", payload);
+    expect(email.subject).toBe("Cadastro da Acme Ltda não aprovado");
+    expect(email.html).toContain("Motivo: CNPJ inválido");
+    expect(email.text).toContain("Motivo: CNPJ inválido");
+  });
+
+  it("renders the signup_rejected subject without a reason", () => {
+    const payload: TemplatePayloads["signup_rejected"] = {
+      userName: "Ana",
+      companyName: "ACME",
+      reason: null,
+    };
+    const email = renderTemplate("signup_rejected", payload);
+    expect(email.subject).toBe("Cadastro da ACME não aprovado");
+    expect(email.html).not.toContain("Motivo:");
+    expect(email.text).not.toContain("Motivo:");
+  });
+
+  it("escapes XSS in signup_pending_admin fields for html but leaves text raw", () => {
+    const payload: TemplatePayloads["signup_pending_admin"] = {
+      companyName: "Acme Ltda",
+      taxId: "12345678000195",
+      adminName: '<script>alert(1)</script>',
+      adminEmail: "joao@acme.com",
+      adminUrl: "https://app.lixto.com.br/admin/companies/1",
+    };
+    const email = renderTemplate("signup_pending_admin", payload);
+    expect(email.html).not.toContain("<script>alert(1)</script>");
+    expect(email.html).toContain(
+      "&lt;script&gt;alert(1)&lt;/script&gt;",
+    );
+    expect(email.text).toContain("<script>alert(1)</script>");
+  });
+
   it("throws on an unknown template name", () => {
     expect(() =>
       renderTemplate(
