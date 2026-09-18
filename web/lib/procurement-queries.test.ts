@@ -160,6 +160,25 @@ describe("parseFilters", () => {
     });
   });
 
+  describe("sort", () => {
+    it("keeps only known sort values", () => {
+      expect(parseFilters({ sort: "value_desc" })).toEqual({ sort: "value_desc" });
+      expect(parseFilters({ sort: "value_asc" })).toEqual({ sort: "value_asc" });
+      expect(parseFilters({ sort: "closing_asc" })).toEqual({ sort: "closing_asc" });
+      expect(parseFilters({ sort: "published_desc" })).toEqual({
+        sort: "published_desc",
+      });
+      expect(parseFilters({ sort: "nope" })).toEqual({});
+      expect(parseFilters({ sort: "" })).toEqual({});
+    });
+
+    it("unwraps an array-valued sort param (first value wins)", () => {
+      expect(parseFilters({ sort: ["value_asc", "value_desc"] })).toEqual({
+        sort: "value_asc",
+      });
+    });
+  });
+
   describe("compat", () => {
     it("sets compat: true when compat=1", () => {
       expect(parseFilters({ compat: "1" })).toEqual({ compat: true });
@@ -395,6 +414,44 @@ describe("buildListQuery", () => {
     expect(text).toContain("ORDER BY status_group ASC, sort_val ASC NULLS LAST");
   });
 
+  describe("explicit sort", () => {
+    it("orders by estimated_value DESC NULLS LAST for value_desc", () => {
+      const { text } = buildListQuery({ sort: "value_desc" }, 25, 0);
+      expect(text).toContain(
+        "ORDER BY estimated_value DESC NULLS LAST, source_id",
+      );
+      expect(text).not.toContain("ORDER BY status_group");
+    });
+
+    it("orders by estimated_value ASC NULLS LAST for value_asc", () => {
+      const { text } = buildListQuery({ sort: "value_asc" }, 25, 0);
+      expect(text).toContain("ORDER BY estimated_value ASC NULLS LAST, source_id");
+    });
+
+    it("orders upcoming deadlines soonest-first, then past ones, for closing_asc", () => {
+      const { text } = buildListQuery({ sort: "closing_asc" }, 25, 0);
+      expect(text).toContain(
+        "ORDER BY CASE WHEN proposal_closes_at >= now() THEN 0 ELSE 1 END, proposal_closes_at ASC NULLS LAST, source_id",
+      );
+    });
+
+    it("orders by published_at DESC NULLS LAST for published_desc", () => {
+      const { text } = buildListQuery({ sort: "published_desc" }, 25, 0);
+      expect(text).toContain("ORDER BY published_at DESC NULLS LAST, source_id");
+    });
+
+    it("never binds the sort as a param", () => {
+      const { values } = buildListQuery({ sort: "value_desc" }, 25, 0);
+      expect(values).toEqual([ACTIVE_PORTALS, 25, 0]);
+    });
+
+    it("does not leak into the WHERE clause or the count query", () => {
+      const { text, values } = buildCountQuery({ sort: "value_desc" });
+      expect(text).not.toContain("ORDER BY");
+      expect(values).toEqual([ACTIVE_PORTALS]);
+    });
+  });
+
   it("joins agencies for the name and flags enrichment with a LEFT JOIN", () => {
     const { text } = buildListQuery({}, 25, 0);
     expect(text).toContain("JOIN agencies ON agencies.tax_id = procurements.agency_tax_id");
@@ -450,6 +507,21 @@ describe("hybrid retrieval (q + query embedding)", () => {
       expect(text).toContain("<=>");
       expect(text).toContain("ORDER BY fused.rrf DESC, source_id");
       expect(text).not.toContain("ORDER BY status_group ASC");
+    });
+
+    it("lets an explicit sort override the fused rank", () => {
+      const { text } = buildListQuery(
+        { q: "merenda", sort: "value_desc" },
+        20,
+        0,
+        undefined,
+        QVEC,
+      );
+      expect(text).toContain("fused AS (");
+      expect(text).toContain(
+        "ORDER BY estimated_value DESC NULLS LAST, source_id",
+      );
+      expect(text).not.toContain("ORDER BY fused.rrf");
     });
 
     it("binds q then the vector, with limit/offset last", () => {

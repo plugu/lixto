@@ -5,7 +5,7 @@
 // The URL contract is frozen and *owned* by `parseFilters`
 // (lib/procurement-queries.ts): `q`, repeated `portal` / `modality` /
 // `status` / `category` / `state`, plus `kind`, `valueMin`, `valueMax`,
-// `compat=1` and `page`. `buildProcurementQueryString` is its exact inverse.
+// `compat=1`, `sort` and `page`. `buildProcurementQueryString` is its exact inverse.
 //
 // Why the read side is re-implemented here instead of importing
 // `parseFilters`: `lib/procurement-queries.ts` opens a pg `Pool` at module
@@ -19,7 +19,10 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useTransition } from "react";
-import type { ProcurementFilters } from "@/lib/procurement-queries";
+import type {
+  ProcurementFilters,
+  ProcurementSort,
+} from "@/lib/procurement-queries";
 import type { ProcurementStatus } from "@/lib/status";
 
 export const PROCUREMENTS_PATH = "/procurements";
@@ -47,6 +50,7 @@ export function buildProcurementQueryString(
     params.set("valueMax", String(filters.valueMax));
   }
   if (filters.compat) params.set("compat", "1");
+  if (filters.sort) params.set("sort", filters.sort);
   if (page && page > 1) params.set("page", String(page));
   const qs = params.toString();
   return qs ? `?${qs}` : "";
@@ -71,6 +75,20 @@ function nonEmptyValues(params: URLSearchParams, key: string): string[] {
     .getAll(key)
     .map((value) => value.trim())
     .filter((value) => value.length > 0);
+}
+
+// Mirrors `PROCUREMENT_SORTS` in lib/procurement-queries.ts (a value import
+// is off-limits here — see the module header); the equivalence tests catch
+// drift.
+const SORTS: readonly ProcurementSort[] = [
+  "closing_asc",
+  "published_desc",
+  "value_desc",
+  "value_asc",
+];
+
+function isSort(value: string | undefined): value is ProcurementSort {
+  return value !== undefined && (SORTS as readonly string[]).includes(value);
 }
 
 function parseNumberParam(raw: string | null): number | undefined {
@@ -124,6 +142,9 @@ export function parseProcurementSearchParams(
   if (valueMax !== undefined) filters.valueMax = valueMax;
 
   if (params.get("compat") === "1") filters.compat = true;
+
+  const sort = params.get("sort")?.trim();
+  if (isSort(sort)) filters.sort = sort;
 
   return filters;
 }

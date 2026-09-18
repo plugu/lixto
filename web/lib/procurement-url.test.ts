@@ -20,6 +20,7 @@ const FULL_FIXTURE: ProcurementFilters = {
   valueMin: 1000,
   valueMax: 250000,
   compat: true,
+  sort: "value_desc",
 };
 
 function roundTrip(filters: ProcurementFilters, page?: number) {
@@ -97,6 +98,9 @@ describe("parseProcurementSearchParams", () => {
     ["compat off", "?compat=0"],
     ["repeated q wins first", "?q=a&q=b"],
     ["unknown params ignored", "?foo=bar&page=3"],
+    ["sort", "?sort=closing_asc"],
+    ["unknown sort", "?sort=random"],
+    ["repeated sort wins first", "?sort=value_asc&sort=value_desc"],
   ];
 
   for (const [name, qs] of cases) {

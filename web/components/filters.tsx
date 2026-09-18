@@ -21,7 +21,10 @@ import { Popover } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TD, TH } from "@/components/ui/table";
 import { Toolbar, ToolbarButton } from "@/components/ui/toolbar";
-import type { ProcurementFilters } from "@/lib/procurement-queries";
+import type {
+  ProcurementFilters,
+  ProcurementSort,
+} from "@/lib/procurement-queries";
 import { useProcurementFilters } from "@/lib/procurement-url";
 import type { ProcurementStatus } from "@/lib/status";
 
@@ -288,6 +291,74 @@ function ColumnsMenu() {
   );
 }
 
+/** Labels for the closed sort enum; the `Record` keeps this list and
+ * `PROCUREMENT_SORTS` in lock-step at compile time. Order = menu order. */
+const SORT_LABELS: Record<ProcurementSort, string> = {
+  closing_asc: "Encerramento mais próximo",
+  published_desc: "Publicação mais recente",
+  value_desc: "Maior valor estimado",
+  value_asc: "Menor valor estimado",
+};
+
+const SORT_OPTIONS = Object.keys(SORT_LABELS) as ProcurementSort[];
+
+/** "Ordenar" menu: one radio per ordering plus the default. Writes
+ * `filters.sort` through the shared URL writer, so a change is a transition
+ * that swaps the results for the skeleton and resets to page 1. */
+function SortMenu({
+  active,
+  setFilters,
+}: {
+  active: ProcurementFilters;
+  setFilters: (next: ProcurementFilters) => void;
+}) {
+  const current = active.sort;
+  const defaultLabel = active.q
+    ? "Relevância (padrão)"
+    : "Status e prazo (padrão)";
+
+  return (
+    <Popover
+      trigger={
+        <ToolbarButton
+          icon={<Sort />}
+          label="Ordenar"
+          count={current ? 1 : undefined}
+          onClick={togglePopover}
+        />
+      }
+    >
+      <div className="w-64" role="radiogroup" aria-label="Ordenar por">
+        <p className="px-2 pb-1 text-xs font-medium text-ink-muted">
+          Ordenar por
+        </p>
+        {[undefined, ...SORT_OPTIONS].map((option) => {
+          const checked = option === current;
+          return (
+            <label
+              key={option ?? "default"}
+              className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-[13px] text-ink hover:bg-surface-raised"
+            >
+              <input
+                type="radio"
+                name="procurement-sort"
+                value={option ?? ""}
+                checked={checked}
+                onChange={() => {
+                  if (checked) return;
+                  setFilters({ ...active, sort: option });
+                }}
+                className="h-3.5 w-3.5 accent-accent focus:outline-none focus-visible:ring-[3px] focus-visible:ring-accent-soft"
+              />
+              {option ? SORT_LABELS[option] : defaultLabel}
+            </label>
+          );
+        })}
+      </div>
+    </Popover>
+  );
+}
+
 /**
  * Page header (title + result count + inline search) and the Attio-style
  * toolbar. There is no form and no "Aplicar": every control writes the URL
@@ -517,13 +588,7 @@ export function Filters({ showCompat }: FiltersProps) {
             </div>
           </Popover>
 
-          <ToolbarButton
-            icon={<Sort />}
-            label="Ordenar"
-            disabled
-            title="em breve"
-            className="cursor-not-allowed"
-          />
+          <SortMenu active={active} setFilters={setFilters} />
 
           <ColumnsMenu />
         </Toolbar>

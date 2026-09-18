@@ -16,6 +16,21 @@ import { STATUS_LABELS, type ProcurementStatus } from "./status";
  * both = mixed. */
 export type ProcurementKind = "product" | "service" | "mixed";
 
+/** Explicit list orderings. Absent = the default: status group + date on the
+ * plain path, fused relevance rank on the hybrid (q + embedding) path. */
+export const PROCUREMENT_SORTS = [
+  "closing_asc",
+  "published_desc",
+  "value_desc",
+  "value_asc",
+] as const;
+
+export type ProcurementSort = (typeof PROCUREMENT_SORTS)[number];
+
+export function isProcurementSort(value: unknown): value is ProcurementSort {
+  return (PROCUREMENT_SORTS as readonly unknown[]).includes(value);
+}
+
 export type ProcurementFilters = {
   q?: string;
   /** `origin_system` — the portal that published the procurement. */
@@ -33,6 +48,9 @@ export type ProcurementFilters = {
    * Only meaningful when the caller also supplies the logged-in company's
    * CNAE codes — with no codes the filter is ignored. */
   compat?: boolean;
+  /** Explicit ordering; not a predicate (never touches WHERE, counts or
+   * facets), only `buildListQuery`'s ORDER BY. */
+  sort?: ProcurementSort;
 };
 
 /** The five filter dimensions with per-option facet counts. */
@@ -156,6 +174,9 @@ export function parseFilters(
   if (valueMax !== undefined) filters.valueMax = valueMax;
 
   if (firstValue(raw.compat) === "1") filters.compat = true;
+
+  const sort = firstValue(raw.sort)?.trim();
+  if (isProcurementSort(sort)) filters.sort = sort;
 
   return filters;
 }
@@ -389,6 +410,7 @@ const CLASSIFIED_COLUMNS = `procurements.source_id,
         procurements.estimated_value,
         procurements.proposal_opens_at,
         procurements.proposal_closes_at,
+        procurements.published_at,
         (e.procurement_id IS NOT NULL) AS enriched,
         CASE
           WHEN proposal_opens_at <= now() AND now() < proposal_closes_at THEN 0
@@ -410,9 +432,24 @@ const CLASSIFIED_FROM = `FROM procurements
       LEFT JOIN procurement_enrichments e
         ON e.procurement_id = procurements.id AND e.status = 'done'`;
 
-// Ordering: open closing soonest, then upcoming opening soonest, then closed
-// newest first — except on the hybrid path, where relevance (the fused rank)
-// decides and the date ordering would bury the semantic hits.
+/** ORDER BY for an explicit sort. Every column is one of the `classified`
+ * CTE's own, so the same clause serves both list paths; `source_id` breaks
+ * ties so pagination is stable. Sort keys are a closed enum, never
+ * interpolated from user input. */
+const SORT_ORDER_BY: Record<ProcurementSort, string> = {
+  // Deadlines still ahead first (soonest on top), then the ones already
+  // passed — a bare column sort would open with years-old closed tenders.
+  closing_asc:
+    "ORDER BY CASE WHEN proposal_closes_at >= now() THEN 0 ELSE 1 END, proposal_closes_at ASC NULLS LAST, source_id",
+  published_desc: "ORDER BY published_at DESC NULLS LAST, source_id",
+  value_desc: "ORDER BY estimated_value DESC NULLS LAST, source_id",
+  value_asc: "ORDER BY estimated_value ASC NULLS LAST, source_id",
+};
+
+// Default ordering: open closing soonest, then upcoming opening soonest, then
+// closed newest first — except on the hybrid path, where relevance (the fused
+// rank) decides and the date ordering would bury the semantic hits. An
+// explicit `filters.sort` overrides both.
 export function buildListQuery(
   filters: ProcurementFilters,
   limit: number,
@@ -444,7 +481,7 @@ export function buildListQuery(
       enriched, fused.match_kind, fused.similarity
     FROM classified
     JOIN fused ON fused.id = classified.id
-    ORDER BY fused.rrf DESC, source_id
+    ${filters.sort ? SORT_ORDER_BY[filters.sort] : "ORDER BY fused.rrf DESC, source_id"}
     LIMIT $${limitIdx} OFFSET $${offsetIdx}
   `;
 
@@ -467,7 +504,7 @@ export function buildListQuery(
       modality_name, estimated_value, proposal_opens_at, proposal_closes_at,
       enriched, NULL::text AS match_kind, NULL::real AS similarity
     FROM classified
-    ORDER BY status_group ASC, sort_val ASC NULLS LAST
+    ${filters.sort ? SORT_ORDER_BY[filters.sort] : "ORDER BY status_group ASC, sort_val ASC NULLS LAST"}
     LIMIT $${limitIdx} OFFSET $${offsetIdx}
   `;
 
