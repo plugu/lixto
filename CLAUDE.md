@@ -13,6 +13,8 @@ This project uses graphify for codebase navigation.
 
 ## Lixto Core (Cycle 18)
 
+**Signup is gated**: Companies start in `pending` approval status; only superadmins (CLI-only flag) can approve them.
+
 ### Data Model
 
 **Read first**: `docs/adr/001-lixto-data-model.md` before modifying any schema.
@@ -114,6 +116,10 @@ Key facts:
 | LLM client | `src/lixto/llm.py` (OpenAI-compatible, provider abstraction) |
 | PNCP client | `src/lixto/pncp_client.py` |
 | Database | `src/lixto/db.py` (connection, migrations) |
+| Session & auth | `web/lib/auth.ts` (session gate, `requireSuperadmin`, company approval check on every request) |
+| Superadmin CLI | `src/lixto/cli/users.py` (grant/revoke/list superadmin flags) |
+| Company approval | `web/app/(app)/admin/*` (superadmin dashboard: Pendentes/Aprovadas/Rejeitadas tabs); `web/lib/company-approval-queries.ts` (approval queries) |
+| Company approval schema | `migrations/007_company_approval.sql` (companies.approval_status, users.is_superadmin) |
 | Web routes | `web/app/(app)/*` (Next.js app dir) |
 | Radar engine | `web/lib/radar-engine.ts`, `web/lib/radar-batch.ts` (detection, scoring, expiry) |
 | Radar routes | `web/app/(app)/radar/*` (/radar list, /radar/[id] detail) |

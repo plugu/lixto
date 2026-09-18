@@ -162,6 +162,13 @@ Opens at `http://localhost:3000`. Routes:
 ### Status
 - `lixto status` — Print database statistics.
 
+### Users & access
+- `lixto users grant-superadmin <email>` — Grant superadmin access to a user (for company approval workflow). Normalizes email to lowercase.
+- `lixto users revoke-superadmin <email>` — Revoke superadmin access from a user.
+- `lixto users list-superadmins` — List all superadmins with their company information.
+
+**Signup approval**: New companies start in `pending` status. A superadmin can visit Administração → Empresas (nav, superadmins only) to review pending signups by tab (Pendentes, Aprovadas, Rejeitadas), then approve or reject each one. Email notifies the applicant at every step: `signup_received` on initial submission, `signup_pending_admin` to superadmins, `signup_approved` or `signup_rejected` to the applicant.
+
 ## Schema
 
 **Entity layers** (see `docs/DATA_MODEL.md` for full reference):
@@ -220,6 +227,10 @@ New table `email_messages` persists all outbound mail:
 | `invite` | Accept invite link | No (transactional) |
 | `password_reset` | Reset token + link | No (transactional) |
 | `daily_digest` | New attention-scoring opportunities | Yes (footer link suppresses future digests) |
+| `signup_received` | Company signup submitted; awaiting approval | No (transactional) |
+| `signup_pending_admin` | New company signup awaiting superadmin review | No (transactional) |
+| `signup_approved` | Company signup approved; account activated | No (transactional) |
+| `signup_rejected` | Company signup rejected with optional reason | No (transactional) |
 
 All render HTML + text from a shared Portuguese layout with unsubscribe footer (digest only).
 
@@ -336,6 +347,20 @@ When moving Lixto to production ingestion:
 5. **Monitor cost** with `lixto status` — shows today's LLM spend (calls, tokens, estimated USD) and last 7 days' total.
 
 **Important**: The embedding model (`LIXTO_LLM_MODEL_EMBED`) must never change after ingestion starts, as all vectors in the table would become incomparable. If you need to re-embed, either run a full backfill or set up a new vector table and migrate indices.
+
+### Cycle 28 go-live (Gated signup & superadmin)
+
+After deploying `lixto-cli` and `lixto-web`:
+
+1. **Apply migrations**: `lixto db init` runs automatically on every `lixto-cli` deploy, applying `migrations/007_company_approval.sql` (tables `companies.approval_status`, `users.is_superadmin`).
+
+2. **Grant superadmin**: From the lixto-cli container (Docker exec or pod shell):
+   ```bash
+   lixto users grant-superadmin alxazevedo@gmail.com
+   ```
+   This user can now visit Administração → Empresas to review and approve/reject pending signups.
+
+3. **Verify superadmin nav**: Log in as that user and confirm `/admin/companies` renders with three tabs (Pendentes, Aprovadas, Rejeitadas).
 
 ### Radar go-live (cycle 24 — not yet started)
 
