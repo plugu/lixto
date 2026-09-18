@@ -3,6 +3,7 @@ import { RadarActions } from "@/components/radar-actions";
 import { RadarAnalysis } from "@/components/radar-analysis";
 import { RadarWhy } from "@/components/radar-why";
 import { Badge, type BadgeTone } from "@/components/ui/badge";
+import { ListBackLink } from "@/components/list-back-link";
 import { LinkButton } from "@/components/ui/button";
 import { Card, CollapsibleCard } from "@/components/ui/card";
 import { requireSession } from "@/lib/auth";
@@ -192,11 +193,7 @@ export default async function RadarDetailPage(
 }
 
 function BackLink() {
-  return (
-    <LinkButton href="/radar" variant="ghost" size="sm" className="self-start">
-      ← Radar
-    </LinkButton>
-  );
+  return <ListBackLink path="/radar">← Radar</ListBackLink>;
 }
 
 function Fact({ label, value }: { label: string; value: string }) {

@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { FilterChips } from "@/components/filter-chips";
 import { Filters } from "@/components/filters";
+import { RememberListUrl } from "@/components/remember-list-url";
 import { Results } from "@/components/procurements/results";
 import { ResultsSkeleton } from "@/components/procurements/results-skeleton";
 import { getSession } from "@/lib/auth";
@@ -37,6 +38,7 @@ export default async function ProcurementsPage({
 
   return (
     <div className="page-wide flex flex-col gap-5">
+      <RememberListUrl path="/procurements" />
       <Filters showCompat={showCompat} />
 
       <FilterChips

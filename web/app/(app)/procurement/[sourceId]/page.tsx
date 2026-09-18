@@ -4,8 +4,8 @@ import { AnalysisPanel } from "@/components/analysis-panel";
 import { AnalyzeButton } from "@/components/analyze-button";
 import { DocumentsList } from "@/components/documents-list";
 import { ItemsTable } from "@/components/items-table";
+import { ListBackLink } from "@/components/list-back-link";
 import { StatusBadge } from "@/components/status-badge";
-import { LinkButton } from "@/components/ui/button";
 import { Card, CollapsibleCard } from "@/components/ui/card";
 import { fetchAnalysis, getAnalysisState } from "@/lib/analysis-queries";
 import { requireSession } from "@/lib/auth";
@@ -202,16 +202,7 @@ export default async function ProcurementDetailPage(
 }
 
 function BackLink() {
-  return (
-    <LinkButton
-      href="/procurements"
-      variant="ghost"
-      size="sm"
-      className="self-start"
-    >
-      ← Licitações
-    </LinkButton>
-  );
+  return <ListBackLink path="/procurements">← Licitações</ListBackLink>;
 }
 
 function Fact({ label, value }: { label: string; value: string }) {
