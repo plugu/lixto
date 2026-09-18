@@ -5,6 +5,16 @@
 
 export type Role = "admin" | "member";
 
+/** `companies.approval_status` CHECK values (migration 007, ADR 003 §D1).
+ * Approval is a property of the tenant: every seat inherits it. */
+export type ApprovalStatus = "pending" | "approved" | "rejected";
+
+export const APPROVAL_STATUSES = [
+  "pending",
+  "approved",
+  "rejected",
+] as const;
+
 export type CompanySize = "MEI" | "ME" | "EPP" | "MEDIUM" | "LARGE";
 
 export const COMPANY_SIZES: CompanySize[] = [

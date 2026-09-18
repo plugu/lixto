@@ -6,18 +6,21 @@
 
 import crypto from "node:crypto";
 import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 // Relative (not "@/lib/...") on purpose: vitest runs without a config file, so
 // the tsconfig "@/" alias is not resolvable in auth.test.ts.
 import { pool } from "./db";
-import type { Role } from "./types";
+import type { ApprovalStatus, Role } from "./types";
 
 export type SessionUser = {
   id: number;
   name: string;
   email: string;
+  /** Company role (`admin|member`). Platform-wide rights live in
+   * `isSuperadmin` — the two axes are orthogonal (ADR 003 §D2). */
   role: Role;
   companyId: number;
+  isSuperadmin: boolean;
 };
 
 export type SessionCompany = {
@@ -115,16 +118,18 @@ type SessionRow = {
   name: string;
   email: string;
   role: Role;
+  is_superadmin: boolean;
   company_id: string;
   legal_name: string;
   trade_name: string | null;
   tax_id: string;
+  approval_status: ApprovalStatus;
 };
 
 const SESSION_SELECT = `SELECT u.id   AS user_id,
-            u.name, u.email, u.role,
+            u.name, u.email, u.role, u.is_superadmin,
             c.id   AS company_id,
-            c.legal_name, c.trade_name, c.tax_id
+            c.legal_name, c.trade_name, c.tax_id, c.approval_status
        FROM users u
        JOIN companies c ON c.id = u.company_id`;
 
@@ -136,6 +141,7 @@ function toSession(row: SessionRow): Session {
       email: row.email,
       role: row.role,
       companyId: Number(row.company_id),
+      isSuperadmin: row.is_superadmin,
     },
     company: {
       id: Number(row.company_id),
@@ -146,7 +152,10 @@ function toSession(row: SessionRow): Session {
   };
 }
 
-/** Resolves the cookie to a live session, or null when missing/expired. */
+/** Resolves the cookie to a live session, or null when missing/expired.
+ * The company's approval status is re-read on every request (ADR 003 §D3):
+ * rejecting a company kills its live sessions on their next request instead
+ * of letting them run until the cookie expires. */
 export async function getSession(): Promise<Session | null> {
   const store = await cookies();
   const token = store.get(SESSION_COOKIE)?.value;
@@ -155,7 +164,8 @@ export async function getSession(): Promise<Session | null> {
   const { rows } = await pool.query<SessionRow>(
     `${SESSION_SELECT}
        JOIN sessions s ON s.user_id = u.id
-      WHERE s.token_hash = $1 AND s.expires_at > now()`,
+      WHERE s.token_hash = $1 AND s.expires_at > now()
+        AND c.approval_status = 'approved'`,
     [sha256hex(token)],
   );
   return rows[0] ? toSession(rows[0]) : null;
@@ -173,6 +183,14 @@ export async function requireAdmin(): Promise<Session> {
   return session;
 }
 
+/** Platform-admin gate for `/admin/*`. 404s (rather than redirecting) so the
+ * route's existence is not revealed to a logged-in non-superadmin. */
+export async function requireSuperadmin(): Promise<Session> {
+  const session = await requireSession();
+  if (!session.user.isSuperadmin) notFound();
+  return session;
+}
+
 export async function destroySession(): Promise<void> {
   const store = await cookies();
   const token = store.get(SESSION_COOKIE)?.value;
@@ -184,21 +202,51 @@ export async function destroySession(): Promise<void> {
   await clearSessionCookie();
 }
 
-/** Verifies credentials, opens a session and sets the cookie. */
+/** Outcome of a login attempt. Only `ok` carries a session; the other three
+ * are the copy the login page renders. */
+export type LoginResult =
+  | { status: "ok"; session: Session }
+  | { status: "invalid" | "pending" | "rejected" };
+
+/** Pure decision table for a login attempt. The password verdict wins: a
+ * wrong password on a pending/rejected company is reported as `invalid`, so
+ * an attacker cannot use the login form to probe a company's standing. */
+export function classifyLogin(
+  passwordOk: boolean,
+  status: ApprovalStatus,
+): LoginResult["status"] {
+  if (!passwordOk) return "invalid";
+  return status === "approved" ? "ok" : status;
+}
+
+/** Verifies credentials and — only for an approved company — opens a session
+ * and sets the cookie. */
 export async function login(
   email: string,
   password: string,
-): Promise<Session | null> {
+): Promise<LoginResult> {
   const normalized = email.trim().toLowerCase();
-  if (!normalized || !password) return null;
+  if (!normalized || !password) return { status: "invalid" };
 
   const { rows } = await pool.query<{
     id: string;
     password_hash: string | null;
-  }>(`SELECT id, password_hash FROM users WHERE email = $1`, [normalized]);
+    approval_status: ApprovalStatus;
+  }>(
+    `SELECT u.id, u.password_hash, c.approval_status
+       FROM users u
+       JOIN companies c ON c.id = u.company_id
+      WHERE u.email = $1`,
+    [normalized],
+  );
   const row = rows[0];
-  if (!row || !row.password_hash) return null;
-  if (!(await verifyPassword(password, row.password_hash))) return null;
+  if (!row || !row.password_hash) return { status: "invalid" };
+
+  // Password first, status second: the status is only consulted once the
+  // caller has proven they own the account.
+  const passwordOk = await verifyPassword(password, row.password_hash);
+  const outcome = classifyLogin(passwordOk, row.approval_status);
+  if (outcome !== "ok") return { status: outcome };
 
   const userId = Number(row.id);
   const token = await createSession(userId);
@@ -211,5 +259,8 @@ export async function login(
     `${SESSION_SELECT} WHERE u.id = $1`,
     [userId],
   );
-  return sessionRows[0] ? toSession(sessionRows[0]) : null;
+  const session = sessionRows[0];
+  return session
+    ? { status: "ok", session: toSession(session) }
+    : { status: "invalid" };
 }

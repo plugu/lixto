@@ -8,9 +8,11 @@ export async function loginAction(formData: FormData): Promise<void> {
   const password = String(formData.get("password") ?? "");
   const next = String(formData.get("next") ?? "");
 
-  const session = await login(email, password);
-  if (!session) {
-    const params = new URLSearchParams({ error: "1" });
+  // "invalid" | "pending" | "rejected" round-trip as ?error= so the login
+  // page can render the right copy; only "ok" carries a session/cookie.
+  const result = await login(email, password);
+  if (result.status !== "ok") {
+    const params = new URLSearchParams({ error: result.status });
     if (next.startsWith("/")) params.set("next", next);
     redirect(`/login?${params.toString()}`);
   }

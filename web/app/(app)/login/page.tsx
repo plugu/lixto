@@ -9,11 +9,27 @@ function first(value: string | string[] | undefined): string {
   return value ?? "";
 }
 
+/** `?error=` -> alert copy. "1" is the legacy value older links still carry.
+ * Anything unknown renders no alert. */
+function loginErrorMessage(error: string): string | null {
+  switch (error) {
+    case "pending":
+      return "Sua conta ainda está em análise. Avisaremos por e-mail quando o acesso for liberado.";
+    case "rejected":
+      return "O cadastro da sua empresa não foi aprovado. Responda ao e-mail que enviamos se tiver dúvidas.";
+    case "invalid":
+    case "1":
+      return "E-mail ou senha inválidos.";
+    default:
+      return null;
+  }
+}
+
 export default async function LoginPage({
   searchParams,
 }: PageProps<"/login">) {
   const params = await searchParams;
-  const error = first(params.error) === "1";
+  const errorMessage = loginErrorMessage(first(params.error));
   const nextParam = first(params.next);
   const next =
     nextParam.startsWith("/") && !nextParam.startsWith("//") ? nextParam : "";
@@ -34,12 +50,12 @@ export default async function LoginPage({
           </p>
         </div>
 
-        {error ? (
+        {errorMessage ? (
           <p
             role="alert"
             className="rounded-md bg-warn-soft px-3 py-2 text-sm text-warn"
           >
-            E-mail ou senha inválidos.
+            {errorMessage}
           </p>
         ) : null}
 

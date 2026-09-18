@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hashPassword, verifyPassword } from "./auth";
+import { classifyLogin, hashPassword, verifyPassword } from "./auth";
 
 describe("hashPassword / verifyPassword", () => {
   it("produces a scrypt$salt$hash string", async () => {
@@ -67,5 +67,33 @@ describe("hashPassword / verifyPassword", () => {
     expect(a).not.toBe(b);
     await expect(verifyPassword("senha-super-secreta", a)).resolves.toBe(true);
     await expect(verifyPassword("senha-super-secreta", b)).resolves.toBe(true);
+  });
+});
+
+// The DB path of login() is not exercised here (vitest runs node-only, with
+// no pool); classifyLogin is the whole decision it makes.
+describe("classifyLogin", () => {
+  it("accepts the right password on an approved company", () => {
+    expect(classifyLogin(true, "approved")).toBe("ok");
+  });
+
+  it("reports a pending company", () => {
+    expect(classifyLogin(true, "pending")).toBe("pending");
+  });
+
+  it("reports a rejected company", () => {
+    expect(classifyLogin(true, "rejected")).toBe("rejected");
+  });
+
+  it("says invalid for a wrong password on an approved company", () => {
+    expect(classifyLogin(false, "approved")).toBe("invalid");
+  });
+
+  it("says invalid — not pending — for a wrong password on a pending company", () => {
+    expect(classifyLogin(false, "pending")).toBe("invalid");
+  });
+
+  it("says invalid — not rejected — for a wrong password on a rejected company", () => {
+    expect(classifyLogin(false, "rejected")).toBe("invalid");
   });
 });

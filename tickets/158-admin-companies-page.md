@@ -1,6 +1,6 @@
 ---
 id: 158
-status: todo
+status: doing
 model: sonnet
 depends_on: [155, 157]
 max_attempts: 4
@@ -38,3 +38,6 @@ Work:
 
 ## Not included
 - Sidebar/⌘K entries (159); editing company data; audit history beyond the last change; pagination (fewer than a few hundred companies expected).
+
+## Orchestrator note (after 157)
+Under `next dev` streaming a `requireSession()` redirect can come back as HTTP 200 with an in-band `NEXT_REDIRECT` marker; `notFound()` thrown before the first flush should still yield a 404 status. If check 4's `grep -qx 404` is flaky for that reason, assert on the 404 page body instead and say so in the report.
