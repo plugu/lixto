@@ -50,6 +50,16 @@ def test_default_migrations_dir_holds_the_lixto_core_schema():
     assert names[0] == "001_core.sql" and names == sorted(names)
 
 
+def test_list_migration_files_includes_company_approval_after_tender_analysis():
+    """Ticket 153: 007_company_approval.sql (gated signup) must sort right
+    after 006_tender_analysis.sql, not be skipped or misnamed."""
+    names = [f.name for f in db.list_migration_files()]
+
+    tender_analysis_index = names.index("006_tender_analysis.sql")
+
+    assert names[tender_analysis_index + 1] == "007_company_approval.sql"
+
+
 def test_run_migrations_applies_pending_in_order(tmp_path):
     _write_sql(tmp_path, "001_first.sql", "CREATE TABLE a();")
     _write_sql(tmp_path, "002_second.sql", "CREATE TABLE b();")

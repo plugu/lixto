@@ -269,9 +269,9 @@ Modifications to contracts (additions, readjustments, extensions, replacements).
 Supplier/buyer companies (multi-tenant).
 - **Key**: `id` (BIGSERIAL surrogate)
 - **Natural key**: `tax_id` (CHAR(14), CNPJ digits only) UNIQUE
-- **Notable columns**: `legal_name`, `trade_name`, `size` (MEI|ME|EPP|MEDIUM|LARGE), `simples_optant`, `state`, `city_name`, `email`, `phone`
-- **Notable indexes**: PK only
-- **Purpose**: Company profiles (one per tenant). Signed up via `/signup`.
+- **Notable columns**: `legal_name`, `trade_name`, `size` (MEI|ME|EPP|MEDIUM|LARGE), `simples_optant`, `state`, `city_name`, `email`, `phone`, `approval_status` (pending|approved|rejected, default `pending`, cycle 28), `approval_reason` (shown to the applicant on rejection), `approval_changed_at`, `approval_changed_by` (FK to `users`)
+- **Notable indexes**: PK, `approval_status`
+- **Purpose**: Company profiles (one per tenant). Signed up via `/signup`, starts `pending` until a superadmin approves it (ADR 003).
 
 ### `company_cnaes`
 Company's primary and secondary industry classifications.
@@ -299,9 +299,9 @@ Habilitação uploads (certs, tax clearances, etc.).
 ### `users`
 Team members (per company).
 - **Key**: `id` (BIGSERIAL)
-- **Notable columns**: `company_id` (FK), `email` (lowercased, UNIQUE), `password_hash`, `name`, `cpf`, `job_title`, `role` (admin|member), `invite_token_hash`, `invite_expires_at`
+- **Notable columns**: `company_id` (FK), `email` (lowercased, UNIQUE), `password_hash`, `name`, `cpf`, `job_title`, `role` (admin|member, company-level), `invite_token_hash`, `invite_expires_at`, `is_superadmin` (boolean, default false, platform-level, cycle 28, orthogonal to `role`, granted only via CLI)
 - **Notable indexes**: `(company_id)`, `(email)`
-- **Purpose**: Multi-user, role-based access. Invited via `/invite/[token]`.
+- **Purpose**: Multi-user, role-based access. Invited via `/invite/[token]`. `is_superadmin` users can approve/reject any company (ADR 003).
 
 ### `sessions`
 Active login sessions.
@@ -371,9 +371,9 @@ Learning loop feedback capture (cycle 19).
 ## Email (Cycle 22)
 
 ### `email_messages`
-Transactional outbox for account invites, password reset, welcome, and daily digest.
+Transactional outbox for account invites, password reset, welcome, daily digest, and gated-signup status mails.
 - **Key**: `id` (BIGSERIAL) PK
-- **Notable columns**: `to_email` (TEXT), `template` (welcome|invite|password_reset|daily_digest), `payload` (JSONB: vars like `appUrl`, `resetUrl`, `opportunities` for digest), `subject`, `status` (queued|sending|sent|failed|suppressed), `attempts` (INT), `last_error` (TEXT), `provider_message_id` (MTA's message-id), `scheduled_for` (TIMESTAMPTZ, when to send; NULL=immediate), `sent_at` (when actually sent), `created_at`, `updated_at`
+- **Notable columns**: `to_email` (TEXT), `template` (welcome|invite|password_reset|daily_digest|signup_received|signup_pending_admin|signup_approved|signup_rejected, cycle 28 adds the last four — ADR 003), `payload` (JSONB: vars like `appUrl`, `resetUrl`, `opportunities` for digest), `subject`, `status` (queued|sending|sent|failed|suppressed), `attempts` (INT), `last_error` (TEXT), `provider_message_id` (MTA's message-id), `scheduled_for` (TIMESTAMPTZ, when to send; NULL=immediate), `sent_at` (when actually sent), `created_at`, `updated_at`
 - **Notable indexes**: `status` (filter queued), partial unique `(to_email, template, dedupe_key)` for idempotence, `created_at DESC` for retention
 - **Purpose**: Persist every send; survive crashes without data loss or duplication. Worker drains queued rows with bounded retries.
 
