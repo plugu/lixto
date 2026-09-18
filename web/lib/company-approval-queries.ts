@@ -210,9 +210,19 @@ export async function setApprovalStatus(
 
     await client.query("COMMIT");
   } catch (err) {
-    await client.query("ROLLBACK");
+    // ROLLBACK in its own try/catch (F2/F16): if it also fails — the
+    // connection is already broken, e.g. the error that got us here was a
+    // dropped connection — we still need to release *with an error* so
+    // node-postgres discards the client instead of returning a poisoned
+    // connection to the pool for the next caller. The original `err` is
+    // what the caller needs, so a failed rollback is swallowed, not thrown.
+    try {
+      await client.query("ROLLBACK");
+    } catch {
+      // Ignored on purpose — see comment above.
+    }
+    client.release(err instanceof Error ? err : new Error(String(err)));
     throw err;
-  } finally {
-    client.release();
   }
+  client.release();
 }

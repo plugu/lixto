@@ -7,6 +7,7 @@
 // config file, so the tsconfig "@/" alias is not resolvable from lib tests.
 
 import { escapeHtml, renderButton, renderLayout } from "./layout";
+import { formatCNPJ } from "../br-validators";
 import { formatDateBR } from "../format";
 
 export type DigestAttentionItem = {
@@ -74,15 +75,6 @@ function truncate(value: string, max: number): string {
 
 function paragraph(text: string): string {
   return `<p style="margin:0 0 16px 0;">${text}</p>`;
-}
-
-/** Formats 14 digits as `00.000.000/0000-00`; any other input (already
- * formatted, partial, non-numeric) passes through unchanged rather than
- * guessing. */
-function formatCnpj(taxId: string): string {
-  const digits = taxId.replace(/\D/g, "");
-  if (digits.length !== 14) return taxId;
-  return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8, 12)}-${digits.slice(12, 14)}`;
 }
 
 function renderWelcome(p: TemplatePayloads["welcome"]): RenderedEmail {
@@ -193,7 +185,7 @@ function renderSignupPendingAdmin(
   p: TemplatePayloads["signup_pending_admin"],
 ): RenderedEmail {
   const subject = `Nova empresa aguardando aprovação: ${p.companyName}`;
-  const taxId = formatCnpj(p.taxId);
+  const taxId = formatCNPJ(p.taxId);
   const bodyHtml = [
     paragraph(
       `A empresa <strong>${escapeHtml(p.companyName)}</strong> (CNPJ ${escapeHtml(

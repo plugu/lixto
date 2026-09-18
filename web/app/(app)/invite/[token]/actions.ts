@@ -26,6 +26,7 @@ export async function acceptInviteAction(formData: FormData): Promise<void> {
   if (cpfRaw && !isValidCPF(cpfRaw)) fail("CPF inválido.");
 
   let userId: number;
+  let approvalStatus: string;
   try {
     const passwordHash = await hashPassword(password);
     const result = await acceptInvite(token, {
@@ -36,11 +37,20 @@ export async function acceptInviteAction(formData: FormData): Promise<void> {
       jobTitle: jobTitle || null,
     });
     userId = result.userId;
+    approvalStatus = result.approvalStatus;
   } catch (err) {
     fail(
       err instanceof Error ? err.message : "Não foi possível aceitar o convite.",
     );
     return;
+  }
+
+  // F4: an invite only opens a session for an already-approved company
+  // (ADR 003 §D1 — invitees inherit the company's status). Pending/rejected
+  // land on /login with the same status the login page already renders
+  // copy for, instead of getting a working session mid-review.
+  if (approvalStatus !== "approved") {
+    redirect(`/login?error=${approvalStatus}`);
   }
 
   const sessionToken = await createSession(userId);

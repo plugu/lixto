@@ -7,7 +7,7 @@
 import crypto from "node:crypto";
 import { pool } from "./db";
 import type { Queryable } from "./email/outbox";
-import type { Role, User } from "./types";
+import type { ApprovalStatus, Role, User } from "./types";
 
 export type SqlQuery = {
   text: string;
@@ -220,17 +220,41 @@ export function buildAcceptInvite(
 
 /** Sets the password/profile on a pending invite and clears the invite
  * token. Throws when the token doesn't match, is expired, or was already
- * accepted. */
+ * accepted.
+ *
+ * Also returns the invitee's company's `approvalStatus` (F4) via a
+ * follow-up SELECT rather than folding a `companies` join into
+ * `buildAcceptInvite`'s RETURNING — that UPDATE is keyed purely on the
+ * invite token (no `company_id` filter, see user-queries.test.ts), and the
+ * caller (`invite/[token]/actions.ts`) needs the status to decide whether
+ * accepting the invite is also allowed to open a session: an invitee of an
+ * already-approved company gets one; an invitee of a pending/rejected
+ * company (ADR 003 §D1 — status is per company, invitees inherit it) does
+ * not. */
 export async function acceptInvite(
   token: string,
   data: AcceptInvite,
-): Promise<{ userId: number }> {
+): Promise<{ userId: number; approvalStatus: ApprovalStatus }> {
   const tokenHash = hashToken(token);
   const query = buildAcceptInvite(tokenHash, data);
   const { rows } = await pool.query<{ id: string }>(query.text, query.values);
   const row = rows[0];
   if (!row) throw new Error("Convite inválido ou expirado.");
-  return { userId: Number(row.id) };
+  const userId = Number(row.id);
+
+  const { rows: companyRows } = await pool.query<{
+    approval_status: ApprovalStatus;
+  }>(
+    `SELECT c.approval_status
+       FROM users u
+       JOIN companies c ON c.id = u.company_id
+      WHERE u.id = $1`,
+    [userId],
+  );
+  const companyRow = companyRows[0];
+  if (!companyRow) throw new Error("Empresa não encontrada.");
+
+  return { userId, approvalStatus: companyRow.approval_status };
 }
 
 export function buildUpdateRole(

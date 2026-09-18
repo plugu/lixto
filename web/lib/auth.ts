@@ -52,6 +52,20 @@ function scrypt(password: string, salt: Buffer): Promise<Buffer> {
   });
 }
 
+/** Dummy `scrypt$salt$hash` string, computed once at import with a fixed
+ * (never-secret) salt and an empty password — the same shape `hashPassword`
+ * produces, but synchronously, since this only needs to run once at module
+ * load. `login()` verifies against this when the email is unknown or the
+ * account has no `password_hash` yet (pending invite), so that miss path
+ * still pays for one scrypt derivation instead of returning early: an
+ * attacker timing the login form otherwise learns which emails exist from
+ * the *absence* of that cost (F15). */
+const DUMMY_PASSWORD_HASH = (() => {
+  const salt = Buffer.alloc(16, 0);
+  const derived = crypto.scryptSync("", salt, SCRYPT_KEYLEN);
+  return `scrypt$${salt.toString("hex")}$${derived.toString("hex")}`;
+})();
+
 /** `scrypt$<saltHex>$<hashHex>` with a fresh 16-byte salt. */
 export async function hashPassword(password: string): Promise<string> {
   const salt = crypto.randomBytes(16);
@@ -133,6 +147,26 @@ const SESSION_SELECT = `SELECT u.id   AS user_id,
        FROM users u
        JOIN companies c ON c.id = u.company_id`;
 
+export type SqlQuery = {
+  text: string;
+  values: unknown[];
+};
+
+/** The `getSession` lookup: token hash to a live session row, re-checking
+ * the company's approval status on every call (ADR 003 §D3) — a rejected
+ * company's sessions die on their next request instead of surviving until
+ * the cookie expires. Exported (F3) so `auth.test.ts` can assert both
+ * predicates without a live database. */
+export function buildSessionByTokenQuery(tokenHash: string): SqlQuery {
+  return {
+    text: `${SESSION_SELECT}
+       JOIN sessions s ON s.user_id = u.id
+      WHERE s.token_hash = $1 AND s.expires_at > now()
+        AND c.approval_status = 'approved'`,
+    values: [tokenHash],
+  };
+}
+
 function toSession(row: SessionRow): Session {
   return {
     user: {
@@ -161,13 +195,8 @@ export async function getSession(): Promise<Session | null> {
   const token = store.get(SESSION_COOKIE)?.value;
   if (!token) return null;
 
-  const { rows } = await pool.query<SessionRow>(
-    `${SESSION_SELECT}
-       JOIN sessions s ON s.user_id = u.id
-      WHERE s.token_hash = $1 AND s.expires_at > now()
-        AND c.approval_status = 'approved'`,
-    [sha256hex(token)],
-  );
+  const query = buildSessionByTokenQuery(sha256hex(token));
+  const { rows } = await pool.query<SessionRow>(query.text, query.values);
   return rows[0] ? toSession(rows[0]) : null;
 }
 
@@ -183,8 +212,11 @@ export async function requireAdmin(): Promise<Session> {
   return session;
 }
 
-/** Platform-admin gate for `/admin/*`. 404s (rather than redirecting) so the
- * route's existence is not revealed to a logged-in non-superadmin. */
+/** Platform-admin gate for `/admin/*`. 404s (rather than redirecting) so a
+ * logged-in non-superadmin can't distinguish "not allowed" from "doesn't
+ * exist" and no session/role state leaks via a redirect target — the
+ * route's existence itself isn't secret (its href ships in the client
+ * bundle for the sidebar link superadmins do see). */
 export async function requireSuperadmin(): Promise<Session> {
   const session = await requireSession();
   if (!session.user.isSuperadmin) notFound();
@@ -240,11 +272,20 @@ export async function login(
     [normalized],
   );
   const row = rows[0];
+
+  // Always run verifyPassword, even for an unknown email or a NULL
+  // password_hash (pending invite) — comparing against DUMMY_PASSWORD_HASH
+  // pays the same scrypt cost as a real comparison, so this branch doesn't
+  // return measurably faster than a real miss and leak which emails exist
+  // (F15).
+  const passwordOk = await verifyPassword(
+    password,
+    row?.password_hash ?? DUMMY_PASSWORD_HASH,
+  );
   if (!row || !row.password_hash) return { status: "invalid" };
 
   // Password first, status second: the status is only consulted once the
   // caller has proven they own the account.
-  const passwordOk = await verifyPassword(password, row.password_hash);
   const outcome = classifyLogin(passwordOk, row.approval_status);
   if (outcome !== "ok") return { status: outcome };
 

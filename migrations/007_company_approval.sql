@@ -30,7 +30,7 @@ COMMENT ON COLUMN users.is_superadmin IS
     'Platform-wide admin flag, orthogonal to the per-company users.role. Granted/revoked only via CLI (lixto users grant-superadmin/revoke-superadmin).';
 
 -- Widen the outbox to the four gated-signup mails (ADR 002's outbox, ADR 003 D4).
-ALTER TABLE email_messages DROP CONSTRAINT email_messages_template_check;
+ALTER TABLE email_messages DROP CONSTRAINT IF EXISTS email_messages_template_check;
 ALTER TABLE email_messages ADD CONSTRAINT email_messages_template_check
     CHECK (template IN ('welcome', 'invite', 'password_reset', 'daily_digest',
                          'signup_received', 'signup_pending_admin', 'signup_approved', 'signup_rejected'));

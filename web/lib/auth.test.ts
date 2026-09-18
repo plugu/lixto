@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { classifyLogin, hashPassword, verifyPassword } from "./auth";
+import {
+  buildSessionByTokenQuery,
+  classifyLogin,
+  hashPassword,
+  verifyPassword,
+} from "./auth";
 
 describe("hashPassword / verifyPassword", () => {
   it("produces a scrypt$salt$hash string", async () => {
@@ -95,5 +100,18 @@ describe("classifyLogin", () => {
 
   it("says invalid — not rejected — for a wrong password on a rejected company", () => {
     expect(classifyLogin(false, "rejected")).toBe("invalid");
+  });
+});
+
+// F3: getSession's live re-check (ADR 003 §D3) has to filter on both the
+// token/expiry and the company's approval status — assert the query text
+// carries both predicates rather than trusting a live DB round trip.
+describe("buildSessionByTokenQuery", () => {
+  it("binds the token hash and requires an approved, unexpired session", () => {
+    const query = buildSessionByTokenQuery("deadbeef");
+    expect(query.values).toEqual(["deadbeef"]);
+    expect(query.text).toMatch(/s\.token_hash\s*=\s*\$1/);
+    expect(query.text).toContain("approval_status = 'approved'");
+    expect(query.text).toContain("expires_at > now()");
   });
 });

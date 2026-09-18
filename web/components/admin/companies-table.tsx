@@ -82,6 +82,7 @@ function RejectForm({
           maxLength={500}
           rows={3}
           placeholder="Motivo (opcional)"
+          aria-label="Motivo da rejeição (opcional)"
           className="w-full resize-none rounded-md border border-line bg-surface px-3 py-1.5 text-sm text-ink outline-none placeholder:text-ink-faint focus-visible:border-accent focus-visible:ring-[3px] focus-visible:ring-accent-soft"
         />
         <SubmitButton variant="primary">Confirmar rejeição</SubmitButton>

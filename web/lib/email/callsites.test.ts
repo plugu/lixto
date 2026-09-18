@@ -392,7 +392,10 @@ describe("buildPendingAdminInput", () => {
     expect(input).toMatchObject({
       toEmail: "owner@example.com",
       template: "signup_pending_admin",
-      companyId: 42,
+      // F6: companyId is null — the recipient is a superadmin, not a member
+      // of the applicant company, which is already identified in the
+      // payload (companyName/taxId).
+      companyId: null,
       userId: 101,
     });
     expect(input.payload).toMatchObject({

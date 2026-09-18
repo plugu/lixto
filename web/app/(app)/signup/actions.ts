@@ -102,7 +102,11 @@ export async function buildSignupReceivedInput(input: {
 
 /** Payload for the "new company awaiting approval" mail sent to one
  * superadmin — `userId` is the superadmin's own id (not the new company's
- * admin) so the outbox row still ties back to a real user. */
+ * admin) so the outbox row still ties back to a real user. `companyId` is
+ * `null` (F6): the recipient is a superadmin, not a member of the
+ * applicant company, and the applicant company is already identified in
+ * the payload (`companyName`/`taxId`) — tying the outbox row to it would
+ * misrepresent whose company this mail belongs to. */
 export async function buildPendingAdminInput(
   recipient: SuperadminRecipient,
   input: {
@@ -123,7 +127,7 @@ export async function buildPendingAdminInput(
       adminEmail: input.adminEmail,
       adminUrl: `${APP_URL}/admin/companies`,
     },
-    companyId: input.companyId,
+    companyId: null,
     userId: recipient.id,
   };
 }
