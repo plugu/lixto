@@ -29,6 +29,9 @@ vi.mock("@/lib/br-validators", () => ({
 }));
 vi.mock("@/lib/cnpj-lookup", () => ({ lookupCNPJ: vi.fn() }));
 vi.mock("@/lib/signup-queries", () => ({ createCompanyWithAdmin: vi.fn() }));
+vi.mock("@/lib/superadmin-queries", () => ({
+  listSuperadminRecipients: vi.fn(),
+}));
 vi.mock("@/lib/types", () => ({ COMPANY_SIZES: [], UF_LIST: [] }));
 vi.mock("@/lib/user-queries", () => ({
   createInvite: vi.fn(),
@@ -45,6 +48,7 @@ vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 import { createSession, setSessionCookie, requireAdmin } from "@/lib/auth";
 import { enqueue, suppress } from "@/lib/email/outbox";
 import { createCompanyWithAdmin } from "@/lib/signup-queries";
+import { listSuperadminRecipients } from "@/lib/superadmin-queries";
 import { createInvite } from "@/lib/user-queries";
 import { NextRequest } from "next/server";
 import { redirect } from "next/navigation";
@@ -59,7 +63,8 @@ import {
 } from "../../app/(app)/email/unsubscribe/route";
 import {
   signupAction,
-  buildWelcomeEmailInput,
+  buildSignupReceivedInput,
+  buildPendingAdminInput,
 } from "../../app/(app)/signup/actions";
 import { proxy } from "../../proxy";
 import {
@@ -284,31 +289,63 @@ describe("signupAction", () => {
     );
     mock(createSession).mockResolvedValue("session-token");
     mock(setSessionCookie).mockResolvedValue(undefined);
+    mock(listSuperadminRecipients).mockResolvedValue([]);
   });
 
-  it("enqueues one welcome email through the transaction client, with the created ids", async () => {
+  it("enqueues signup_received through the transaction client, with the created ids, and never creates a session", async () => {
     mock(enqueue).mockResolvedValue({ id: 1 });
 
     await expect(
       signupAction({ error: null }, signupFormData()),
     ).rejects.toThrow("NEXT_REDIRECT");
 
-    expect(enqueue).toHaveBeenCalledTimes(1);
     expect(enqueue).toHaveBeenCalledWith(
       {
         toEmail: "maria@example.com",
-        template: "welcome",
+        template: "signup_received",
         payload: {
           userName: "Maria Silva",
           companyName: "Alfa",
-          appUrl: expect.stringContaining("/dashboard"),
         },
         companyId: 42,
         userId: 7,
       },
       TX_CLIENT,
     );
-    expect(redirect).toHaveBeenCalledWith("/company");
+    expect(createSession).not.toHaveBeenCalled();
+    expect(setSessionCookie).not.toHaveBeenCalled();
+    expect(redirect).toHaveBeenCalledWith("/signup/recebido");
+  });
+
+  it("enqueues one signup_pending_admin mail per superadmin recipient, to their own email with their own id as userId", async () => {
+    mock(enqueue).mockResolvedValue({ id: 1 });
+    mock(listSuperadminRecipients).mockResolvedValue([
+      { id: 101, email: "owner@example.com", name: "Owner" },
+      { id: 102, email: "second@example.com", name: "Second" },
+    ]);
+
+    await expect(
+      signupAction({ error: null }, signupFormData()),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    // One signup_received + one signup_pending_admin per superadmin.
+    expect(enqueue).toHaveBeenCalledTimes(3);
+    expect(enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        toEmail: "owner@example.com",
+        template: "signup_pending_admin",
+        userId: 101,
+      }),
+      TX_CLIENT,
+    );
+    expect(enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        toEmail: "second@example.com",
+        template: "signup_pending_admin",
+        userId: 102,
+      }),
+      TX_CLIENT,
+    );
   });
 
   it("propagates a rejecting enqueue instead of swallowing it — signup rolls back", async () => {
@@ -326,9 +363,9 @@ describe("signupAction", () => {
   });
 });
 
-describe("buildWelcomeEmailInput", () => {
+describe("buildSignupReceivedInput", () => {
   it("falls back to the legal name when there is no trade name", async () => {
-    const input = await buildWelcomeEmailInput({
+    const input = await buildSignupReceivedInput({
       name: "Maria",
       email: "maria@example.com",
       tradeName: "",
@@ -337,6 +374,34 @@ describe("buildWelcomeEmailInput", () => {
       userId: 2,
     });
     expect(input.payload).toMatchObject({ companyName: "Alfa Ltda" });
+  });
+});
+
+describe("buildPendingAdminInput", () => {
+  it("addresses the given recipient, uses their id as userId, and points adminUrl at /admin/companies", async () => {
+    const input = await buildPendingAdminInput(
+      { id: 101, email: "owner@example.com", name: "Owner" },
+      {
+        companyName: "Alfa",
+        taxId: "12.345.678/0001-99",
+        adminName: "Maria Silva",
+        adminEmail: "maria@example.com",
+        companyId: 42,
+      },
+    );
+    expect(input).toMatchObject({
+      toEmail: "owner@example.com",
+      template: "signup_pending_admin",
+      companyId: 42,
+      userId: 101,
+    });
+    expect(input.payload).toMatchObject({
+      companyName: "Alfa",
+      taxId: "12345678000199",
+      adminName: "Maria Silva",
+      adminEmail: "maria@example.com",
+      adminUrl: expect.stringContaining("/admin/companies"),
+    });
   });
 });
 

@@ -1,7 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { createSession, hashPassword, setSessionCookie } from "@/lib/auth";
+import { hashPassword } from "@/lib/auth";
 import {
   isValidCEP,
   isValidCNPJ,
@@ -12,6 +12,10 @@ import {
 import { lookupCNPJ } from "@/lib/cnpj-lookup";
 import { enqueue, type EnqueueInput } from "@/lib/email/outbox";
 import { createCompanyWithAdmin } from "@/lib/signup-queries";
+import {
+  listSuperadminRecipients,
+  type SuperadminRecipient,
+} from "@/lib/superadmin-queries";
 import { COMPANY_SIZES, UF_LIST, type CompanySize } from "@/lib/types";
 
 const APP_URL = process.env.LIXTO_APP_URL ?? "https://lixto.com.br";
@@ -71,11 +75,12 @@ export async function lookupAction(
   };
 }
 
-/** Payload for the post-signup welcome mail — split out so it is testable
- * without invoking the full server action (which pulls in `next/navigation`,
- * `@/lib/auth` and DB-backed query modules). `async` because this file is
- * `"use server"`: every top-level export must be a Server Action. */
-export async function buildWelcomeEmailInput(input: {
+/** Payload for the "we received your signup" mail sent to the applicant —
+ * split out so it is testable without invoking the full server action (which
+ * pulls in `next/navigation`, `@/lib/auth` and DB-backed query modules).
+ * `async` because this file is `"use server"`: every top-level export must
+ * be a Server Action. */
+export async function buildSignupReceivedInput(input: {
   name: string;
   email: string;
   tradeName: string;
@@ -85,14 +90,41 @@ export async function buildWelcomeEmailInput(input: {
 }): Promise<EnqueueInput> {
   return {
     toEmail: input.email,
-    template: "welcome",
+    template: "signup_received",
     payload: {
       userName: input.name,
       companyName: input.tradeName || input.legalName,
-      appUrl: `${APP_URL}/dashboard`,
     },
     companyId: input.companyId,
     userId: input.userId,
+  };
+}
+
+/** Payload for the "new company awaiting approval" mail sent to one
+ * superadmin — `userId` is the superadmin's own id (not the new company's
+ * admin) so the outbox row still ties back to a real user. */
+export async function buildPendingAdminInput(
+  recipient: SuperadminRecipient,
+  input: {
+    companyName: string;
+    taxId: string;
+    adminName: string;
+    adminEmail: string;
+    companyId: number;
+  },
+): Promise<EnqueueInput> {
+  return {
+    toEmail: recipient.email,
+    template: "signup_pending_admin",
+    payload: {
+      companyName: input.companyName,
+      taxId: onlyDigits(input.taxId),
+      adminName: input.adminName,
+      adminEmail: input.adminEmail,
+      adminUrl: `${APP_URL}/admin/companies`,
+    },
+    companyId: input.companyId,
+    userId: recipient.id,
   };
 }
 
@@ -197,9 +229,8 @@ export async function signupAction(
 
   const passwordHash = await hashPassword(password);
 
-  let result;
   try {
-    result = await createCompanyWithAdmin(
+    await createCompanyWithAdmin(
       {
         company: {
           taxId,
@@ -232,10 +263,14 @@ export async function signupAction(
       },
       // Enqueued inside the transaction, before COMMIT (ADR 002 D1): a
       // rejecting enqueue rolls the signup back instead of leaving a user
-      // with no welcome mail — the user simply retries.
+      // with no confirmation mail — the user simply retries. Superadmin
+      // recipients are read through `client` (not the default pool) so the
+      // read sees the same transaction snapshot the insert just committed
+      // into, and so a rollback of this hook also undoes nothing it
+      // shouldn't have read in the first place.
       async ({ client, companyId, userId }) => {
         await enqueue(
-          await buildWelcomeEmailInput({
+          await buildSignupReceivedInput({
             name,
             email,
             tradeName,
@@ -245,6 +280,20 @@ export async function signupAction(
           }),
           client,
         );
+
+        const superadmins = await listSuperadminRecipients(client);
+        for (const recipient of superadmins) {
+          await enqueue(
+            await buildPendingAdminInput(recipient, {
+              companyName: tradeName || legalName,
+              taxId,
+              adminName: name,
+              adminEmail: email,
+              companyId,
+            }),
+            client,
+          );
+        }
       },
     );
   } catch (err) {
@@ -262,7 +311,8 @@ export async function signupAction(
     throw err;
   }
 
-  const token = await createSession(result.userId);
-  await setSessionCookie(token);
-  redirect("/company");
+  // No session: the company starts `pending` (migration 007) and only gets
+  // access once a superadmin approves it (ticket 158) — signing up must not
+  // grant the applicant a working session in the meantime.
+  redirect("/signup/recebido");
 }
