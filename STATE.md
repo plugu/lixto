@@ -1,12 +1,11 @@
 # STATE — rewrite after every ticket completes; never append. ≤30 lines total.
 
 ## Now
-- Cycle 28 (gated signup + superadmin, **production**): code complete on `main` (e7f8206..HEAD), NOT pushed. Tickets 153–161 done, all attempt 1. Reviewer pass done (no blockers; gating findings fixed in 161). Awaiting approval 3/3 → push → Dokploy autoDeploy → prod grant.
+- Cycle 28 (gated signup + superadmin, **production**): DEPLOYED `0ce4bba` 2026-09-19 04:14 UTC (autoDeploy web + cli; prod log `Applied 1 migration(s): 007_company_approval.sql`). Tickets 153–161 done, all attempt 1; reviewer pass clean. Remaining: run Dokploy schedule `grant-superadmin` (`sHipc9W1DV9_eSvlAc23E`, lixto-cli, manual-only) — MCP runManually blocked by classifier; user runs it from the Dokploy UI.
 - Verified 2026-09-18: `npm test` 750/750, `pytest` 504/504, lint 0 errors, tsc + build clean; live probes on :3000 (404 for non-superadmin on /admin/companies, Pendentes tab for superadmin).
 
 ## Next
-- Push → autoDeploy `lixto-web` + `lixto-cli` (migration 007 applies on `lixto-cli` deploy via `lixto db init`).
-- Prod: `docker exec <lixto-cli> lixto users grant-superadmin alxazevedo@gmail.com`; verify Administração → Empresas; end-to-end demo with a fresh CNPJ.
+- Prod: run schedule `grant-superadmin`, then verify Administração → Empresas at lixto.com.br; end-to-end demo with a fresh CNPJ.
 - 162 review-followups (pagination, retire `welcome` template + migration 008, dialog instead of confirm(), CLI already-granted) — after go-live.
 - Restart the other project's DB: `docker start plugu-clientes-db-1` (stopped for this run; lixto compose DB holds :5433 meanwhile).
 - Older follow-ups: DMARC tighten; CNAE cleanup; Gemini billing; Radar schedules OFF until LLM provider decision; `analyze-run` cron OFF by decision.
