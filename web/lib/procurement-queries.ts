@@ -114,15 +114,26 @@ export const RRF_K = 60;
 
 /** The free-text predicate: FTS over the procurement description or any of its
  * items, unaccented on both sides (migration 001) so "lapis" matches "lápis".
- * `idx` is the 1-based position of the already-bound `q` parameter. */
+ * `idx` is the 1-based position of the already-bound `q` parameter.
+ *
+ * Shape matters. Written as `description @@ q OR EXISTS (items @@ q)`, the OR
+ * keeps the planner off both GIN expression indexes
+ * (`idx_procurements_description_fts`, `idx_procurement_items_description_fts`):
+ * it walks every row in scope recomputing `to_tsvector(f_unaccent(...))`,
+ * ~5 s per query on prod, and the list, count and five facet queries all carry
+ * this predicate. As a UNION of two id sets each branch is one bitmap index
+ * scan (~90 ms cold, single-digit ms warm, same rows). The expressions must
+ * stay textually identical to the index definitions to be matched. */
 function buildQPredicate(idx: number): string {
+  const tsquery = `websearch_to_tsquery('portuguese', f_unaccent($${idx}))`;
   return (
-    `(to_tsvector('portuguese', f_unaccent(coalesce(description, ''))) @@ websearch_to_tsquery('portuguese', f_unaccent($${idx}))` +
-    ` OR EXISTS (` +
-    `SELECT 1 FROM procurement_items i` +
-    ` WHERE i.procurement_id = procurements.id` +
-    ` AND to_tsvector('portuguese', f_unaccent(coalesce(i.description, ''))) @@ websearch_to_tsquery('portuguese', f_unaccent($${idx}))` +
-    `))`
+    `procurements.id IN (` +
+    `SELECT kw_p.id FROM procurements kw_p` +
+    ` WHERE to_tsvector('portuguese', f_unaccent(coalesce(kw_p.description, ''))) @@ ${tsquery}` +
+    ` UNION ` +
+    `SELECT kw_i.procurement_id FROM procurement_items kw_i` +
+    ` WHERE to_tsvector('portuguese', f_unaccent(coalesce(kw_i.description, ''))) @@ ${tsquery}` +
+    `)`
   );
 }
 

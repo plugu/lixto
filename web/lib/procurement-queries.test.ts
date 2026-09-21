@@ -231,17 +231,23 @@ describe("buildWhereClause", () => {
     expect(values).toEqual([ACTIVE_PORTALS]);
   });
 
-  it("builds the q predicate against description and procurement_items.description", () => {
+  it("builds the q predicate as a UNION of two GIN-indexable id sets (description, items)", () => {
     const { where, values } = buildWhereClause({ q: "merenda" });
     expect(values).toEqual([ACTIVE_PORTALS, "merenda"]);
+    expect(where).toContain("procurements.id IN (");
     expect(where).toContain(
-      "to_tsvector('portuguese', f_unaccent(coalesce(description, ''))) @@ websearch_to_tsquery('portuguese', f_unaccent($2))",
+      "SELECT kw_p.id FROM procurements kw_p WHERE to_tsvector('portuguese', f_unaccent(coalesce(kw_p.description, ''))) @@ websearch_to_tsquery('portuguese', f_unaccent($2))",
     );
-    expect(where).toContain("EXISTS (");
-    expect(where).toContain("i.procurement_id = procurements.id");
+    expect(where).toContain(" UNION ");
     expect(where).toContain(
-      "to_tsvector('portuguese', f_unaccent(coalesce(i.description, ''))) @@ websearch_to_tsquery('portuguese', f_unaccent($2))",
+      "SELECT kw_i.procurement_id FROM procurement_items kw_i WHERE to_tsvector('portuguese', f_unaccent(coalesce(kw_i.description, ''))) @@ websearch_to_tsquery('portuguese', f_unaccent($2))",
     );
+  });
+
+  it("never ORs the description FTS with a correlated items subquery (defeats both GIN indexes: 5 s on prod)", () => {
+    const { where } = buildWhereClause({ q: "merenda" });
+    expect(where).not.toMatch(/@@[^)]*\)\)\s+OR\s+EXISTS/);
+    expect(where).not.toContain("i.procurement_id = procurements.id");
   });
 
   it("builds the portals predicate as = ANY, intersected with the allowlist", () => {
@@ -599,7 +605,7 @@ describe("hybrid retrieval (q + query embedding)", () => {
           ?.length,
         // ts_rank (1) + description predicate (1) + items predicate (1)
       ).toBe(3);
-      expect(text).toContain("i.procurement_id = procurements.id");
+      expect(text).toContain("SELECT kw_i.procurement_id FROM procurement_items kw_i");
     });
 
     it("threads companyCnaes into both branches ahead of q and the vector", () => {
