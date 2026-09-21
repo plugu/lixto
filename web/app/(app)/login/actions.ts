@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { login } from "@/lib/auth";
+import { DEFAULT_LANDING, safeNextPath } from "@/lib/safe-next";
 
 export async function loginAction(formData: FormData): Promise<void> {
   const email = String(formData.get("email") ?? "");
@@ -13,13 +14,12 @@ export async function loginAction(formData: FormData): Promise<void> {
   const result = await login(email, password);
   if (result.status !== "ok") {
     const params = new URLSearchParams({ error: result.status });
-    if (next.startsWith("/")) params.set("next", next);
+    const safeNext = safeNextPath(next);
+    if (safeNext) params.set("next", safeNext);
     redirect(`/login?${params.toString()}`);
   }
 
   // Only allow same-origin relative targets (no "//evil.com"). Without a
   // `next`, land on the dashboard: `/` is the public marketing page.
-  const target =
-    next.startsWith("/") && !next.startsWith("//") ? next : "/dashboard";
-  redirect(target);
+  redirect(safeNextPath(next) ?? DEFAULT_LANDING);
 }

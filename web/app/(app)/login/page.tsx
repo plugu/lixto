@@ -3,6 +3,8 @@ import { Logo } from "@/components/marketing/brand";
 import { loginAction } from "./actions";
 import { Field, Input } from "@/components/ui/input";
 import { Button, LinkButton } from "@/components/ui/button";
+import { redirectIfLoggedIn } from "@/lib/public-pages";
+import { safeNextPath } from "@/lib/safe-next";
 
 function first(value: string | string[] | undefined): string {
   if (Array.isArray(value)) return value[0] ?? "";
@@ -29,10 +31,10 @@ export default async function LoginPage({
   searchParams,
 }: PageProps<"/login">) {
   const params = await searchParams;
+  await redirectIfLoggedIn(first(params.next));
   const errorMessage = loginErrorMessage(first(params.error));
   const nextParam = first(params.next);
-  const next =
-    nextParam.startsWith("/") && !nextParam.startsWith("//") ? nextParam : "";
+  const next = safeNextPath(nextParam) ?? "";
 
   return (
     <div className="mx-auto flex min-h-[70vh] max-w-sm flex-col items-center justify-center gap-10">

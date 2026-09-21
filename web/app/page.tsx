@@ -8,6 +8,7 @@ import { Preco } from "@/components/marketing/preco";
 import { Problema } from "@/components/marketing/problema";
 import { SiteFooter } from "@/components/marketing/site-footer";
 import { SiteHeader } from "@/components/marketing/site-header";
+import { getOptionalSession } from "@/lib/public-pages";
 
 const TITULO = "Lixto — agente autônomo de licitações";
 const DESCRICAO =
@@ -36,10 +37,11 @@ export const metadata: Metadata = {
   },
 };
 
-export default function Home() {
+export default async function Home() {
+  const session = await getOptionalSession();
   return (
     <div className={`${editorial.variable} theme-light-lock flex-1 bg-canvas text-ink`}>
-      <SiteHeader />
+      <SiteHeader loggedIn={session !== null} />
       <main>
         <Hero />
         <Problema />

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Logo } from "./brand";
+import { headerActions } from "./header-actions";
 
 const NAV = [
   { href: "#agente", label: "O agente" },
@@ -8,7 +9,7 @@ const NAV = [
   { href: "#faq", label: "Perguntas" },
 ];
 
-export function SiteHeader() {
+export function SiteHeader({ loggedIn }: { loggedIn: boolean }) {
   return (
     <header className="relative z-10 bg-night text-canvas">
       <div className="mx-auto flex h-20 max-w-6xl items-center justify-between gap-4 px-5 sm:px-8">
@@ -36,18 +37,19 @@ export function SiteHeader() {
         </nav>
 
         <div className="flex items-center gap-2 sm:gap-4">
-          <Link
-            href="/login"
-            className="rounded-full px-3 py-2 text-[14px] text-canvas/70 transition-colors hover:text-mint"
-          >
-            Entrar
-          </Link>
-          <Link
-            href="/signup"
-            className="inline-flex h-10 items-center rounded-full bg-mint px-4 text-[14px] font-medium text-night transition-colors hover:bg-mint/85 sm:px-5"
-          >
-            Criar conta
-          </Link>
+          {headerActions(loggedIn).map((action) => (
+            <Link
+              key={action.href}
+              href={action.href}
+              className={
+                action.variant === "link"
+                  ? "rounded-full px-3 py-2 text-[14px] text-canvas/70 transition-colors hover:text-mint"
+                  : "inline-flex h-10 items-center rounded-full bg-mint px-4 text-[14px] font-medium text-night transition-colors hover:bg-mint/85 sm:px-5"
+              }
+            >
+              {action.label}
+            </Link>
+          ))}
         </div>
       </div>
     </header>

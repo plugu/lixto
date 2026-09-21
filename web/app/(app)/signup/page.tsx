@@ -2,8 +2,10 @@ import Link from "next/link";
 import { Logo } from "@/components/marketing/brand";
 import { SignupForm } from "@/components/signup-form";
 import { LinkButton } from "@/components/ui/button";
+import { redirectIfLoggedIn } from "@/lib/public-pages";
 
-export default function SignupPage() {
+export default async function SignupPage() {
+  await redirectIfLoggedIn();
   return (
     <div className="mx-auto flex max-w-sm flex-col items-center gap-10 py-10">
       <Link href="/" aria-label="Lixto" className="flex items-center text-ink">

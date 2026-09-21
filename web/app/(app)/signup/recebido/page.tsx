@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { Logo } from "@/components/marketing/brand";
 import { LinkButton } from "@/components/ui/button";
+import { redirectIfLoggedIn } from "@/lib/public-pages";
 
 export const metadata = { title: "Cadastro recebido — Lixto" };
 
-export default function SignupReceivedPage() {
+export default async function SignupReceivedPage() {
+  await redirectIfLoggedIn();
   return (
     <div className="mx-auto flex min-h-[70vh] max-w-sm flex-col items-center justify-center gap-10">
       <Link href="/" aria-label="Lixto" className="flex items-center text-ink">
