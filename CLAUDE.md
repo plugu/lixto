@@ -117,6 +117,7 @@ Key facts:
 | PNCP client | `src/lixto/pncp_client.py` |
 | Database | `src/lixto/db.py` (connection, migrations) |
 | Session & auth | `web/lib/auth.ts` (session gate, `requireSuperadmin`, company approval check on every request) |
+| Public-page session helpers | `web/lib/public-pages.ts`, `web/lib/safe-next.ts` (logged-in redirect off /login & /signup; safe `?next=`); `web/components/marketing/header-actions.ts` |
 | Superadmin CLI | `src/lixto/cli/users.py` (grant/revoke/list superadmin flags) |
 | Company approval | `web/app/(app)/admin/*` (superadmin dashboard: Pendentes/Aprovadas/Rejeitadas tabs); `web/lib/company-approval-queries.ts` (approval queries) |
 | Company approval schema | `migrations/007_company_approval.sql` (companies.approval_status, users.is_superadmin) |

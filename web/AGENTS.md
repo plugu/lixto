@@ -19,3 +19,5 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 4. **Keyboard shortcuts**: Nav is bound via `lib/keyboard-shortcuts.ts` (pure `matchShortcut` function, unit-tested). The sidebar renders hints and registers bindings through `useKeyboardShortcuts`. Palette opens on `?` or `⌘K` and is mounted once by the sidebar (dialog portals to `<body>`).
 
 5. **Theme tokens**: All colors live in `app/globals.css` `@theme` block as CSS custom properties (`--color-canvas`, `--color-ink`, etc.). Dark mode via `:root[data-theme="dark"]` or `@media (prefers-color-scheme: dark)`. An inline script in `app/layout.tsx` reads `lixto.theme` localStorage before hydration to avoid flash.
+
+6. **Redirect safety & session-aware pages**: Same-origin redirect targets go through `safeNextPath` (`lib/safe-next.ts`); never hand-roll `startsWith('/')`. Public pages that branch on login state use `getOptionalSession` / `redirectIfLoggedIn` (`lib/public-pages.ts`).

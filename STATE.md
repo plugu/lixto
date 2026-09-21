@@ -1,21 +1,22 @@
 # STATE — rewrite after every ticket completes; never append. ≤30 lines total.
 
 ## Now
-- Cycle 28 (gated signup + superadmin, **production**): DEPLOYED `0ce4bba` 2026-09-19 04:14 UTC (autoDeploy web + cli; prod log `Applied 1 migration(s): 007_company_approval.sql`). Tickets 153–161 done, all attempt 1; reviewer pass clean. Remaining: run Dokploy schedule `grant-superadmin` (`sHipc9W1DV9_eSvlAc23E`, lixto-cli, manual-only) — MCP runManually blocked by classifier; user runs it from the Dokploy UI.
-- Verified 2026-09-18: `npm test` 750/750, `pytest` 504/504, lint 0 errors, tsc + build clean; live probes on :3000 (404 for non-superadmin on /admin/companies, Pendentes tab for superadmin).
+- Cycle 29 (session-aware public pages, **production**): 163–166 done, reviewer pass clean, user approved 3 of 3 on 2026-09-21; committed + pushed (autoDeploy lixto-web). Verified pre-push: lint 0 errors, tsc clean, vitest 775/775, build green, live probes.
+- Cycle 28 (gated signup + superadmin): DEPLOYED `0ce4bba` 2026-09-19. Remaining: run Dokploy schedule `grant-superadmin` from the UI.
 
 ## Next
-- Prod: run schedule `grant-superadmin`, then verify Administração → Empresas at lixto.com.br; end-to-end demo with a fresh CNPJ.
-- 162 review-followups (pagination, retire `welcome` template + migration 008, dialog instead of confirm(), CLI already-granted) — after go-live.
-- Restart the other project's DB: `docker start plugu-clientes-db-1` (stopped for this run; lixto compose DB holds :5433 meanwhile).
+- Confirm lixto-web deploy + prod probe. Then 167 cycle-29 follow-ups (static shell ADR for `/`, `Vary: Cookie`, React `cache()` on `getSession`).
+- Prod: run `grant-superadmin`, verify Administração → Empresas; end-to-end demo with a fresh CNPJ.
+- 162 review-followups (pagination, retire `welcome` template + migration 008, dialog instead of confirm(), CLI already-granted).
+- Restart the other project's DB: `docker start plugu-clientes-db-1`.
 - Older follow-ups: DMARC tighten; CNAE cleanup; Gemini billing; Radar schedules OFF until LLM provider decision; `analyze-run` cron OFF by decision.
 
 ## Decisions
-- execution: sequential (in place, on `main`)
+- Execution: sequential (in place, on `main`); cycle 29 is a linear chain.
+- Public pages trust `getSession()`, not cookie presence; DB outage = logged out.
+- Same-origin redirect targets go through `safeNextPath` (`web/lib/safe-next.ts`); rejects `//` and `/\`.
 - Approval is per company; superadmin = `users.is_superadmin`, CLI-only; `getSession` re-checks approval each request (ADR 003).
-- Re-applying a status resends the mail on purpose (superadmin resend).
-- `signup_pending_admin` rows carry `companyId: null` (tenant hygiene); the `welcome` template stays defined but unused until 162.
-- Dev env: lixto DB via `docker compose` on :5433; no host `psql` → `docker compose exec -T db psql -U lixto -d lixto`; dev server :3000; cookie `lixto_session=devprobe` (user 1, company 1, now `is_superadmin=true`).
+- Dev env: lixto DB via `docker compose` on :5433; dev server :3000; cookie `lixto_session=devprobe` (user 1, company 1, `is_superadmin=true`).
 
 ## Blockers
-- none.
+- None.

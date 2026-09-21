@@ -372,6 +372,10 @@ One pass (`lixto analyze run`) replaces cycle 18's enrichment: processes every f
 
 **Theme**: `--color-*` tokens in `app/globals.css` @theme block. `:root` defaults to OS scheme; user toggle writes `light`/`dark` to `lixto.theme` localStorage, sets `data-theme` on `<html>`. Inline script in `app/layout.tsx` reads the key before hydration to avoid flash.
 
+### Session-aware public pages
+
+Public pages (`/login`, `/signup`, `/signup/recebido`) redirect logged-in visitors via two helpers: `getOptionalSession` (server-only; treats any DB outage as logged out) and `redirectIfLoggedIn` (both in `web/lib/public-pages.ts`). Redirect targets are sanitised via `safeNextPath` (`web/lib/safe-next.ts`; rejects `//`, `/\`, embedded `\r`/`\n`/`\t`, and public-only/side-effecting targets (`/login`, `/signup*`, `/logout`)). The marketing header (`web/components/marketing/header-actions.ts`) is session-aware, showing "Ir para o painel" when logged in; the footer "Entrar" link is unchanged by design (a logged-in click lands on `/dashboard` via the `/login` redirect). `web/proxy.ts` cannot make this decision (no pg pool; stale cookie would loop `/login` ↔ `/dashboard`); only validated `getSession()` calls are trusted. `/` is dynamic because it reads the cookie. `getOptionalSession` rethrows Next control-flow errors via `unstable_rethrow` before treating a failure as logged out.
+
 ## API Contracts
 
 ### PNCP Endpoints Used
