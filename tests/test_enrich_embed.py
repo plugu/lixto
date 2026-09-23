@@ -316,3 +316,27 @@ def test_cli_embed_fails_when_every_call_errored(monkeypatch):
         {"ingested_processed": 50, "ingested_embedded": 0, "ingested_error": 50},
     )
     assert result.exit_code == 1
+
+
+def test_rows_with_empty_text_are_skipped_not_sent():
+    """An empty input makes the provider reject the whole batch; such rows
+    must be left out (and counted) so the rest still embed."""
+    empty = {"procurement_id": 9, "summary": "", "concepts": [], "keywords": [], "categories": []}
+    conn, _select_cur, update_curs = _conn([empty, _row(1)])
+    llm = _llm()
+
+    result = embed_pending(conn, llm=llm)
+
+    assert llm.embed.call_args.args[0] == [build_embedding_text(_row(1))]
+    assert result == {"processed": 1, "embedded": 1, "error": 0, "skipped": 1}
+    assert update_curs[0].execute.call_args.args[1]["procurement_id"] == 1
+
+
+def test_only_empty_rows_build_no_llm_client(monkeypatch):
+    monkeypatch.setattr(embed, "LlmClient", MagicMock(side_effect=AssertionError("client built")))
+    conn, _s, _u = _conn([{"procurement_id": 1, "description": " ", "items": []}])
+
+    result = embed_ingested(conn)
+
+    assert result["ingested_skipped"] == 1
+    assert result["ingested_processed"] == 0

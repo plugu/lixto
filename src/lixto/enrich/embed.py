@@ -206,9 +206,21 @@ def _embed_rows(
     """Embed `rows` in batches of BATCH_SIZE, one commit per batch. The
     LlmClient is built lazily so an empty queue needs no credentials; an SDK
     error stops the run (rerun retries the remaining rows)."""
-    for start in range(0, len(rows), BATCH_SIZE):
-        batch = rows[start : start + BATCH_SIZE]
-        texts = [text_for(row) for row in batch]
+    # An empty input makes the provider reject the whole batch ("empty
+    # Part"), which used to stall the queue on every run. Such rows have
+    # nothing to embed: count them as skipped and leave them out.
+    embeddable: list[tuple[dict[str, Any], str]] = []
+    for row in rows:
+        text = text_for(row)
+        if text.strip():
+            embeddable.append((row, text))
+        else:
+            counters.inc(f"{prefix}skipped")
+
+    for start in range(0, len(embeddable), BATCH_SIZE):
+        pairs = embeddable[start : start + BATCH_SIZE]
+        batch = [row for row, _ in pairs]
+        texts = [text for _, text in pairs]
         try:
             llm = llm or LlmClient()
             vectors, model = llm.embed(texts)
