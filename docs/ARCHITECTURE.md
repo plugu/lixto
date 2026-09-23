@@ -19,7 +19,9 @@ procurement_documents → [deterministic PDF extraction]
   ↓
 tender_analyses + procurement_enrichments + procurement_categories + procurement_cnaes + procurement_requirements
   ↓
-[enrich.embed] Vector embeddings (semantic search)
+[enrich.embed] Vector embeddings (semantic search): enrichment text for analysed tenders;
+              raw PNCP object + item text for open/upcoming tenders not analysed yet
+              (runs right after each sync; a later analysis overwrites the raw vector)
   ↓
 procurement_embeddings (pgvector, 1536 dims)
   ↓

@@ -83,7 +83,7 @@ Key facts:
 - Project: `lixto` (renamed from `plataforma-licitante`)
 - Apps: `lixto-web` (Next.js) + `lixto-cli` (Python, sleeps forever on `ENTRYPOINT ["sleep", "infinity"]`) + `lixto-mail` (Postfix + opendkim MTA, from `infra/mail/Dockerfile`)
 - Schedules on `lixto-cli` (state 2026-09-08; the README "Production Schedules" table is the authoritative list with LLM-cost flags):
-  - `sync-incremental` — `0 6,13,20 * * *` (pull fenced procurements)
+  - `sync-incremental` — `0 6,13,20 * * *` (pull fenced procurements, then `lixto enrich embed` so new open tenders get vectors right after ingest)
   - `results-sync` — `0 3 * * *` (homologated results; enabled for case outcomes)
   - `plans-sync` — `0 4 * * *` (pull annual procurement plans; DISABLED until Radar go-live — first run needs `--since`)
   - `plans-embed` — `20 4 * * *` (`lixto plans embed --limit 2000`, Radar embeddings; DISABLED — spends embedding tokens, LLM provider undecided)
@@ -95,7 +95,7 @@ Key facts:
   - `match-run` — `0 8,15,22 * * *` (score procurements vs profiles)
   - `recommend-run` — `15 8 * * *` (GO/NO-GO for top opportunities)
   - `cases-run` — `45 8,20 * * *` (turn GO recommendations into cases, compute verdicts, email, request results, resolve outcomes)
-  - `enrich-embed` — `45 7,14,21 * * *` (backfill vector embeddings; 15 min after `analyze-run`)
+  - `enrich-embed` — `45 7,14,21 * * *` (vectors for analysed tenders, then raw-text vectors for open unanalysed ones; catch-up for the embed chained after sync)
   - `email-worker` — `*/5 * * * *` (drain outbox every 5 min)
   - `email-bounces` — `2-57/5 * * * *` (ingest DSN maildir, offset 2 min from worker)
   - `email-digest` — `30 8 * * *` (enqueue digest at 8:30 AM)

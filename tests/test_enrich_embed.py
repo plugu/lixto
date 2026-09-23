@@ -3,7 +3,15 @@
 from unittest.mock import MagicMock
 
 from lixto.enrich import embed
-from lixto.enrich.embed import BATCH_SIZE, build_embedding_text, embed_pending, to_pgvector
+from lixto.enrich.embed import (
+    BATCH_SIZE,
+    MAX_ITEMS,
+    build_embedding_text,
+    build_ingested_embedding_text,
+    embed_ingested,
+    embed_pending,
+    to_pgvector,
+)
 
 
 def _row(procurement_id=1):
@@ -174,3 +182,135 @@ def test_embed_pending_fills_the_run_counters():
     embed_pending(conn, llm=_llm(), counters=counters)
 
     assert counters.as_dict() == {"processed": 1, "embedded": 1, "error": 0}
+
+
+# --- embed_ingested (raw PNCP text for unanalysed open tenders) -----------
+
+
+def _ingested_row(procurement_id=1):
+    return {
+        "procurement_id": procurement_id,
+        "description": "Aquisição de notebooks para a secretaria.",
+        "items": ["Mouse óptico", "Notebook 16GB"],
+    }
+
+
+def test_build_ingested_embedding_text_joins_object_and_items():
+    assert build_ingested_embedding_text(_ingested_row()) == (
+        "Aquisição de notebooks para a secretaria.\nMouse óptico; Notebook 16GB"
+    )
+
+
+def test_build_ingested_embedding_text_skips_blank_parts():
+    row = {"description": "  ", "items": ["", " Cadeira "]}
+    assert build_ingested_embedding_text(row) == "Cadeira"
+    assert build_ingested_embedding_text({"description": "Obra", "items": None}) == "Obra"
+
+
+def test_embed_ingested_selects_open_unanalysed_unembedded_tenders():
+    conn, select_cur, _ = _conn([])
+
+    result = embed_ingested(conn, limit=7, llm=_llm())
+
+    assert result == {"ingested_processed": 0, "ingested_embedded": 0, "ingested_error": 0}
+    sql, params = select_cur.execute.call_args.args
+    assert "proposal_closes_at >= now() OR p.proposal_opens_at > now()" in sql
+    assert "FROM procurement_embeddings pe" in sql
+    assert "e.status = 'done'" in sql
+    assert "FROM procurement_items i" in sql
+    assert params == {"limit": 7, "max_items": MAX_ITEMS}
+
+
+def test_embed_ingested_with_nothing_pending_builds_no_llm_client(monkeypatch):
+    monkeypatch.setattr(embed, "LlmClient", MagicMock(side_effect=AssertionError("client built")))
+    conn, _select_cur, _update_curs = _conn([])
+
+    embed_ingested(conn)
+
+
+def test_embed_ingested_upserts_raw_text_vectors():
+    rows = [_ingested_row(5), _ingested_row(6)]
+    conn, _select_cur, update_curs = _conn(rows)
+    llm = _llm()
+
+    result = embed_ingested(conn, llm=llm)
+
+    assert result == {"ingested_processed": 2, "ingested_embedded": 2, "ingested_error": 0}
+    assert llm.embed.call_args.args[0] == [build_ingested_embedding_text(r) for r in rows]
+    sql, params = update_curs[0].execute.call_args.args
+    assert "ON CONFLICT (procurement_id) DO UPDATE" in sql
+    assert params["procurement_id"] == 6
+    conn.commit.assert_called_once()
+
+
+def test_embed_ingested_stops_on_sdk_error():
+    conn, _select_cur, update_curs = _conn([_ingested_row(1)])
+    llm = MagicMock()
+    llm.embed.side_effect = RuntimeError("provider exploded")
+
+    result = embed_ingested(conn, llm=llm)
+
+    assert result == {"ingested_processed": 1, "ingested_embedded": 0, "ingested_error": 1}
+    update_curs[0].execute.assert_not_called()
+    conn.commit.assert_not_called()
+
+
+def test_both_passes_share_one_run_counters_without_clashing():
+    from lixto.runs import RunCounters
+
+    counters = RunCounters()
+    conn, _s, _u = _conn([_row(1)])
+    embed_pending(conn, llm=_llm(), counters=counters)
+    conn2, _s2, _u2 = _conn([_ingested_row(2), _ingested_row(3)])
+    embed_ingested(conn2, llm=_llm(), counters=counters)
+
+    assert counters.as_dict() == {
+        "processed": 1,
+        "embedded": 1,
+        "error": 0,
+        "ingested_processed": 2,
+        "ingested_embedded": 2,
+        "ingested_error": 0,
+    }
+
+
+# --- CLI -----------------------------------------------------------------
+
+
+def _run_cli(monkeypatch, analysed, ingested):
+    from contextlib import contextmanager
+
+    from typer.testing import CliRunner
+
+    from lixto.cli import app as root_app
+    from lixto.cli import enrich as cli_enrich
+
+    @contextmanager
+    def fake_run(_conn, _kind):
+        yield {}
+
+    monkeypatch.setattr(cli_enrich.db, "get_connection", lambda: MagicMock())
+    monkeypatch.setattr(cli_enrich.runs, "run", fake_run)
+    monkeypatch.setattr(cli_enrich, "embed_pending", lambda *a, **k: analysed)
+    monkeypatch.setattr(cli_enrich, "embed_ingested", lambda *a, **k: ingested)
+    return CliRunner().invoke(root_app, ["enrich", "embed", "--limit", "10"])
+
+
+def test_cli_embed_reports_both_passes(monkeypatch):
+    result = _run_cli(
+        monkeypatch,
+        {"processed": 1, "embedded": 1, "error": 0},
+        {"ingested_processed": 3, "ingested_embedded": 3, "ingested_error": 0},
+    )
+    assert result.exit_code == 0
+    assert "embeddings (analysed): 1 processed (1 ok, 0 error)" in result.output
+    assert "embeddings (ingested): 3 processed (3 ok, 0 error)" in result.output
+
+
+def test_cli_embed_fails_when_every_call_errored(monkeypatch):
+    result = _run_cli(
+        monkeypatch,
+        {"processed": 0, "embedded": 0, "error": 0},
+        {"ingested_processed": 50, "ingested_embedded": 0, "ingested_error": 50},
+    )
+    assert result.exit_code == 1

@@ -147,7 +147,7 @@ Opens at `http://localhost:3000`. Routes:
 - `lixto analyze jobs [--limit N]` — Drain the on-demand "Analisar com IA" queue.
 
 ### Embeddings
-- `lixto enrich embed [--limit N]` — Backfill pgvector embeddings for semantic search; `/procurements` search supports free-text semantic matching (in addition to keyword search).
+- `lixto enrich embed [--limit N]` — Backfill pgvector embeddings for semantic search in two passes: analysed procurements missing a vector, then open/upcoming ingested procurements with no analysis (embedded from the PNCP object + item descriptions; a later analysis replaces that vector); `/procurements` search supports free-text semantic matching (in addition to keyword search).
 
 ### Plans & Radar (Future Procurement Discovery)
 - `lixto plans embed [--limit N]` — Embed in-horizon PCA items (`LIXTO_RADAR_HORIZON_DAYS`, default 365) into `plan_item_embeddings` with `LIXTO_LLM_MODEL_EMBED`. **Spends embedding tokens** — `--limit` (or `LIXTO_RADAR_EMBED_LIMIT`) is the per-run cost fence; unset = unlimited. Optional: Radar works without it (term matching only; the semantic signal is simply absent).
@@ -194,7 +194,7 @@ State as of 2026-09-08 (read from Dokploy; "LLM $" marks jobs that spend provide
 
 | Schedule | Cron | Command | LLM $ | Status |
 |---|---|---|---|---|
-| sync-incremental | `0 6,13,20 * * *` | `lixto sync incremental --max-details 2000` | no | Enabled |
+| sync-incremental | `0 6,13,20 * * *` | `lixto sync incremental --max-details 2000 && lixto enrich embed` | **yes** (embeddings) | Enabled |
 | results-sync | `0 3 * * *` | `lixto results sync --limit 2000` | no | Enabled (case outcomes; demand queue only) |
 | plans-sync | `0 4 * * *` | `lixto plans sync` | no | Disabled — see Radar go-live |
 | plans-embed | `20 4 * * *` | `lixto plans embed --limit 2000` | **yes** (embeddings) | Disabled — see Radar go-live |
@@ -346,7 +346,7 @@ When moving Lixto to production ingestion:
    - `sync-incremental` — pulls new fenced procurements
    - `analyze-run` — produces dossiers + facets up to the daily cap
    - `analyze-jobs` — drains on-demand analysis queue
-   - `enrich-embed` — backfills missing vector embeddings for semantic search
+   - `enrich-embed` — backfills missing vector embeddings (analysed + raw ingested open tenders) for semantic search
    - `match-run` — scores procurements against company profiles; persists opportunities
    - `recommend-run` — builds GO/NO-GO recommendations for top scoring opportunities
 
