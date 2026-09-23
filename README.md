@@ -147,7 +147,7 @@ Opens at `http://localhost:3000`. Routes:
 - `lixto analyze jobs [--limit N]` — Drain the on-demand "Analisar com IA" queue.
 
 ### Embeddings
-- `lixto enrich embed [--limit N]` — Backfill pgvector embeddings for semantic search in two passes: analysed procurements missing a vector, then open/upcoming ingested procurements with no analysis (embedded from the PNCP object + item descriptions; a later analysis replaces that vector); `/procurements` search supports free-text semantic matching (in addition to keyword search).
+- `lixto enrich embed [--limit N]` — Backfill pgvector embeddings for semantic search in two passes: analysed procurements missing a vector, then open/upcoming ingested procurements (status "Divulgada", newest publication first) with no analysis (embedded from the PNCP object + item descriptions; a later analysis replaces that vector); `/procurements` search supports free-text semantic matching (in addition to keyword search).
 
 ### Plans & Radar (Future Procurement Discovery)
 - `lixto plans embed [--limit N]` — Embed in-horizon PCA items (`LIXTO_RADAR_HORIZON_DAYS`, default 365) into `plan_item_embeddings` with `LIXTO_LLM_MODEL_EMBED`. **Spends embedding tokens** — `--limit` (or `LIXTO_RADAR_EMBED_LIMIT`) is the per-run cost fence; unset = unlimited. Optional: Radar works without it (term matching only; the semantic signal is simply absent).

@@ -9,7 +9,7 @@ clean `lixto enrich run` it is a no-op.
 
 `embed_ingested` covers the tenders nobody analysed: analysis runs only on
 demand, so most ingested procurements never get an enrichment. For open or
-upcoming ones without a done enrichment it embeds the raw PNCP text (object +
+upcoming ones still in "Divulgada" status (newest publication first) without a done enrichment it embeds the raw PNCP text (object +
 distinct item descriptions). When an analysis later lands, the worker's upsert
 replaces that vector with the enrichment one.
 
@@ -65,8 +65,10 @@ SET model = EXCLUDED.model,
 """
 
 
-# Open/upcoming tenders with no vector and no finished analysis. Same "open"
-# predicate as the cost fence's open_only; portals and modalities are not
+# Open/upcoming tenders with no vector and no finished analysis, newest
+# publication first. "Open" = PNCP status "Divulgada no PNCP" (revoked,
+# annulled and suspended tenders are skipped) and the cost fence's open_only
+# date predicate (proposals not closed yet). Portals and modalities are not
 # fenced because embeddings cost fractions of a cent per tender.
 _SELECT_INGESTED_SQL = """
 SELECT p.id AS procurement_id,
@@ -82,7 +84,8 @@ SELECT p.id AS procurement_id,
            '{}'
        ) AS items
 FROM procurements p
-WHERE (p.proposal_closes_at >= now() OR p.proposal_opens_at > now())
+WHERE p.status_id = %(active_status_id)s
+  AND (p.proposal_closes_at >= now() OR p.proposal_opens_at > now())
   AND btrim(coalesce(p.description, '')) <> ''
   AND NOT EXISTS (
         SELECT 1 FROM procurement_embeddings pe
@@ -92,9 +95,12 @@ WHERE (p.proposal_closes_at >= now() OR p.proposal_opens_at > now())
         SELECT 1 FROM procurement_enrichments e
         WHERE e.procurement_id = p.id AND e.status = 'done'
       )
-ORDER BY p.source_global_updated_at DESC NULLS LAST, p.id DESC
+ORDER BY p.published_at DESC NULLS LAST, p.id DESC
 LIMIT %(limit)s
 """
+
+# PNCP situacaoCompraId: 1 Divulgada no PNCP, 2 Revogada, 3 Anulada, 4 Suspensa.
+PNCP_STATUS_PUBLISHED = 1
 
 # Item descriptions beyond this add little signal; LlmClient also truncates.
 MAX_ITEMS = 20
@@ -178,7 +184,10 @@ def embed_ingested(
         counters[key] = counters.get(key)
 
     with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
-        cur.execute(_SELECT_INGESTED_SQL, {"limit": limit, "max_items": MAX_ITEMS})
+        cur.execute(
+            _SELECT_INGESTED_SQL,
+            {"limit": limit, "max_items": MAX_ITEMS, "active_status_id": PNCP_STATUS_PUBLISHED},
+        )
         rows = cur.fetchall()
 
     _embed_rows(conn, rows, build_ingested_embedding_text, llm, counters, prefix="ingested_")

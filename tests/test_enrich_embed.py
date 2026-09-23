@@ -218,7 +218,9 @@ def test_embed_ingested_selects_open_unanalysed_unembedded_tenders():
     assert "FROM procurement_embeddings pe" in sql
     assert "e.status = 'done'" in sql
     assert "FROM procurement_items i" in sql
-    assert params == {"limit": 7, "max_items": MAX_ITEMS}
+    assert "p.status_id = %(active_status_id)s" in sql
+    assert "ORDER BY p.published_at DESC NULLS LAST" in sql
+    assert params == {"limit": 7, "max_items": MAX_ITEMS, "active_status_id": 1}
 
 
 def test_embed_ingested_with_nothing_pending_builds_no_llm_client(monkeypatch):
