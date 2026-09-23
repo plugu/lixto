@@ -87,6 +87,7 @@ export const NAV_ITEMS = [
   // match the company) and /radar (future ones from annual plans). The page
   // header carries the tabs; the live half comes first.
   { href: "/opportunities", label: "Radar", icon: Radar },
+  { href: "/cases", label: "Casos", icon: FileText },
   { href: "/procurements", label: "Licitações", icon: List },
 ] as const;
 

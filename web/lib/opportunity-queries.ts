@@ -306,7 +306,13 @@ export async function insertFeedback(
   companyId: number,
   opportunityId: number,
   userId: number,
-  kind: "accepted" | "rejected",
+  kind:
+    | "accepted"
+    | "rejected"
+    | "participated"
+    | "won"
+    | "lost"
+    | "disqualified",
   reason: string | null,
 ): Promise<void> {
   await pool.query(
