@@ -30,7 +30,8 @@ export type EmailTemplate =
   | "signup_received"
   | "signup_pending_admin"
   | "signup_approved"
-  | "signup_rejected";
+  | "signup_rejected"
+  | "case_ready";
 
 export type EmailStatus =
   | "queued"

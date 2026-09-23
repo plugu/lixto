@@ -56,6 +56,19 @@ export type TemplatePayloads = {
     companyName: string;
     reason: string | null;
   };
+  case_ready: {
+    companyName: string;
+    procurementTitle: string;
+    agency: string | null;
+    stateUf: string | null;
+    /** ISO instant, or null when the dossier could not resolve a date. */
+    sessionAt: string | null;
+    met: number;
+    expiring: number;
+    missing: number;
+    manual: number;
+    caseUrl: string;
+  };
 };
 
 export type RenderedEmail = { subject: string; html: string; text: string };
@@ -260,6 +273,46 @@ function renderSignupRejected(
   return { subject, html, text };
 }
 
+/** Joins the non-null parts with " · " — an unknown agency or UF is skipped
+ * rather than shown as "—", since either can legitimately be missing from the
+ * procurement record. */
+function joinPresent(parts: (string | null)[]): string {
+  return parts.filter((part): part is string => Boolean(part)).join(" · ");
+}
+
+function renderCaseReady(p: TemplatePayloads["case_ready"]): RenderedEmail {
+  const subject = `Caso pronto para decidir: ${truncate(p.procurementTitle, 70)}`;
+  const agencyLine = joinPresent([p.agency, p.stateUf]);
+  const sessionLine = p.sessionAt
+    ? `Sessão pública: ${formatDateBR(p.sessionAt)}`
+    : "Data da sessão: a confirmar";
+  const countsLine = `Habilitação: ${p.met} atendida(s), ${p.expiring} vence(m) antes da sessão, ${p.missing} falta(m), ${p.manual} para verificar.`;
+
+  const bodyHtml = [
+    paragraph(`Olá, ${escapeHtml(p.companyName)}.`),
+    paragraph(
+      "O agente montou o caso desta licitação e ele está pronto para a sua decisão.",
+    ),
+    ...(agencyLine ? [paragraph(escapeHtml(agencyLine))] : []),
+    paragraph(escapeHtml(sessionLine)),
+    paragraph(escapeHtml(countsLine)),
+    renderButton(p.caseUrl, "Ver caso e decidir"),
+  ].join("\n");
+
+  const html = renderLayout({ title: subject, bodyHtml, preheader: subject });
+
+  const text = [
+    `Olá, ${p.companyName}.`,
+    "O agente montou o caso desta licitação e ele está pronto para a sua decisão.",
+    ...(agencyLine ? [agencyLine] : []),
+    sessionLine,
+    countsLine,
+    `Ver caso e decidir: ${p.caseUrl}`,
+  ].join("\n\n");
+
+  return { subject, html, text };
+}
+
 function digestSubject(p: TemplatePayloads["daily_digest"]): string {
   if (p.attentionCount > 0) {
     return `${p.attentionCount} oportunidade(s) merecem sua atenção hoje`;
@@ -374,6 +427,8 @@ export function renderTemplate<T extends keyof TemplatePayloads>(
       return renderSignupRejected(
         payload as TemplatePayloads["signup_rejected"],
       );
+    case "case_ready":
+      return renderCaseReady(payload as TemplatePayloads["case_ready"]);
     default:
       throw new Error(`Unknown email template: ${String(template)}`);
   }

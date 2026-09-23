@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { formatDateBR } from "../format";
 import { renderTemplate, type TemplatePayloads } from "./templates";
 
 describe("renderTemplate", () => {
@@ -243,6 +244,101 @@ describe("renderTemplate", () => {
       "&lt;script&gt;alert(1)&lt;/script&gt;",
     );
     expect(email.text).toContain("<script>alert(1)</script>");
+  });
+
+  it("renders the case_ready subject with the truncated procurement title", () => {
+    const payload: TemplatePayloads["case_ready"] = {
+      companyName: "Acme Ltda",
+      procurementTitle: "Pregão eletrônico para aquisição de materiais",
+      agency: "Prefeitura de Exemplo",
+      stateUf: "SP",
+      sessionAt: "2026-10-01T15:00:00.000Z",
+      met: 2,
+      expiring: 1,
+      missing: 1,
+      manual: 1,
+      caseUrl: "https://app.lixto.com.br/cases/31",
+    };
+    const email = renderTemplate("case_ready", payload);
+    expect(email.subject).toBe(
+      "Caso pronto para decidir: Pregão eletrônico para aquisição de materiais",
+    );
+  });
+
+  it("renders the case_ready CTA, counts sentence and session date in html", () => {
+    const payload: TemplatePayloads["case_ready"] = {
+      companyName: "Acme Ltda",
+      procurementTitle: "Pregão eletrônico",
+      agency: "Prefeitura de Exemplo",
+      stateUf: "SP",
+      sessionAt: "2026-10-01T15:00:00.000Z",
+      met: 2,
+      expiring: 1,
+      missing: 1,
+      manual: 1,
+      caseUrl: "https://app.lixto.com.br/cases/31",
+    };
+    const email = renderTemplate("case_ready", payload);
+    expect(email.html).toContain(payload.caseUrl);
+    expect(email.html).toContain(
+      "Habilitação: 2 atendida(s), 1 vence(m) antes da sessão, 1 falta(m), 1 para verificar.",
+    );
+    expect(email.html).toContain("Prefeitura de Exemplo · SP");
+    expect(email.html).toContain(formatDateBR(payload.sessionAt));
+  });
+
+  it("renders a to-be-confirmed session line when case_ready has no sessionAt", () => {
+    const payload: TemplatePayloads["case_ready"] = {
+      companyName: "Acme Ltda",
+      procurementTitle: "Pregão eletrônico",
+      agency: null,
+      stateUf: null,
+      sessionAt: null,
+      met: 0,
+      expiring: 0,
+      missing: 4,
+      manual: 0,
+      caseUrl: "https://app.lixto.com.br/cases/31",
+    };
+    const email = renderTemplate("case_ready", payload);
+    expect(email.html).toContain("Data da sessão: a confirmar");
+    expect(email.text).toContain("Data da sessão: a confirmar");
+  });
+
+  it("renders the case_ready text version with no markup and the URL", () => {
+    const payload: TemplatePayloads["case_ready"] = {
+      companyName: "Acme Ltda",
+      procurementTitle: "Pregão eletrônico",
+      agency: "Prefeitura de Exemplo",
+      stateUf: "SP",
+      sessionAt: "2026-10-01T15:00:00.000Z",
+      met: 2,
+      expiring: 1,
+      missing: 1,
+      manual: 1,
+      caseUrl: "https://app.lixto.com.br/cases/31",
+    };
+    const email = renderTemplate("case_ready", payload);
+    expect(email.text).not.toContain("<");
+    expect(email.text).toContain(payload.caseUrl);
+  });
+
+  it("escapes a case_ready title with markup in html", () => {
+    const payload: TemplatePayloads["case_ready"] = {
+      companyName: "Acme Ltda",
+      procurementTitle: "Pregão <b>urgente</b>",
+      agency: null,
+      stateUf: null,
+      sessionAt: null,
+      met: 0,
+      expiring: 0,
+      missing: 0,
+      manual: 0,
+      caseUrl: "https://app.lixto.com.br/cases/31",
+    };
+    const email = renderTemplate("case_ready", payload);
+    expect(email.html).not.toContain("<b>urgente</b>");
+    expect(email.html).toContain("Pregão &lt;b&gt;urgente&lt;/b&gt;");
   });
 
   it("throws on an unknown template name", () => {
