@@ -1,44 +1,34 @@
 ---
-mode: production
+mode: mvp
 routing_profile: cloud
 parallel_default: sequential
 ---
 
-# Lixto — Session-aware public pages (cycle 29)
+# Lixto — Case agent V1: verdict, packet, one decision (cycle 30)
 
 ## What / why
-The owner clicked **Entrar** on the marketing page and got the login form rendered inside the app chrome (sidebar, top bar, menu). It looked like logged-out visitors could see the menu. They cannot: `Sidebar` and `TopBar` return `null` without a session, and prod `/login` with no cookie returns no nav markup. The owner still had a valid session. Two gaps made a logged-in visitor look logged out:
+Lixto stops at the recommendation. The operator still checks by hand whether the company qualifies, gathers the documents, and never records what happened. Competitors sell the reading; nobody closes the loop per opportunity (see `docs/product/ANALYSIS-case-agent.md`). V1 turns each GO recommendation into a **case** the agent works: a habilitação verdict computed from the dossier against the company's own uploaded documents, a downloadable bundle, one question to the operator, and the outcome pulled from PNCP results after the session.
 
-1. The marketing header (`web/components/marketing/site-header.tsx`) always renders **Entrar** + **Criar conta**, whatever the session state.
-2. `/login` and `/signup` never look at the session, so a logged-in visitor gets the form inside `web/app/(app)/layout.tsx`, which does render the chrome because a session exists.
-
-So this is a confusing-state bug, not an auth leak. The fix makes the public pages tell the truth about the session.
-
-Repo facts that shape the work:
-- `web/proxy.ts` only checks that the `lixto_session` cookie is present; it cannot validate it (no pg pool there). A stale or empty cookie is common after logout or rejection. Any redirect decided on cookie presence alone would loop `/login` ↔ `/dashboard`. The decision must use `getSession()` (`web/lib/auth.ts`), which validates against the DB and the company approval status.
-- `/` must stay reachable for everyone (commit `2554f29` removed the proxy bounce on purpose). Only the header changes.
-- `/login` already sanitises `?next=` (must start with `/`, not `//`). The redirect reuses that rule.
+Repo facts that shape V1:
+- **Trigger**: a `recommendations` row (score ≥70, ≤5/company/day). One case per company × procurement, anchored on the existing `opportunities` row. If the procurement has no dossier yet, the case waits and enqueues `analysis_jobs` under the per-company cap.
+- **Verdict is code, not LLM.** `tender_analysis_requirements` (legal, fiscal_labor, economic_financial, technical; mandatory; severity; document + page citation) map to `company_documents.kind` by deterministic rules. Each line is *atende* (document present, `valid_until` ≥ session date or undated), *vence antes da sessão*, *falta*, or *verificar* (no rule matches). Tier-0 gates already in the match reasons (ME/EPP exclusivity vs. company size, state) sit on top. Zero LLM spend per case.
+- **Packet** = the case page: verdict table with citation links to the PNCP document and page, key dates from `tender_analysis_dates`, and a zip of the company's currently valid documents from `UPLOADS_DIR`.
+- **One question**: one email through the existing outbox (new template) links to the case; the operator answers **Vou enviar / Não vou / Falta documento** (which one). The answer is stored on the case (new tables only; cycle-18 tables untouched per ADR 001; `agent_actions` may carry it).
+- **Outcome**: after the session date the case's items enter the results demand queue (`results_requested_at`); `lixto sync results` runs in prod for those items only. Winner tax id equals the company → *ganhou*; another winner → *perdeu*; the operator can set *desclassificado*. Stored in `opportunity_feedback` (kinds already exist).
+- **Cost fence**: no new LLM calls; HTTP only for results.
 
 ## Primary user story
-As a logged-in Lixto user who opens lixto.com.br, I see **Ir para o painel** in the header instead of **Entrar**, and if I land on `/login` or `/signup` anyway (bookmark, old email link) I am sent straight to the app instead of being shown a login form wrapped in my own menu.
-
-## Behaviour
-- Marketing header, valid session: one primary action **Ir para o painel** → `/dashboard`; **Entrar** and **Criar conta** are not rendered. No session, or a cookie that `getSession()` rejects: today's **Entrar** + **Criar conta**, unchanged.
-- `/login` with a valid session: redirect to the sanitised `?next=` when present, else `/dashboard`. `?error=` does not block the redirect.
-- `/signup` and `/signup/recebido` with a valid session: redirect to `/dashboard`.
-- `/login`, `/signup` with no session or an invalid/stale cookie: render exactly as today. No redirect loop in any cookie state (absent, empty, unknown token, expired, company pending/rejected).
-- `/invite/[token]`, `/email/unsubscribe`, `/logout`: unchanged.
-- Landing page content, SEO metadata and light-token lock: unchanged. If reading the session makes `/` dynamic, that is accepted; it must not throw or 500 when the DB is unreachable (treat as logged out).
+As an operator of a beta company, I receive one email per GO opportunity, open the case, see in one table which habilitação requirements my uploaded documents satisfy, which expire before the session and which are missing, download the bundle, answer whether I will submit, and later see whether we won — without reading the edital or keeping a spreadsheet.
 
 ## Out of scope
-- Moving auth pages out of the `(app)` route group or restyling them
-- Account switching while logged in; "logged in as…" UI on the marketing page
-- Validating the session in `proxy.ts`; changing cookie or session lifetime
-- Any change to the other marketing CTAs (hero, pricing, footer) beyond the header pair
-- Schema, Python or email changes
+- Price band or any homologated-price intelligence (V2)
+- PCA / Radar-triggered cases (V2)
+- WhatsApp, push, or any channel beyond in-app + email
+- Generated declarations or any LLM-written text; portal submission or bidding
+- Fetching certidões from government sites; OCR or fact extraction from uploaded documents (atestado scope, balance-sheet ratios)
+- Learning from outcomes (ranking or scoring changes)
+- Changes to the dossier, the match engine, or the recommender
+- Cases for procurements outside the fence or without a dossier, beyond enqueueing the analysis
 
 ## Success demo
-Done when, logged in on prod, lixto.com.br shows **Ir para o painel** and opening `/login` lands me on `/dashboard`; and in a private window the header shows **Entrar** / **Criar conta** and `/login` shows the bare card with no menu.
-
-1. `cd web && npm run lint && npx tsc --noEmit && npm test && npm run build` green; new tests cover header (session / no session), `/login` redirect (with and without `next`, hostile `next`), `/signup` redirect, and the stale-cookie no-loop case.
-2. Dev server :3000: `curl -i -H 'Cookie: lixto_session=devprobe' localhost:3000/login` → 307 `/dashboard`; with `?next=/radar` → 307 `/radar`; with `?next=//evil.com` → 307 `/dashboard`; `-H 'Cookie: lixto_session=garbage'` → 200 form, no nav markup; no cookie → 200 form. the `<header>` element of `/` with devprobe cookie contains "Ir para o painel" and not "Entrar"; without cookie the reverse. (The footer keeps its own "Entrar" link: out of scope, and a logged-in click lands on `/dashboard`.)
+Done when, on prod, a GO recommendation for a beta company produces a case whose habilitação verdict cites the dossier and the company's uploaded documents; the operator gets one email, opens the case, downloads the bundle, answers "Vou enviar / Não vou / Falta documento"; and after the session the case shows *ganhou* or *perdeu* from PNCP results, correctable to *desclassificado*.

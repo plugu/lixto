@@ -817,6 +817,22 @@ AI procurement operator.**
 - Schema: Five new tables in `migrations/005_radar.sql` (`plan_item_embeddings`, `future_opportunities`, `future_opportunity_matches`, `future_opportunity_actions`, `future_opportunity_analyses`); opportunities deliberately have no FK on item_number (items are replaced delete+insert on plan update; opportunity persists as proof of early discovery)
 - Status lifecycle: `predicted` (detected) → `procurement_found` (V2 linker) or `expired` (stale); `detected_at` immutable for lead-time analytics
 
+### Cycle 30 — Case agent V1 (built)
+
+**Completed**:
+- Habilitação verdict: pure code (no LLM) mapping dossier requirements → company's documents, status ∈ {met, expiring, missing, manual}
+- Verdict rules: nine ordered regex rules (FGTS, labor, tax, balance sheet, articles, CNPJ, technical cert); four checkable categories (legal, fiscal_labor, economic_financial, technical)
+- Check status logic: `met` = document valid ≥ session date; `expiring` = all documents expire before session; `missing` = no document; `manual` = unrecognizable requirement (human check)
+- Session date resolved: dossier session → proposal deadline → procurement closes_at; `session_source` stored for UI transparency
+- Batch pipeline: create cases from GO recommendations → compute verdicts when dossier ready (or enqueue analysis if not) → email one `case_ready` per admin → request results after `RESULTS_DELAY_DAYS = 2` → resolve outcome from PNCP (won/lost/disqualified)
+- Decision → feedback mapping: `skip` ("Não vou") → `opportunity_feedback.kind='rejected'`, dismiss opportunity; `submit` ("Vou enviar") → `opportunity_feedback.kind='participated'`; outcome `won`/`lost` → `opportunity_feedback.kind='won'/'lost'`; operator disqualification → `opportunity_feedback.kind='disqualified'`
+- Schema: Two new tables in `migrations/008_cases.sql` (`cases`, `case_checks`); email template widened to include `case_ready`
+- Routes: `/cases` (list), `/cases/[id]` (detail with verdict table + action), `/cases/[id]/bundle` (zip download of company's current documents)
+- CLI: `lixto cases run [--company-id N]` (thin HTTP trigger to web app's `POST /api/internal/cases/run`)
+- Schedule: `cases-run` `45 8,20 * * *` (after recommend-run; requires results-sync enabled for outcomes)
+- Cost: zero LLM per case (verdict is code-based). Only cost: `enqueueAnalysis` if dossier doesn't exist (existing per-company cap).
+- Dev fixtures: `scripts/dev/case-fixture.sql` (test company, procurement, dossier), `scripts/dev/case-outcome-won.sql`, `scripts/dev/case-outcome-lost.sql` (PNCP results for manual testing)
+
 ### Cycle 24+ roadmap — Radar V2 & V3
 
 **V2 — Linker + history** (planned):

@@ -1,22 +1,21 @@
 # STATE — rewrite after every ticket completes; never append. ≤30 lines total.
 
 ## Now
-- Cycle 29 (session-aware public pages, **production**): 163–166 done, reviewer pass clean, user approved 3 of 3 on 2026-09-21; committed + pushed (autoDeploy lixto-web). Verified pre-push: lint 0 errors, tsc clean, vitest 775/775, build green, live probes.
-- Cycle 28 (gated signup + superadmin): DEPLOYED `0ce4bba` 2026-09-19. Remaining: run Dokploy schedule `grant-superadmin` from the UI.
+- Cycle 30 (case agent V1, **mvp**): 168–173 done (1 attempt each); awaiting approval 2 of 2 + deploy.
+- Cycle 29: deployed; 167 follow-ups still open. Cycle 28: prod `grant-superadmin` still to run.
 
 ## Next
-- Confirm lixto-web deploy + prod probe. Then 167 cycle-29 follow-ups (static shell ADR for `/`, `Vary: Cookie`, React `cache()` on `getSession`).
-- Prod: run `grant-superadmin`, verify Administração → Empresas; end-to-end demo with a fresh CNPJ.
-- 162 review-followups (pagination, retire `welcome` template + migration 008, dialog instead of confirm(), CLI already-granted).
-- Restart the other project's DB: `docker start plugu-clientes-db-1`.
-- Older follow-ups: DMARC tighten; CNAE cleanup; Gemini billing; Radar schedules OFF until LLM provider decision; `analyze-run` cron OFF by decision.
+- After 173 approval: commit + push (autoDeploy); `lixto db init` runs on `lixto-cli` deploy; enable `cases-run` + `results-sync` in Dokploy; never run `scripts/dev/*.sql` in prod.
+- Concierge check: verify a real GO case works end-to-end (verdict, email, decision, outcome).
+- Carry-over: 167 (static shell ADR for `/`, `Vary: Cookie`, React `cache()` on `getSession`); 162 review follow-ups; DMARC tighten; CNAE cleanup; Gemini billing; Radar schedules OFF; `analyze-run` OFF; restart `plugu-clientes-db-1`.
 
 ## Decisions
-- Execution: sequential (in place, on `main`); cycle 29 is a linear chain.
-- Public pages trust `getSession()`, not cookie presence; DB outage = logged out.
-- Same-origin redirect targets go through `safeNextPath` (`web/lib/safe-next.ts`); rejects `//` and `/\`.
-- Approval is per company; superadmin = `users.is_superadmin`, CLI-only; `getSession` re-checks approval each request (ADR 003).
-- Dev env: lixto DB via `docker compose` on :5433; dev server :3000; cookie `lixto_session=devprobe` (user 1, company 1, `is_superadmin=true`).
+- Execution: sequential, in place, on `main`.
+- Zero LLM per case; new tables only (migration 008); opportunity state untouched except "Não vou" → dismissed.
+- Batch steps in order: create → compute verdict → email → request results → resolve outcome. `agent_runs.kind = 'cases'`.
+- Outcome from PNCP results `RESULTS_DELAY_DAYS = 2` after the session; operator may set disqualified.
+- Case email: transactional (no List-Unsubscribe); bundle zips only non-expired documents (`fflate@0.8.2`).
+- Verdict: four statuses (met, expiring, missing, manual); four checkable categories (legal, fiscal_labor, economic_financial, technical).
 
 ## Blockers
 - None.

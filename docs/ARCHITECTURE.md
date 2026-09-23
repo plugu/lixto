@@ -352,6 +352,42 @@ One pass (`lixto analyze run`) replaces cycle 18's enrichment: processes every f
 
 **Deterministic reprocessing**: If document set hash changes (new/updated PDFs), `version` increments and the dossier is marked stale; re-run fetches the new set.
 
+## Case agent (Cycle 30)
+
+One GO recommendation becomes one case: a structured habilitação verdict computed in code from the dossier (tender analysis, requirements) and the company's own uploaded documents, with no LLM cost.
+
+**Output tables** (new in `migrations/008_cases.sql`):
+- `cases` — one row per company × GO procurement; status ∈ {waiting_analysis, ready, decided}; decision ∈ {submit, skip, missing_document} once operator answers; outcome ∈ {won, lost, disqualified} after PNCP results arrive
+- `case_checks` — one verdict line per dossier requirement × document kind; status ∈ {met, expiring, missing, manual} (manual = unrecognizable requirement, human check required)
+
+**Verdict rules** (pure code in `web/lib/case-verdict.ts`):
+- Nine ordered regex rules map requirement text → document kind (FGTS, labor, tax, balance sheet, articles, CNPJ, technical cert)
+- Four checkable categories: legal, fiscal_labor, economic_financial, technical
+- Check status: *atende* (document present, valid ≥ session date), *vence antes da sessão*, *falta*, or *verificar* (no rule match)
+- Session date resolved with precedence: dossier session → proposal deadline → procurement closes-at
+- Check counts aggregated per case: met, expiring, missing, manual
+
+**Batch pipeline** (`web/lib/case-batch.ts`, endpoint `POST /api/internal/cases/run`, CLI `lixto cases run`):
+1. **Create**: One case per GO recommendation (score ≥70) on an open procurement
+2. **Compute verdict**: For each waiting case, fetch dossier; if ready, compute checks from requirements + company's documents; if not, enqueue analysis (existing per-company cap); mark ready
+3. **Email**: One `case_ready` email per admin for every case that just turned ready; stamped once, never re-sent
+4. **Request results** (after `RESULTS_DELAY_DAYS = 2` past session): Open items on PNCP results demand queue (`procurement_items.results_requested_at`); cron `lixto results sync` drains queue
+5. **Resolve outcome**: Check `procurement_results`; if company's tax_id is winner on any item → *ganhou*; if all items synced with no winner → *perdeu*; else keep waiting. Operator can always correct to *desclassificado* (ticket 172)
+
+**Decision → feedback** (server action `web/app/(app)/cases/[id]/actions.ts`):
+- `skip` ("Não vou") → `opportunity_feedback.kind='rejected'`, dismiss opportunity
+- `submit` ("Vou enviar") → `opportunity_feedback.kind='participated'`
+- `missing_document` → no feedback (human-only note)
+- Outcome `won`/`lost` (from PNCP) → `opportunity_feedback.kind='won'/'lost'`
+- Operator disqualification → `opportunity_feedback.kind='disqualified'`
+
+**Constants**:
+- `RESULTS_DELAY_DAYS = 2` (case-outcome.ts)
+- Four check statuses: met, expiring, missing, manual
+- Four checkable requirement categories: legal, fiscal_labor, economic_financial, technical
+
+**Cost**: Zero LLM per case. The only cost is `enqueueAnalysis` if the dossier doesn't exist yet (same per-company daily cap as on-demand analysis).
+
 ## Web app interaction model (Cycle 27)
 
 **Loading boundaries**: Each route (`/dashboard`, `/procurements`, `/radar`, `/opportunities`, etc.) has a per-route `loading.tsx` skeleton. No root `loading.tsx`; streams begin immediately with skeleton + fast metadata, then `Suspense` boundaries paint results on arrival. Per-page `loading.tsx` + route-level Suspense sections = instant visual feedback on every navigation.
@@ -412,8 +448,8 @@ See `docs/PNCP_API.md` for DTO field mappings.
 
 - **Proactive mode**: batch match → persisted `matches` table → daily digest/notifications (cycle 19)
 - **Deep analysis**: on-demand Tier-3 model analysis per procurement (model uses enrichment + company context + documents)
-- **Prepare/Execute**: human-approved submission artifacts (cycle 19+)
-- **Learning loop**: feedback capture, outcome tracking (cycle 19+)
+- **Prepare/Execute**: partial (cycle 30): case verdict, document bundle, one decision; portal submission not built
+- **Learning loop**: outcome capture built (cycle 30); ranking changes not built
 - **Streaming chat**: currently single JSON reply per turn
 - **HTML parsing**: PNCP attaches PDFs; revisit if other portals added
 - **Richer profiles**: supplier list, delivery capacity, financial constraints, preferred portals, historical participation

@@ -190,6 +190,22 @@ On-demand "Analisar com IA" queue (web button → job → drain by cron).
 - **Notable indexes**: queue index on `(created_at) WHERE status IN ('queued','running')`, per-company-day `(company_id, created_at)`, per-procurement `(procurement_id, created_at DESC)`
 - **Purpose**: Deferred analysis with user tracking (shows progress on web).
 
+## Cases (Cycle 30)
+
+### `cases`
+Habilitação verdicts for GO recommendations (one per company × procurement).
+- **Key**: `id` (BIGSERIAL) PK
+- **Notable columns**: `company_id` (FK), `procurement_id` (FK), `opportunity_id` (FK, UNIQUE), `recommendation_id` (FK, may be NULL), `status` (waiting_analysis|ready|decided), `analysis_version`, `session_at` (TIMESTAMPTZ, resolved date for verdict judgment), `session_source` (dossier_session|dossier_proposal_deadline|procurement_closes_at), `email_enqueued_at`, `decision` (submit|skip|missing_document), `decision_note` (NULL except for missing_document), `decided_by` (FK), `decided_at`, `results_requested_at` (when items opened on PNCP results queue), `outcome` (won|lost|disqualified), `outcome_source` (pncp|operator), `outcome_at`
+- **Notable indexes**: `(company_id, status, session_at)`, `(session_at) WHERE decision = 'submit' AND outcome IS NULL` (outcome sweep)
+- **Purpose**: One case per GO recommendation. Status: waiting for dossier analysis → ready to present → decided by operator. Outcome: resolved from PNCP results or operator override.
+
+### `case_checks`
+Habilitação verdict table: one line per requirement × document kind.
+- **Key**: `id` (BIGSERIAL) PK
+- **Notable columns**: `case_id` (FK), `requirement_sequence`, `category` (legal|fiscal_labor|economic_financial|technical), `title`, `mandatory`, `severity` (low|medium|high|critical), `citations` (JSONB [{sequence, page}]), `document_kind` (NULL iff manual), `status` (met|expiring|missing|manual), `document_id` (FK to `company_documents`, NULL if missing/manual), `document_file_name`, `document_valid_until`
+- **Notable indexes**: UNIQUE `(case_id, requirement_sequence, COALESCE(document_kind, ''))`
+- **Purpose**: Structured verdict of company's habilitação against dossier requirements. `met` = document valid ≥ session_at. `expiring` = all documents expire before session. `missing` = no matching document. `manual` = unrecognizable requirement, human check required. Recomputed from scratch every batch pass to reflect current documents.
+
 ## Annual Procurement Plans (PCA)
 
 ### `procurement_plans`

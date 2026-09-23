@@ -75,6 +75,8 @@ npm run dev
 ```
 
 Opens at `http://localhost:3000`. Routes:
+
+**Dev fixtures** (dev only, never run against production): Test data for the case agent is in `scripts/dev/case-fixture.sql` (companies, procurement, dossier) and `scripts/dev/case-outcome-won.sql`, `scripts/dev/case-outcome-lost.sql` (PNCP results). Source these in order to inspect the `/cases` flow end-to-end locally.
 - `/login`, `/signup`, `/invite/[token]` — authentication
 - `/company/profile` — match profile (CNAEs, products, keywords, states, value range)
 - `/company/users`, `/company/documents` — team & habilitação
@@ -156,6 +158,9 @@ Opens at `http://localhost:3000`. Routes:
 - `lixto match run [--company-id N] [--since YYYY-MM-DD]` — Score procurements enriched since the last run against every company profile/CNAEs, persist `matches` and upsert `opportunities` (POST `/api/internal/match/run` on the web app).
 - `lixto recommend run [--company-id N] [--limit N]` — Build GO/NO-GO/borderline recommendations with rationale and confidence for the top new opportunities per company (POST `/api/internal/recommend/run` on the web app).
 
+### Case Agent (Cycle 30)
+- `lixto cases run [--company-id N]` — Turn every GO recommendation into a case: compute habilitação verdict from the dossier plus the company's uploaded documents (POST `/api/internal/cases/run` on the web app). Zero LLM cost; pure code-based verdict.
+
 ### Reference Data
 - `lixto cnae seed` — Fetch IBGE CNAE subclasses and upsert (idempotent).
 
@@ -190,7 +195,7 @@ State as of 2026-09-08 (read from Dokploy; "LLM $" marks jobs that spend provide
 | Schedule | Cron | Command | LLM $ | Status |
 |---|---|---|---|---|
 | sync-incremental | `0 6,13,20 * * *` | `lixto sync incremental --max-details 2000` | no | Enabled |
-| results-sync | `0 3 * * *` | `lixto results sync --limit 2000` | no | Disabled (manual) |
+| results-sync | `0 3 * * *` | `lixto results sync --limit 2000` | no | Enabled (case outcomes; demand queue only) |
 | plans-sync | `0 4 * * *` | `lixto plans sync` | no | Disabled — see Radar go-live |
 | plans-embed | `20 4 * * *` | `lixto plans embed --limit 2000` | **yes** (embeddings) | Disabled — see Radar go-live |
 | radar-run | `40 4 * * *` | `lixto radar run` | no | Disabled — see Radar go-live |
@@ -201,6 +206,7 @@ State as of 2026-09-08 (read from Dokploy; "LLM $" marks jobs that spend provide
 | enrich-embed | `45 7,14,21 * * *` | `lixto enrich embed` | **yes** (embeddings) | Enabled |
 | match-run | `0 8,15,22 * * *` | `lixto match run` | no | Enabled |
 | recommend-run | `15 8 * * *` | `lixto recommend run` | **yes** | Enabled |
+| cases-run | `45 8,20 * * *` | `lixto cases run` | no | Enabled (after recommend-run; requires results-sync for outcomes) |
 | email-worker | `*/5 * * * *` | `lixto email worker --limit 20` | no | Enabled |
 | email-bounces | `2-57/5 * * * *` | `lixto email bounces` | no | Enabled |
 | email-digest | `30 8 * * *` | `lixto email digest` | no | Enabled |

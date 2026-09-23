@@ -84,7 +84,7 @@ Key facts:
 - Apps: `lixto-web` (Next.js) + `lixto-cli` (Python, sleeps forever on `ENTRYPOINT ["sleep", "infinity"]`) + `lixto-mail` (Postfix + opendkim MTA, from `infra/mail/Dockerfile`)
 - Schedules on `lixto-cli` (state 2026-09-08; the README "Production Schedules" table is the authoritative list with LLM-cost flags):
   - `sync-incremental` — `0 6,13,20 * * *` (pull fenced procurements)
-  - `results-sync` — `0 3 * * *` (homologated results; DISABLED, manual)
+  - `results-sync` — `0 3 * * *` (homologated results; enabled for case outcomes)
   - `plans-sync` — `0 4 * * *` (pull annual procurement plans; DISABLED until Radar go-live — first run needs `--since`)
   - `plans-embed` — `20 4 * * *` (`lixto plans embed --limit 2000`, Radar embeddings; DISABLED — spends embedding tokens, LLM provider undecided)
   - `radar-run` — `40 4 * * *` (detect future opportunities, expire stale ones, score per company; DISABLED until PCA data exists)
@@ -94,6 +94,7 @@ Key facts:
   - `analyze-jobs` — `*/2 * * * *` (drain on-demand "Analisar com IA" queue)
   - `match-run` — `0 8,15,22 * * *` (score procurements vs profiles)
   - `recommend-run` — `15 8 * * *` (GO/NO-GO for top opportunities)
+  - `cases-run` — `45 8,20 * * *` (turn GO recommendations into cases, compute verdicts, email, request results, resolve outcomes)
   - `enrich-embed` — `45 7,14,21 * * *` (backfill vector embeddings; 15 min after `analyze-run`)
   - `email-worker` — `*/5 * * * *` (drain outbox every 5 min)
   - `email-bounces` — `2-57/5 * * * *` (ingest DSN maildir, offset 2 min from worker)
@@ -126,6 +127,7 @@ Key facts:
 | Radar routes | `web/app/(app)/radar/*` (/radar list, /radar/[id] detail) |
 | Radar analysis | `web/lib/radar-analysis.ts` (on-demand AI analysis) |
 | Match engine | `web/lib/match-engine.ts` (deterministic scoring) |
+| Case agent | `web/lib/case-batch.ts`, `web/lib/case-verdict.ts`, `web/lib/case-queries.ts`; routes `web/app/(app)/cases/*`; CLI `src/lixto/cli/cases.py`; schema `migrations/008_cases.sql` |
 | Embeddings/LLM (web) | `web/lib/agent/embed.ts`, `web/lib/agent/llm.ts` (semantic search, recommend) |
 | Database queries | `web/lib/*-queries.ts` |
 | URL state & filters | `web/lib/url-state.ts`, `web/lib/procurement-url.ts`, `web/lib/radar-url.ts` (URL contracts, no root form builders) |
