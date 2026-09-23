@@ -1,12 +1,14 @@
 """Thin sync HTTP client for the web app's internal batch endpoints.
 
-The scoring/recommendation/email logic lives once, in the web app (tickets
-90/91/113/124): `POST /api/internal/match/run`, `POST /api/internal/recommend/run`,
+The scoring/recommendation/email/case logic lives once, in the web app (tickets
+90/91/113/124/168): `POST /api/internal/match/run`, `POST /api/internal/recommend/run`,
 `POST /api/internal/email/send`, `POST /api/internal/email/digest`,
-`POST /api/internal/email/bounces` and `POST /api/internal/radar/run`,
+`POST /api/internal/email/bounces`, `POST /api/internal/radar/run` and
+`POST /api/internal/cases/run`,
 authenticated with a shared secret header `x-lixto-internal-token`. The CLI
 (`lixto match run`, `lixto recommend run`, `lixto email worker`,
-`lixto email digest`, `lixto email bounces`, `lixto radar run`) is a thin
+`lixto email digest`, `lixto email bounces`, `lixto radar run`,
+`lixto cases run`) is a thin
 trigger so operators and Dokploy schedules keep a single CLI surface — no
 scoring/rendering/SMTP in Python.
 
@@ -18,6 +20,7 @@ Contract:
   - email digest: `{"companyId"?: int}`
   - email bounces: `{}`
   - radar run: `{"companyId"?: int}`
+  - cases run: `{"companyId"?: int}`
 - response: `200` with the parsed JSON counters, or a non-2xx (401 on a bad
   token, 500 `{"error": ...}` on failure) — surfaced as `InternalApiError`.
 """
@@ -135,3 +138,13 @@ class InternalApi:
         if company_id is not None:
             body["companyId"] = company_id
         return self._post("/api/internal/radar/run", body)
+
+    def cases_run(self, *, company_id: int | None = None) -> dict[str, Any]:
+        """`POST /api/internal/cases/run` → one pass of the case agent
+        (ticket 168): `{runId, created, ready, waiting, emailed,
+        resultsRequested, resolved, failed}`.
+        """
+        body: dict[str, Any] = {}
+        if company_id is not None:
+            body["companyId"] = company_id
+        return self._post("/api/internal/cases/run", body)

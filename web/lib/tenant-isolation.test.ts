@@ -30,6 +30,13 @@ import {
   buildDeleteRecentFeedback,
   buildRestoreOpportunityState,
 } from "./opportunity-queries";
+import {
+  buildDecideCase,
+  buildGetCase,
+  buildListCaseChecks,
+  buildListCases,
+  buildSetOutcomeByOperator,
+} from "./case-queries";
 
 // Not registered here: `buildCommandSearchQuery` (lib/command-search-queries.ts,
 // the ⌘K palette). Procurements are public, globally-ingested data, so that
@@ -200,5 +207,41 @@ describe("Tenant isolation - all builders bind company_id", () => {
     expect(text).toContain("USING opportunities o");
     expect(/o\.company_id\s*=\s*\$1/.test(text)).toBe(true);
     expect(values).toEqual([COMPANY_ID, 9, USER_ID, "rejected"]);
+  });
+
+  it("buildListCases binds company_id as $1", () => {
+    const { text, values } = buildListCases(COMPANY_ID);
+
+    expect(text).toContain("c.company_id = $1");
+    expect(values[0]).toBe(COMPANY_ID);
+  });
+
+  it("buildGetCase binds company_id as $1 alongside the case id", () => {
+    const { text, values } = buildGetCase(COMPANY_ID, 31);
+
+    expect(text).toContain("c.company_id = $1");
+    expect(values).toEqual([COMPANY_ID, 31]);
+  });
+
+  it("buildListCaseChecks binds company_id as $1 through the cases join", () => {
+    const { text, values } = buildListCaseChecks(COMPANY_ID, 31);
+
+    expect(text).toContain("JOIN cases c ON c.id = k.case_id");
+    expect(text).toContain("c.company_id = $1");
+    expect(values).toEqual([COMPANY_ID, 31]);
+  });
+
+  it("buildDecideCase binds company_id as $1 and only touches a ready case", () => {
+    const { text, values } = buildDecideCase(COMPANY_ID, 31, USER_ID, "submit", null);
+
+    expect(text).toContain("WHERE id = $2 AND company_id = $1 AND status = 'ready'");
+    expect(values[0]).toBe(COMPANY_ID);
+  });
+
+  it("buildSetOutcomeByOperator binds company_id as $1 and only touches a submitted case", () => {
+    const { text, values } = buildSetOutcomeByOperator(COMPANY_ID, 31);
+
+    expect(text).toContain("WHERE id = $2 AND company_id = $1 AND decision = 'submit'");
+    expect(values).toEqual([COMPANY_ID, 31]);
   });
 });

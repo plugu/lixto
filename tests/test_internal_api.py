@@ -61,6 +61,30 @@ def test_recommend_run_posts_path_and_body():
     assert result["recommended"] == 5
 
 
+def test_cases_run_posts_path_and_body():
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/api/internal/cases/run"
+        assert json.loads(request.read()) == {"companyId": 7}
+        return httpx.Response(
+            200,
+            json={
+                "runId": 12,
+                "created": 3,
+                "ready": 2,
+                "waiting": 1,
+                "emailed": 0,
+                "resultsRequested": 0,
+                "resolved": 0,
+                "failed": 0,
+            },
+        )
+
+    with _client_with_handler(handler) as client:
+        result = client.cases_run(company_id=7)
+
+    assert result["created"] == 3
+
+
 def test_raises_internal_api_error_on_401():
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(401, text="unauthorized")
