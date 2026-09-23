@@ -194,7 +194,7 @@ State as of 2026-09-08 (read from Dokploy; "LLM $" marks jobs that spend provide
 
 | Schedule | Cron | Command | LLM $ | Status |
 |---|---|---|---|---|
-| sync-incremental | `0 6,13,20 * * *` | `lixto sync incremental --max-details 2000 && lixto enrich embed` | **yes** (embeddings) | Enabled |
+| sync-incremental | `0 6,13,20 * * *` | `lixto sync incremental --max-details 2000; lixto enrich embed` (`;`, not `&&`: sync exits non-zero when any modality fails, and the embed must still run) | **yes** (embeddings) | Enabled |
 | results-sync | `0 3 * * *` | `lixto results sync --limit 2000` | no | Enabled (case outcomes; demand queue only) |
 | plans-sync | `0 4 * * *` | `lixto plans sync` | no | Disabled — see Radar go-live |
 | plans-embed | `20 4 * * *` | `lixto plans embed --limit 2000` | **yes** (embeddings) | Disabled — see Radar go-live |
@@ -203,7 +203,7 @@ State as of 2026-09-08 (read from Dokploy; "LLM $" marks jobs that spend provide
 | contracts-sync | `0 5 * * *` | `lixto contracts sync --max-amendments 500` | no | Disabled (manual) |
 | analyze-run | `30 7,14,21 * * *` | `lixto analyze run --days 30 --limit 300` | **yes** | Disabled (cost decision; analysis is on-demand only) |
 | analyze-jobs | `*/2 * * * *` | `lixto analyze jobs --limit 5` | **yes** (per user click, capped per company) | Enabled |
-| enrich-embed | `45 7,14,21 * * *` | `lixto enrich embed` | **yes** (embeddings) | Enabled |
+| enrich-embed | `0 0 31 2 *` | `lixto enrich embed` | **yes** (embeddings) | Disabled (manual catch-up; the embed runs after every sync) |
 | match-run | `0 8,15,22 * * *` | `lixto match run` | no | Enabled |
 | recommend-run | `15 8 * * *` | `lixto recommend run` | **yes** | Enabled |
 | cases-run | `45 8,20 * * *` | `lixto cases run` | no | Enabled (after recommend-run; requires results-sync for outcomes) |
