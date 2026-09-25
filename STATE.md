@@ -1,7 +1,7 @@
 # STATE — rewrite after every ticket completes; never append. ≤30 lines total.
 
 ## Now
-- Cycle 31 (cache + query hygiene, **mvp**): plan approved (1 of 2). 174–181 done (1 attempt each). Awaiting approval 2 of 2, then commit + push (autoDeploy builds web + cli).
+- Cycle 31 (cache + query hygiene, **mvp**): 174–181 done, approved 2 of 2, pushed as `7850d08` (autoDeploy web + cli). Prod verification pending.
 - Cycle 30 (case agent V1): deployed; concierge check on real GO case still pending.
 
 ## Next
