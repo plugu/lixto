@@ -4,6 +4,7 @@
 // Relative imports (not "@/lib/...") on purpose: vitest runs without a config
 // file, so the tsconfig "@/" alias is not resolvable from lib tests.
 
+import { CACHE_TAGS, cached } from "./cache";
 import {
   ATTENTION_SCORE,
   getLastRun,
@@ -45,7 +46,13 @@ export type Digest = {
  * exist.
  */
 export async function getDigest(companyId: number): Promise<Digest> {
-  const run = await getLastRun("match");
+  // Memoised under CACHE_TAGS.match (PRODUCT cycle 31): the last global match
+  // run only changes when the match batch runs, which drops this tag itself
+  // (app/api/internal/match/run/route.ts). `getLastRun` itself stays
+  // uncached — match-batch.ts uses it as the batch watermark.
+  const run = await cached("digest:last-match-run", { tags: [CACHE_TAGS.match] }, () =>
+    getLastRun("match"),
+  );
 
   if (!run) {
     return { run: null, newCount: 0, matchedCount: 0, attentionCount: 0, attention: [] };

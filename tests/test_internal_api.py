@@ -85,6 +85,40 @@ def test_cases_run_posts_path_and_body():
     assert result["created"] == 3
 
 
+def test_cache_revalidate_posts_path_and_body():
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "POST"
+        assert request.url.path == "/api/internal/cache/revalidate"
+        assert request.headers["x-lixto-internal-token"] == "secret-token"
+        assert json.loads(request.read()) == {"tags": ["sync", "match"]}
+        return httpx.Response(200, json={"revalidated": ["sync", "match"], "dropped": 2})
+
+    with _client_with_handler(handler) as client:
+        result = client.cache_revalidate(tags=["sync", "match"])
+
+    assert result == {"revalidated": ["sync", "match"], "dropped": 2}
+
+
+def test_cache_revalidate_omits_tags_when_none():
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert json.loads(request.read()) == {}
+        return httpx.Response(200, json={"revalidated": ["sync"], "dropped": 1})
+
+    with _client_with_handler(handler) as client:
+        client.cache_revalidate()
+
+
+def test_cache_revalidate_raises_internal_api_error_on_401():
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(401, text="unauthorized")
+
+    with _client_with_handler(handler) as client, pytest.raises(InternalApiError) as exc_info:
+        client.cache_revalidate()
+
+    assert exc_info.value.status_code == 401
+    assert "unauthorized" in exc_info.value.body
+
+
 def test_raises_internal_api_error_on_401():
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(401, text="unauthorized")

@@ -4,15 +4,18 @@
 // `companyId` always comes from the session, never from the form.
 
 import { revalidatePath } from "next/cache";
-import { requireAdmin } from "@/lib/auth";
-import { UF_LIST } from "@/lib/types";
-import { buildProfileEmbeddingText, embedText } from "@/lib/agent/embed";
+// Relative imports (not "@/lib/...") on purpose: vitest resolves no path
+// alias, mirroring web/lib/profile-queries.ts.
+import { requireAdmin } from "../../../../lib/auth";
+import { UF_LIST } from "../../../../lib/types";
+import { buildProfileEmbeddingText, embedText } from "../../../../lib/agent/embed";
 import {
+  getProfile,
   parseMoney,
   parseTermList,
   upsertProfile,
   type ProfileInput,
-} from "@/lib/profile-queries";
+} from "../../../../lib/profile-queries";
 
 export type ProfileActionState = {
   ok?: boolean;
@@ -70,7 +73,11 @@ export async function updateProfileAction(
   // the provider is down or unconfigured the profile still saves and the
   // previous vector (if any) is kept.
   const text = buildProfileEmbeddingText({ products, keywords, notes });
-  const embedding = text ? await embedText(text) : null;
+  // Identical text ⇒ identical vector for a pinned model, so re-embedding an
+  // unchanged profile is pure waste: skip the call and keep the stored one.
+  const current = await getProfile(session.user.companyId);
+  const unchanged = text.length > 0 && current?.embedding_text === text;
+  const embedding = text && !unchanged ? await embedText(text) : null;
 
   await upsertProfile(
     session.user.companyId,
@@ -79,7 +86,7 @@ export async function updateProfileAction(
   );
 
   revalidatePath("/company/profile");
-  if (text && embedding === null) {
+  if (text && !unchanged && embedding === null) {
     return {
       ok: true,
       warning: "Dados salvos; similaridade semântica indisponível no momento.",

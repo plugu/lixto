@@ -390,6 +390,22 @@ One GO recommendation becomes one case: a structured habilitação verdict compu
 
 **Cost**: Zero LLM per case. The only cost is `enqueueAnalysis` if the dossier doesn't exist yet (same per-company daily cap as on-demand analysis).
 
+## Caching (Cycle 31)
+
+**In-process cache** (`web/lib/cache.ts`): Tags (`sync`, `match`), TTL fallback (env, default 900 s), bounded entries, single-flight on concurrent misses. **Not** Next `unstable_cache` or Redis.
+
+**Memoised under tag `sync`**: `fetchModalityOptions`, all 5 facet queries (dashboard, procurement list), `fetchStatusCounts`, `fetchByDay`, `fetchByModality`/`fetchByPortal`. Also memoised per request (React `cache`): `getSession` (ADR 003 §D3).
+
+**Memoised under tag `match`**: Last global match run (read by digest).
+
+**Invalidation**: `POST /api/internal/cache/revalidate {tags?: ("sync"|"match")[]}` (default `["sync"]`) drops the tag. CLI `lixto cache revalidate [--tag …]` is the manual trigger; `lixto sync incremental` calls it automatically at the end (best-effort; never changes exit code). TTL fallback covers a sync that dies before revalidation.
+
+**Query fixes that look like caching**: `match-queries.ts` OR-EXISTS FTS rewritten as `id IN (… UNION …)` with open/upcoming filter inside the semantic CTE; Radar FTS drops `coalesce` so the index applies; Radar upsert guarded with `IS DISTINCT FROM`. List rows and count from one statement (`count(*) OVER ()`). Profile save skips embed when `embedding_text` is unchanged.
+
+**Not cached**: Per-company lists (opportunities, cases, radar), sessions, detail pages, search-text embeddings (in-process LRU in `embed.ts`, bounded by env; no shared cache needed).
+
+**Pool**: `web/lib/db.ts` sets `max`, `statement_timeout`, `application_name` from env. Connection string from `LIXTO_DATABASE_URL`.
+
 ## Web app interaction model (Cycle 27)
 
 **Loading boundaries**: Each route (`/dashboard`, `/procurements`, `/radar`, `/opportunities`, etc.) has a per-route `loading.tsx` skeleton. No root `loading.tsx`; streams begin immediately with skeleton + fast metadata, then `Suspense` boundaries paint results on arrival. Per-page `loading.tsx` + route-level Suspense sections = instant visual feedback on every navigation.
@@ -468,6 +484,11 @@ See `docs/PNCP_API.md` for DTO field mappings.
 - `LIXTO_IBGE_CNAE_URL` — CNAE seed source
 - `LIXTO_MIN_REQUEST_INTERVAL` — Seconds between PNCP HTTP requests (default 0.5)
 - `UPLOADS_DIR` — Document storage
+- `LIXTO_WEB_CACHE_TTL_SECONDS` — In-process cache time-to-live (web only; default 900)
+- `LIXTO_WEB_CACHE_MAX_ENTRIES` — In-process cache entry limit (web only; default 500)
+- `LIXTO_WEB_EMBED_CACHE_SIZE` — Query embedding LRU cache size (web only; default 500)
+- `LIXTO_PG_POOL_MAX` — Database pool max connections (web only; default 10)
+- `LIXTO_PG_STATEMENT_TIMEOUT_MS` — Database query timeout in milliseconds (web only; default 60000)
 
 ### Database
 

@@ -235,6 +235,60 @@ describe("buildCandidateQuery", () => {
     expect(q.text).not.toContain("0.1,0.2,0.3");
   });
 
+  it("never uses OR EXISTS for FTS: text_hit, exclusion_hit and q are id IN (… UNION …)", () => {
+    const q = buildCandidateQuery(
+      1,
+      { q: "lapis" },
+      profile({ terms: ["lapis"], exclusion_terms: ["risco"] }),
+      200,
+    );
+    expect(q.text).not.toContain("OR EXISTS");
+    expect(q.text).not.toContain("i.procurement_id = p.id");
+
+    // `kw_p`/`kw_i` UNION aliases appear once per FTS predicate site: the
+    // text_hit column, the exclusion_hit column, text_hit reused inside the
+    // "at least one signal" OR (both via ftsHit, using to_tsquery), and q
+    // (using websearch_to_tsquery) — four `id IN (… UNION …)` predicates.
+    const idInOccurrences = q.text.split("id IN (").length - 1;
+    expect(idInOccurrences).toBe(4);
+    const toTsqueryUnions = q.text.split("@@ to_tsquery(").length - 1;
+    expect(toTsqueryUnions).toBe(6); // 3 sites × 2 branches (text_hit ×2, exclusion_hit)
+    const websearchUnions = q.text.split("@@ websearch_to_tsquery(").length - 1;
+    expect(websearchUnions).toBe(2); // 2 branches × q
+    expect(
+      q.text.split("SELECT kw_p.id FROM procurements kw_p").length - 1,
+    ).toBe(4);
+    expect(
+      q.text.split("SELECT kw_i.procurement_id FROM procurement_items kw_i")
+        .length - 1,
+    ).toBe(4);
+  });
+
+  it("scopes the semantic CTE to the active portal allowlist and open/upcoming status", () => {
+    const vector = "[0.1,0.2,0.3]";
+    const q = buildCandidateQuery(1, {}, profile(), 200, vector);
+
+    expect(q.text).toContain("JOIN procurements sp ON sp.id = procurement_embeddings.procurement_id");
+    expect(q.text).toContain("sp.origin_system = ANY(");
+    expect(q.text).toContain(
+      "sp.proposal_opens_at <= now() AND now() < sp.proposal_closes_at",
+    );
+    expect(q.text).toContain("sp.proposal_opens_at > now()");
+
+    // Same bound ACTIVE_PORTALS value/placeholder reused, not bound twice.
+    expect(q.values.filter((v) => v === ACTIVE_PORTALS)).toHaveLength(1);
+
+    const closed = buildCandidateQuery(
+      1,
+      { statuses: ["closed"] },
+      profile(),
+      200,
+      vector,
+    );
+    expect(closed.text).toContain("sp.proposal_closes_at < now()");
+    expect(closed.text).not.toContain("sp.proposal_opens_at > now()");
+  });
+
   it("accepts the similarity as a standalone signal", () => {
     const q = buildCandidateQuery(1, {}, profile(), 200, "[0.1,0.2]");
     expect(q.text).toContain("OR s.similarity >= 0.40");

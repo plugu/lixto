@@ -8,7 +8,9 @@ export default async function AppLayout({
   children: React.ReactNode;
 }) {
   // Sidebar chrome only exists for logged-in users; /login & friends render
-  // the bare card. Cookie -> DB lookup happens once here, per request.
+  // the bare card. Cookie -> DB lookup is memoised per request by
+  // `getSession` (React `cache`), so the page's own `requireSession` call
+  // reuses this one instead of re-querying.
   const session = await getSession();
 
   const sidebarSession = session

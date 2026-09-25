@@ -1,21 +1,19 @@
 # STATE — rewrite after every ticket completes; never append. ≤30 lines total.
 
 ## Now
-- Cycle 30 (case agent V1, **mvp**): 168–173 done (1 attempt each); awaiting approval 2 of 2 + deploy.
-- Cycle 29: deployed; 167 follow-ups still open. Cycle 28: prod `grant-superadmin` still to run.
+- Cycle 31 (cache + query hygiene, **mvp**): plan approved (1 of 2). 174–181 done (1 attempt each). Awaiting approval 2 of 2, then commit + push (autoDeploy builds web + cli).
+- Cycle 30 (case agent V1): deployed; concierge check on real GO case still pending.
 
 ## Next
-- After 173 approval: commit + push (autoDeploy); `lixto db init` runs on `lixto-cli` deploy; enable `cases-run` + `results-sync` in Dokploy; never run `scripts/dev/*.sql` in prod.
-- Concierge check: verify a real GO case works end-to-end (verdict, email, decision, outcome).
-- Carry-over: 167 (static shell ADR for `/`, `Vary: Cookie`, React `cache()` on `getSession`); 162 review follow-ups; DMARC tighten; CNAE cleanup; Gemini billing; Radar schedules OFF; `analyze-run` OFF; restart `plugu-clientes-db-1`.
+- Post-deploy success demo (manual): read-only prod EXPLAIN on match/Radar FTS predicates; one sync run logs `cache: revalidated sync`.
+- Carry-over: pg-shared Step B (Dokploy limit raise, then `step-b-after-limit-raise.sh`); 167 (static shell ADR for `/`, `Vary: Cookie`); 162 review follow-ups; DMARC tighten; CNAE cleanup; Gemini billing; Radar schedules OFF; `analyze-run` OFF; restart `plugu-clientes-db-1`.
 
 ## Decisions
-- Execution: sequential, in place, on `main`.
-- Zero LLM per case; new tables only (migration 008); opportunity state untouched except "Não vou" → dismissed.
-- Batch steps in order: create → compute verdict → email → request results → resolve outcome. `agent_runs.kind = 'cases'`.
-- Outcome from PNCP results `RESULTS_DELAY_DAYS = 2` after the session; operator may set disqualified.
-- Case email: transactional (no List-Unsubscribe); bundle zips only non-expired documents (`fflate@0.8.2`).
-- Verdict: four statuses (met, expiring, missing, manual); four checkable categories (legal, fiscal_labor, economic_financial, technical).
+- Execution: sequential, in place, on `main` (same as cycle 30).
+- Cache: in-process memo (`web/lib/cache.ts`, tags `sync`/`match`, TTL 900 s, single-flight), not Next `unstable_cache`/`"use cache"`.
+- Invalidation: `lixto sync incremental` ends with a best-effort `POST /api/internal/cache/revalidate`; never changes exit code.
+- Pool: `statement_timeout` 60 s default, `max` 10 default, both env-driven.
+- No schema change this cycle; Radar embedding preservation deferred.
 
 ## Blockers
 - None.

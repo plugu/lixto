@@ -1,5 +1,12 @@
 // Aggregate queries for the dashboard (Visão geral). Read-only; the only
 // bound param across these queries is the top-7 portal allowlist.
+//
+// Memoised under CACHE_TAGS.sync (PRODUCT cycle 31): these aggregates only
+// change when sync-incremental runs, so between syncs the SQL below runs at
+// most once per key per TTL. `open`/`upcoming`/`new24h` are computed against
+// `now()`, so a cached value can drift from a fresh read for at most one TTL
+// (LIXTO_WEB_CACHE_TTL_SECONDS, default 15 min) — accepted per PRODUCT.md.
+import { CACHE_TAGS, cached } from "./cache";
 import { pool } from "./db";
 import { ACTIVE_PORTALS } from "./portals";
 import { CHART_SCOPE_DEFAULT, CHART_SCOPES, type ChartScopeValue } from "./url-state";
@@ -19,32 +26,34 @@ const OPEN = "proposal_opens_at <= now() AND now() < proposal_closes_at";
 const UPCOMING = "proposal_opens_at > now()";
 
 export async function fetchStatusCounts(): Promise<StatusCounts> {
-  const { rows } = await pool.query<{
-    total: string;
-    open: string;
-    upcoming: string;
-    new_24h: string;
-  }>(
-    `SELECT
-       count(*)::text AS total,
-       count(*) FILTER (WHERE ${OPEN})::text AS open,
-       count(*) FILTER (WHERE ${UPCOMING})::text AS upcoming,
-       count(*) FILTER (WHERE published_at >= now() - interval '24 hours')::text AS new_24h
-     FROM procurements
-     WHERE origin_system = ANY($1)`,
-    [ACTIVE_PORTALS],
-  );
-  const row = rows[0];
-  const total = Number(row?.total ?? 0);
-  const open = Number(row?.open ?? 0);
-  const upcoming = Number(row?.upcoming ?? 0);
-  return {
-    total,
-    open,
-    upcoming,
-    closed: total - open - upcoming,
-    new24h: Number(row?.new_24h ?? 0),
-  };
+  return cached("stats:status", { tags: [CACHE_TAGS.sync] }, async () => {
+    const { rows } = await pool.query<{
+      total: string;
+      open: string;
+      upcoming: string;
+      new_24h: string;
+    }>(
+      `SELECT
+         count(*)::text AS total,
+         count(*) FILTER (WHERE ${OPEN})::text AS open,
+         count(*) FILTER (WHERE ${UPCOMING})::text AS upcoming,
+         count(*) FILTER (WHERE published_at >= now() - interval '24 hours')::text AS new_24h
+       FROM procurements
+       WHERE origin_system = ANY($1)`,
+      [ACTIVE_PORTALS],
+    );
+    const row = rows[0];
+    const total = Number(row?.total ?? 0);
+    const open = Number(row?.open ?? 0);
+    const upcoming = Number(row?.upcoming ?? 0);
+    return {
+      total,
+      open,
+      upcoming,
+      closed: total - open - upcoming,
+      new24h: Number(row?.new_24h ?? 0),
+    };
+  });
 }
 
 /** Scope for the breakdown charts: actionable slices or the whole base. */
@@ -90,29 +99,35 @@ async function fetchTopCounts(
 }
 
 export function fetchByModality(scope: ChartScope): Promise<CategoryCount[]> {
-  return fetchTopCounts("modality_name", 8, "Outras", scope);
+  return cached(`stats:by-modality:${scope}`, { tags: [CACHE_TAGS.sync] }, () =>
+    fetchTopCounts("modality_name", 8, "Outras", scope),
+  );
 }
 
 export function fetchByPortal(scope: ChartScope): Promise<CategoryCount[]> {
   // Post-allowlist there are at most 7 distinct portals, so the tail fold
   // never triggers — kept as a plain top-N call for consistency.
-  return fetchTopCounts("origin_system", 7, "Outros", scope);
+  return cached(`stats:by-portal:${scope}`, { tags: [CACHE_TAGS.sync] }, () =>
+    fetchTopCounts("origin_system", 7, "Outros", scope),
+  );
 }
 
 /** Publications per day, last 30 days, gaps filled with zero. */
 export async function fetchByDay(): Promise<DailyCount[]> {
-  const { rows } = await pool.query<{ day: string; count: string }>(
-    `SELECT d.day::date::text AS day, coalesce(count(p.id), 0)::text AS count
-     FROM generate_series(
-       date_trunc('day', now()) - interval '29 days',
-       date_trunc('day', now()),
-       interval '1 day'
-     ) AS d(day)
-     LEFT JOIN procurements p
-       ON p.published_at >= d.day AND p.published_at < d.day + interval '1 day'
-       AND p.origin_system = ANY($1)
-     GROUP BY d.day ORDER BY d.day`,
-    [ACTIVE_PORTALS],
-  );
-  return rows.map((r) => ({ day: r.day, count: Number(r.count) }));
+  return cached("stats:by-day", { tags: [CACHE_TAGS.sync] }, async () => {
+    const { rows } = await pool.query<{ day: string; count: string }>(
+      `SELECT d.day::date::text AS day, coalesce(count(p.id), 0)::text AS count
+       FROM generate_series(
+         date_trunc('day', now()) - interval '29 days',
+         date_trunc('day', now()),
+         interval '1 day'
+       ) AS d(day)
+       LEFT JOIN procurements p
+         ON p.published_at >= d.day AND p.published_at < d.day + interval '1 day'
+         AND p.origin_system = ANY($1)
+       GROUP BY d.day ORDER BY d.day`,
+      [ACTIVE_PORTALS],
+    );
+    return rows.map((r) => ({ day: r.day, count: Number(r.count) }));
+  });
 }

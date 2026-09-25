@@ -1,10 +1,22 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+// vi.mock hoists above these imports — getSession touches both, and this
+// file otherwise never opens a real DB connection or reads cookies.
+vi.mock("./db", () => ({ pool: { query: vi.fn().mockResolvedValue({ rows: [] }) } }));
+vi.mock("next/headers", () => ({
+  cookies: vi.fn().mockResolvedValue({
+    get: () => ({ value: "raw-token" }),
+  }),
+}));
+
 import {
   buildSessionByTokenQuery,
   classifyLogin,
+  getSession,
   hashPassword,
   verifyPassword,
 } from "./auth";
+import { pool } from "./db";
 
 describe("hashPassword / verifyPassword", () => {
   it("produces a scrypt$salt$hash string", async () => {
@@ -113,5 +125,32 @@ describe("buildSessionByTokenQuery", () => {
     expect(query.text).toMatch(/s\.token_hash\s*=\s*\$1/);
     expect(query.text).toContain("approval_status = 'approved'");
     expect(query.text).toContain("expires_at > now()");
+  });
+});
+
+// getSession is exported as `cache(getSessionUncached)` (ticket 174): the
+// same module-level function reference every import, memoised per request.
+describe("getSession (React cache wrapper)", () => {
+  it("is the same function reference on repeated imports", async () => {
+    const a = await import("./auth");
+    const b = await import("./auth");
+    expect(a.getSession).toBe(getSession);
+    expect(b.getSession).toBe(getSession);
+  });
+
+  it("hits pool.query on every call outside a React render", async () => {
+    // React's cache() only dedupes within one server render's async-storage
+    // scope; a plain Vitest call has no such scope, so cache() falls back to
+    // invoking the wrapped function directly each time. This asserts (and
+    // documents) that fallback rather than asserting single-flight
+    // behaviour we can't reproduce without a real render — the request-scope
+    // guarantee itself is React's, not ours to re-test.
+    const queryMock = pool.query as unknown as ReturnType<typeof vi.fn>;
+    queryMock.mockClear();
+
+    await getSession();
+    await getSession();
+
+    expect(queryMock).toHaveBeenCalledTimes(2);
   });
 });

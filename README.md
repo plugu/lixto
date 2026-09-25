@@ -124,6 +124,11 @@ Opens at `http://localhost:3000`. Routes:
 | `LIXTO_RADAR_WEIGHT_RECENT_UPDATE` | Opportunity score weight: plan updated within 60 days | `20` |
 | `LIXTO_RADAR_ANALYSIS_MODEL` | LLM for on-demand Radar opportunity analysis (falls back to `LIXTO_RECOMMEND_MODEL`) | — |
 | `LIXTO_RADAR_ANALYSIS_DAILY_CAP` | Max AI analyses per company per day; 0 = unlimited | `20` |
+| `LIXTO_WEB_CACHE_TTL_SECONDS` | In-process cache TTL (web only; optional) | `900` (15 min) |
+| `LIXTO_WEB_CACHE_MAX_ENTRIES` | Max cache entries (web only; optional) | `500` |
+| `LIXTO_WEB_EMBED_CACHE_SIZE` | Query embedding LRU cache size (web only; optional) | `500` |
+| `LIXTO_PG_POOL_MAX` | Maximum database connection pool size (web only; optional) | `10` |
+| `LIXTO_PG_STATEMENT_TIMEOUT_MS` | Database query timeout in milliseconds (web only; optional) | `60000` |
 
 ## CLI Commands
 
@@ -167,6 +172,9 @@ Opens at `http://localhost:3000`. Routes:
 ### Status
 - `lixto status` — Print database statistics.
 
+### Web Cache Invalidation
+- `lixto cache revalidate [--tag sync --tag match]` — Manually trigger cache invalidation on the web app by tag (sync or match; default all). Called automatically at the end of `lixto sync incremental`.
+
 ### Users & access
 - `lixto users grant-superadmin <email>` — Grant superadmin access to a user (for company approval workflow). Normalizes email to lowercase.
 - `lixto users revoke-superadmin <email>` — Revoke superadmin access from a user.
@@ -194,7 +202,7 @@ State as of 2026-09-08 (read from Dokploy; "LLM $" marks jobs that spend provide
 
 | Schedule | Cron | Command | LLM $ | Status |
 |---|---|---|---|---|
-| sync-incremental | `0 6,13,20 * * *` | `lixto sync incremental --max-details 2000; lixto enrich embed` (`;`, not `&&`: sync exits non-zero when any modality fails, and the embed must still run) | **yes** (embeddings) | Enabled |
+| sync-incremental | `0 6,13,20 * * *` | `lixto sync incremental --max-details 2000; lixto enrich embed` (`;`, not `&&`: sync exits non-zero when any modality fails, and the embed must still run) — ends with a `cache/revalidate` call to lixto-web | **yes** (embeddings) | Enabled |
 | results-sync | `0 3 * * *` | `lixto results sync --limit 2000` | no | Enabled (case outcomes; demand queue only) |
 | plans-sync | `0 4 * * *` | `lixto plans sync` | no | Disabled — see Radar go-live |
 | plans-embed | `20 4 * * *` | `lixto plans embed --limit 2000` | **yes** (embeddings) | Disabled — see Radar go-live |

@@ -3,10 +3,14 @@
 // Internal: guarded by the `x-lixto-internal-token` shared secret, not by a
 // session, and it never reads a companyId from a browser (the optional one in
 // the body is an operator's "just this company" switch, used by the CLI).
-// "@/" aliases are fine here — app/ files are compiled by Next.
+//
+// Relative imports (not "@/lib/..."): vitest resolves no path alias, and
+// this route mirrors app/api/internal/cases/run/route.ts, which is tested
+// the same way.
 
-import { isInternalRequest } from "@/lib/internal-auth";
-import { runMatchBatch } from "@/lib/match-batch";
+import { CACHE_TAGS, invalidateTags } from "../../../../../lib/cache";
+import { isInternalRequest } from "../../../../../lib/internal-auth";
+import { runMatchBatch } from "../../../../../lib/match-batch";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -47,6 +51,9 @@ export async function POST(request: Request) {
 
   try {
     const result = await runMatchBatch({ companyId, since });
+    // The digest's "last match run" read is memoised under this tag
+    // (lib/digest-queries.ts); drop it now so the next read sees this run.
+    invalidateTags([CACHE_TAGS.match]);
     return Response.json(result);
   } catch (err) {
     console.error("[api/internal/match/run] batch failed", err);

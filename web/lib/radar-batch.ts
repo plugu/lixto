@@ -44,6 +44,11 @@ const DEFAULT_HORIZON_DAYS = 365;
 
 export type RadarBatchResult = {
   runId: number;
+  /** Rows written to `future_opportunities` this run — i.e. the upsert's
+   * summed `rowCount` (see `upsertPage`), not the count of horizon rows
+   * scanned. A row whose tracked columns are unchanged since the last run
+   * is skipped by the `IS DISTINCT FROM` guard and does not add to this
+   * total. */
   opportunities: number;
   expired: number;
   companies: number;
@@ -126,6 +131,11 @@ const UPSERT_HEAD = `
      estimated_value, expected_date, plan_year, opportunity_score, signals, engine_version)
   VALUES `;
 
+// The WHERE guard below skips the rewrite (and the `updated_at` bump) when
+// nothing tracked actually changed, so an unchanged horizon row is not
+// touched every run. The `status = 'expired'` branch is kept regardless —
+// that's the resurrection path, and it must still fire even when every other
+// column is byte-for-byte the same as last time.
 const UPSERT_TAIL = `
   ON CONFLICT (plan_id, item_number) DO UPDATE
      SET agency_tax_id     = EXCLUDED.agency_tax_id,
@@ -143,6 +153,18 @@ const UPSERT_TAIL = `
                                   THEN 'predicted'
                                   ELSE future_opportunities.status END,
          updated_at        = now()
+   WHERE future_opportunities.status = 'expired'
+      OR (future_opportunities.agency_tax_id, future_opportunities.state,
+          future_opportunities.title, future_opportunities.pdm_code,
+          future_opportunities.category_name, future_opportunities.estimated_value,
+          future_opportunities.expected_date, future_opportunities.plan_year,
+          future_opportunities.opportunity_score, future_opportunities.signals,
+          future_opportunities.engine_version)
+         IS DISTINCT FROM
+         (EXCLUDED.agency_tax_id, EXCLUDED.state, EXCLUDED.title, EXCLUDED.pdm_code,
+          EXCLUDED.category_name, EXCLUDED.estimated_value, EXCLUDED.expected_date,
+          EXCLUDED.plan_year, EXCLUDED.opportunity_score, EXCLUDED.signals,
+          EXCLUDED.engine_version)
 `;
 
 // Note the outer alias `f`: an unqualified `plan_id` inside the EXISTS would
@@ -183,7 +205,12 @@ async function finishRun(
   );
 }
 
-/** Multi-row upsert for one page. Returns how many rows were written. */
+/** Multi-row upsert for one page. Returns how many rows were written — i.e.
+ * the upsert's `rowCount`, not `rows.length`: the `WHERE ... IS DISTINCT
+ * FROM ...` guard on `UPSERT_TAIL` means a row whose tracked columns are
+ * unchanged from last run is skipped (no rewrite, no `updated_at` bump), so
+ * `rowCount` can be smaller than the page size. Falls back to `rows.length`
+ * if the driver doesn't report a count. */
 async function upsertPage(
   rows: HorizonRow[],
   scored: { score: number; signals: Signal[] }[],
@@ -215,8 +242,8 @@ async function upsertPage(
     );
   });
 
-  await pool.query(UPSERT_HEAD + tuples.join(", ") + UPSERT_TAIL, values);
-  return rows.length;
+  const result = await pool.query(UPSERT_HEAD + tuples.join(", ") + UPSERT_TAIL, values);
+  return result.rowCount ?? rows.length;
 }
 
 /** pg hands numeric expressions back as strings; anything unparseable (or

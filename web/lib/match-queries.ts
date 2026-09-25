@@ -78,12 +78,24 @@ const SEMANTIC_TOP_K = 200;
 const SEMANTIC_MIN = 0.4;
 
 // Same predicates as `computeProcurementStatus` / procurement-queries.ts,
-// aliased to `p`.
-const STATUS_PREDICATES: Record<ProcurementStatus, string> = {
-  open: "p.proposal_opens_at <= now() AND now() < p.proposal_closes_at",
-  upcoming: "p.proposal_opens_at > now()",
-  closed: "(p.proposal_closes_at < now() OR p.proposal_closes_at IS NULL)",
+// parameterised by alias: `p` for the outer query, `sp` inside the semantic
+// CTE, so the same open/upcoming scope applies to both.
+const STATUS_PREDICATES: Record<ProcurementStatus, (alias: string) => string> = {
+  open: (a) => `${a}.proposal_opens_at <= now() AND now() < ${a}.proposal_closes_at`,
+  upcoming: (a) => `${a}.proposal_opens_at > now()`,
+  closed: (a) => `(${a}.proposal_closes_at < now() OR ${a}.proposal_closes_at IS NULL)`,
 };
+
+/** ORs the given statuses' predicates together, aliased to `alias` (`p` in
+ * the outer WHERE, `sp` inside the semantic CTE — the same scope both
+ * places, so semantic top-K slots aren't spent on rows the batch would
+ * discard anyway). */
+function buildStatusPredicate(
+  alias: string,
+  statuses: readonly ProcurementStatus[],
+): string {
+  return `(${statuses.map((s) => `(${STATUS_PREDICATES[s](alias)})`).join(" OR ")})`;
+}
 
 /**
  * Turns normalized profile terms into one `to_tsquery` input:
@@ -132,13 +144,22 @@ export function buildCandidateQuery(
 
   // A NULL tsquery would make the whole comparison NULL; the CASE keeps it a
   // plain false so the "at least one signal" predicate stays sargable.
+  //
+  // Written as `description @@ q` OR-ed with `EXISTS (items @@ q)`, that OR keeps the
+  // planner off both GIN expression indexes (`idx_procurements_description_fts`,
+  // `idx_procurement_items_description_fts`): it walks every row in scope
+  // recomputing `to_tsvector(f_unaccent(...))`, ~5 s per query on prod. As a
+  // UNION of two id sets each branch is one bitmap index scan instead — same
+  // fix as `buildQPredicate` in procurement-queries.ts. The expressions must
+  // stay textually identical to the index definitions to be matched.
   const ftsHit = (param: string) => `(CASE WHEN ${param}::text IS NULL THEN false ELSE (
-        to_tsvector('portuguese', f_unaccent(coalesce(p.description, '')))
-          @@ to_tsquery('portuguese', f_unaccent(${param}::text))
-        OR EXISTS (
-          SELECT 1 FROM procurement_items i
-           WHERE i.procurement_id = p.id
-             AND to_tsvector('portuguese', f_unaccent(coalesce(i.description, '')))
+        p.id IN (
+          SELECT kw_p.id FROM procurements kw_p
+           WHERE to_tsvector('portuguese', f_unaccent(coalesce(kw_p.description, '')))
+                 @@ to_tsquery('portuguese', f_unaccent(${param}::text))
+          UNION
+          SELECT kw_i.procurement_id FROM procurement_items kw_i
+           WHERE to_tsvector('portuguese', f_unaccent(coalesce(kw_i.description, '')))
                  @@ to_tsquery('portuguese', f_unaccent(${param}::text))
         )
       ) END)`;
@@ -163,6 +184,18 @@ export function buildCandidateQuery(
         SELECT unnest(${termsParam}::text[])
       )`;
 
+  // Portal allowlist + status scope: bound/built once, reused for the outer
+  // WHERE (aliased `p`) and the semantic CTE (aliased `sp`) — same $n for the
+  // allowlist in both places. Without this, the semantic top-K spends its
+  // slots on closed or off-portal rows the outer WHERE would discard anyway,
+  // starving the K nearest neighbours that could actually be candidates.
+  const activePortalsParam = bind(ACTIVE_PORTALS);
+  const statuses =
+    filters.statuses && filters.statuses.length > 0
+      ? filters.statuses
+      : (["open", "upcoming"] as const);
+  const statusPredicate = buildStatusPredicate("p", statuses);
+
   // Semantic top-K: an extra candidate source, so a procurement for "cadernos
   // e apontadores" reaches a company selling "material escolar" with zero
   // keyword overlap. The vector is bound as text and cast — node-pg has no
@@ -176,6 +209,9 @@ export function buildCandidateQuery(
       SELECT procurement_id,
              1 - (embedding <=> ${v}::vector) AS similarity
         FROM procurement_embeddings
+        JOIN procurements sp ON sp.id = procurement_embeddings.procurement_id
+       WHERE sp.origin_system = ANY(${activePortalsParam})
+         AND ${buildStatusPredicate("sp", statuses)}
        ORDER BY embedding <=> ${v}::vector
        LIMIT ${SEMANTIC_TOP_K}
     )`;
@@ -190,16 +226,11 @@ export function buildCandidateQuery(
 
   const conditions: string[] = [];
 
-  // Platform-wide top-7 portal allowlist: always applied.
-  conditions.push(`p.origin_system = ANY(${bind(ACTIVE_PORTALS)})`);
+  // Platform-wide top-7 portal allowlist: always applied. Same bound param
+  // as the semantic CTE's `sp.origin_system` above.
+  conditions.push(`p.origin_system = ANY(${activePortalsParam})`);
 
-  const statuses =
-    filters.statuses && filters.statuses.length > 0
-      ? filters.statuses
-      : (["open", "upcoming"] as const);
-  conditions.push(
-    `(${statuses.map((s) => `(${STATUS_PREDICATES[s]})`).join(" OR ")})`,
-  );
+  conditions.push(statusPredicate);
 
   if (filters.enrichedSince) {
     conditions.push(`e.enriched_at > ${bind(filters.enrichedSince)}`);
@@ -224,14 +255,19 @@ export function buildCandidateQuery(
   }
 
   if (filters.q) {
-    // Same expression as procurement-queries.ts, so the GIN indexes apply.
+    // Same UNION shape as `buildQPredicate` in procurement-queries.ts, so the
+    // GIN indexes apply instead of an OR-EXISTS seq scan.
     const q = bind(filters.q);
     conditions.push(
-      `(to_tsvector('portuguese', f_unaccent(coalesce(p.description, '')))` +
+      `p.id IN (` +
+        `SELECT kw_p.id FROM procurements kw_p` +
+        ` WHERE to_tsvector('portuguese', f_unaccent(coalesce(kw_p.description, '')))` +
         ` @@ websearch_to_tsquery('portuguese', f_unaccent(${q}))` +
-        ` OR EXISTS (SELECT 1 FROM procurement_items i WHERE i.procurement_id = p.id` +
-        ` AND to_tsvector('portuguese', f_unaccent(coalesce(i.description, '')))` +
-        ` @@ websearch_to_tsquery('portuguese', f_unaccent(${q}))))`,
+        ` UNION ` +
+        `SELECT kw_i.procurement_id FROM procurement_items kw_i` +
+        ` WHERE to_tsvector('portuguese', f_unaccent(coalesce(kw_i.description, '')))` +
+        ` @@ websearch_to_tsquery('portuguese', f_unaccent(${q}))` +
+        `)`,
     );
   }
 
@@ -243,7 +279,8 @@ export function buildCandidateQuery(
           SELECT 1 FROM procurement_cnaes pc JOIN company_codes c ON c.cnae_code = pc.cnae_code
            WHERE pc.procurement_id = p.id
         )
-        OR EXISTS (
+        OR
+        EXISTS (
           SELECT 1 FROM unnest(${enrichmentTerms}) AS k
            WHERE k = ANY(${termsParam}::text[])
         )

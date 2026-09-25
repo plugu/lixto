@@ -14,6 +14,7 @@ vi.mock("./opportunity-queries", async () => {
   };
 });
 
+import { resetCache } from "./cache";
 import { getLastRun, listOpportunities } from "./opportunity-queries";
 import { getDigest } from "./digest-queries";
 
@@ -47,6 +48,7 @@ function opportunity(over: Record<string, unknown> = {}) {
 }
 
 beforeEach(() => {
+  resetCache();
   mockGetLastRun.mockReset();
   mockListOpportunities.mockReset();
 });
@@ -140,5 +142,21 @@ describe("getDigest", () => {
 
     const digest = await getDigest(1);
     expect(digest.newCount).toBe(0);
+  });
+
+  it("memoises the last match run: two getDigest calls, one getLastRun call", async () => {
+    mockGetLastRun.mockResolvedValue({
+      id: 1,
+      started_at: new Date("2026-08-25T08:00:00Z"),
+      finished_at: null,
+      counters: { scored: 10 },
+      status: "done",
+    });
+    mockListOpportunities.mockResolvedValue([]);
+
+    await getDigest(1);
+    await getDigest(1);
+
+    expect(mockGetLastRun).toHaveBeenCalledTimes(1);
   });
 });

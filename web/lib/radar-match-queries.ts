@@ -72,8 +72,15 @@ export function buildRadarCandidateQuery(
 
   // A NULL tsquery would make the whole comparison NULL; the CASE keeps it a
   // plain false so the "at least one signal" predicate stays sargable.
+  //
+  // The tsvector expression must stay textually identical to the
+  // `idx_future_opportunities_title_fts` index definition
+  // (migrations/005_radar.sql:58: `gin (to_tsvector('portuguese',
+  // f_unaccent(title)))`) or Postgres cannot match this predicate to the
+  // index. `title` is `NOT NULL` (same migration), so no `coalesce` is
+  // needed here.
   const ftsHit = (param: string) => `(CASE WHEN ${param}::text IS NULL THEN false ELSE (
-        to_tsvector('portuguese', f_unaccent(coalesce(fo.title, '')))
+        to_tsvector('portuguese', f_unaccent(fo.title))
           @@ to_tsquery('portuguese', f_unaccent(${param}::text))
       ) END)`;
 

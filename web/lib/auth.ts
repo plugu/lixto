@@ -5,6 +5,7 @@
 // sessions, and keeping the dependency list short is a standing constraint.
 
 import crypto from "node:crypto";
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 // Relative (not "@/lib/...") on purpose: vitest runs without a config file, so
@@ -187,10 +188,12 @@ function toSession(row: SessionRow): Session {
 }
 
 /** Resolves the cookie to a live session, or null when missing/expired.
- * The company's approval status is re-read on every request (ADR 003 §D3):
- * rejecting a company kills its live sessions on their next request instead
- * of letting them run until the cookie expires. */
-export async function getSession(): Promise<Session | null> {
+ * Memoised per request with React `cache()`: every `requireSession` /
+ * `requireAdmin` / `requireSuperadmin` call in the same render (layout +
+ * page) shares one query. A server action is its own request, so the
+ * company's approval status is still re-read on the next one (ADR 003 §D3) —
+ * `cache()` never spans requests. */
+async function getSessionUncached(): Promise<Session | null> {
   const store = await cookies();
   const token = store.get(SESSION_COOKIE)?.value;
   if (!token) return null;
@@ -199,6 +202,8 @@ export async function getSession(): Promise<Session | null> {
   const { rows } = await pool.query<SessionRow>(query.text, query.values);
   return rows[0] ? toSession(rows[0]) : null;
 }
+
+export const getSession = cache(getSessionUncached);
 
 export async function requireSession(): Promise<Session> {
   const session = await getSession();

@@ -204,6 +204,10 @@ describe("runRadarBatch", () => {
       "1",
     ]);
     expect(text).toContain("ON CONFLICT (plan_id, item_number) DO UPDATE");
+    // Idempotent rewrite: unchanged rows are skipped, but an `expired` row is
+    // always resurrected even when nothing else moved.
+    expect(text).toContain("IS DISTINCT FROM");
+    expect(text).toMatch(/future_opportunities\.status = 'expired'\s+OR\s+\(/);
   });
 
   it("upserts a whole page in one statement", async () => {

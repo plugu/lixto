@@ -23,8 +23,11 @@ export const PAGE_SIZE = 25;
  * a filter swaps this subtree for `ResultsSkeleton` while the toolbar, the
  * chips and the sidebar stay mounted.
  *
- * The three round-trips run concurrently: facet counts do not depend on the
- * embedding, and the row query only needs it once `embedQuery` resolves.
+ * Facet counts run concurrently with the embed + row query: they do not
+ * depend on the embedding, and they are memoised per filter set until the
+ * next sync. `embedQuery` is memoised per process, so paging a search (the
+ * Suspense key changes with the page) does not re-embed the same text. Rows
+ * and the pagination total come back from one statement.
  */
 export async function Results({
   filters,
@@ -37,8 +40,9 @@ export async function Results({
 }) {
   const facetCountsPromise = fetchFacetCounts(filters);
 
-  // Hybrid retrieval: embed the free-text query once (null on failure or no
-  // `q`), reused by fetchProcurements below; facets stay keyword-only.
+  // Hybrid retrieval: embed the free-text query (null on failure or no `q`;
+  // a repeated text is served from the per-process memo), reused by
+  // fetchProcurements below; facets stay keyword-only.
   const qEmbedding = filters.q ? await embedQuery(filters.q) : null;
 
   const [{ rows, total }, facetCounts] = await Promise.all([

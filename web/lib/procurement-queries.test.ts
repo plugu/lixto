@@ -1,15 +1,27 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+// The pool is mocked — the fetch* tests below never touch a live database;
+// the pure builders never call it. `cache` is real so the memoisation the
+// fetchers rely on is exercised.
+vi.mock("./db", () => ({ pool: { query: vi.fn() } }));
+
+import { invalidateTags, resetCache } from "./cache";
+import { pool } from "./db";
 import { ACTIVE_PORTALS } from "./portals";
 import {
   buildCategoryFacetQuery,
   buildCountQuery,
   buildListQuery,
   buildModalityFacetQuery,
+  buildModalityOptionsQuery,
   buildPortalFacetQuery,
   buildPortalOptionsQuery,
   buildStateFacetQuery,
   buildStatusFacetQuery,
   buildWhereClause,
+  fetchFacetCounts,
+  fetchModalityOptions,
+  fetchProcurements,
   parseFilters,
   RRF_K,
   SEARCH_SEMANTIC_MIN,
@@ -395,7 +407,23 @@ describe("buildPortalOptionsQuery", () => {
   });
 });
 
+describe("buildModalityOptionsQuery", () => {
+  it("restricts distinct modality options to the top-7 allowlist", () => {
+    const { text, values } = buildModalityOptionsQuery();
+    expect(text).toContain("WHERE origin_system = ANY($1)");
+    expect(text).toContain("modality_id IS NOT NULL");
+    expect(text).toContain("modality_name IS NOT NULL");
+    expect(text).toContain("ORDER BY modality_name");
+    expect(values).toEqual([ACTIVE_PORTALS]);
+  });
+});
+
 describe("buildListQuery", () => {
+  it("returns the full match count as a window aggregate on the keyword path", () => {
+    const { text } = buildListQuery({ q: "merenda" }, 25, 0);
+    expect(text).toContain("count(*) OVER ()::text AS total");
+  });
+
   it("appends limit/offset params after the allowlist and filter params", () => {
     const { text, values } = buildListQuery(
       { portals: ["BLL Compras"] },
@@ -504,6 +532,12 @@ describe("hybrid retrieval (q + query embedding)", () => {
   });
 
   describe("buildListQuery", () => {
+    it("returns the total as a window aggregate with a single semantic scan", () => {
+      const { text } = buildListQuery({ q: "merenda" }, 20, 0, undefined, QVEC);
+      expect(text).toContain("count(*) OVER ()::text AS total");
+      expect(text.split(`LIMIT ${SEARCH_SEMANTIC_TOP_K}`).length - 1).toBe(1);
+    });
+
     it("emits the kw/sem/fused CTEs and orders by the fused rank", () => {
       const { text } = buildListQuery({ q: "merenda" }, 20, 0, undefined, QVEC);
       expect(text).toContain("WITH kw AS (");
@@ -738,5 +772,113 @@ describe("facet-count query builders", () => {
       "(proposal_opens_at <= now() AND now() < proposal_closes_at)",
     );
     expect(values).toEqual([ACTIVE_PORTALS]);
+  });
+});
+
+const query = pool.query as unknown as ReturnType<typeof vi.fn>;
+
+function listRow(sourceId: string, total: string) {
+  return {
+    source_id: sourceId,
+    description: "d",
+    agency_name: null,
+    city_name: null,
+    state: null,
+    modality_name: null,
+    estimated_value: null,
+    proposal_opens_at: null,
+    proposal_closes_at: null,
+    enriched: false,
+    match_kind: null,
+    similarity: null,
+    total,
+  };
+}
+
+describe("fetchProcurements", () => {
+  beforeEach(() => {
+    resetCache();
+    query.mockReset();
+  });
+
+  it("issues one statement and reads the total off the first row", async () => {
+    query.mockResolvedValueOnce({ rows: [listRow("a", "42"), listRow("b", "42")] });
+
+    const { rows, total } = await fetchProcurements({ q: "merenda" }, 25, 0, undefined, QVEC);
+
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(query.mock.calls[0][0]).toContain("count(*) OVER ()");
+    expect(total).toBe(42);
+    expect(rows.map((r) => r.source_id)).toEqual(["a", "b"]);
+    expect(rows[0]).not.toHaveProperty("total");
+  });
+
+  it("returns zero without a count query for an empty first page", async () => {
+    query.mockResolvedValueOnce({ rows: [] });
+
+    const { rows, total } = await fetchProcurements({}, 25, 0);
+
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(rows).toEqual([]);
+    expect(total).toBe(0);
+  });
+
+  it("falls back to the count query for a page past the end", async () => {
+    query
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ count: "30" }] });
+
+    const { rows, total } = await fetchProcurements({ states: ["SP"] }, 25, 50);
+
+    expect(query).toHaveBeenCalledTimes(2);
+    const count = buildCountQuery({ states: ["SP"] });
+    expect(query.mock.calls[1]).toEqual([count.text, count.values]);
+    expect(rows).toEqual([]);
+    expect(total).toBe(30);
+  });
+});
+
+describe("fetchModalityOptions", () => {
+  beforeEach(() => {
+    resetCache();
+    query.mockReset();
+    query.mockResolvedValue({ rows: [{ modality_id: 6, modality_name: "Pregão" }] });
+  });
+
+  it("runs the portal-filtered query once, then again after the sync tag drops", async () => {
+    expect(await fetchModalityOptions()).toEqual([{ id: 6, name: "Pregão" }]);
+    await fetchModalityOptions();
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(query.mock.calls[0][1]).toEqual([ACTIVE_PORTALS]);
+
+    invalidateTags(["sync"]);
+    await fetchModalityOptions();
+    expect(query).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("fetchFacetCounts", () => {
+  beforeEach(() => {
+    resetCache();
+    query.mockReset();
+    query.mockResolvedValue({ rows: [] });
+  });
+
+  it("memoises per filter set regardless of key order", async () => {
+    await fetchFacetCounts({ q: "merenda", states: ["SP"] });
+    expect(query).toHaveBeenCalledTimes(5);
+
+    await fetchFacetCounts({ states: ["SP"], q: "merenda" });
+    expect(query).toHaveBeenCalledTimes(5);
+
+    await fetchFacetCounts({ states: ["RJ"], q: "merenda" });
+    expect(query).toHaveBeenCalledTimes(10);
+  });
+
+  it("reloads after the sync tag drops", async () => {
+    await fetchFacetCounts({});
+    invalidateTags(["sync"]);
+    await fetchFacetCounts({});
+    expect(query).toHaveBeenCalledTimes(10);
   });
 });

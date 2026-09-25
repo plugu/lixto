@@ -4,31 +4,35 @@ routing_profile: cloud
 parallel_default: sequential
 ---
 
-# Lixto — Case agent V1: verdict, packet, one decision (cycle 30)
+# Lixto — Cache and query hygiene on the hot paths (cycle 31)
 
 ## What / why
-Lixto stops at the recommendation. The operator still checks by hand whether the company qualifies, gathers the documents, and never records what happened. Competitors sell the reading; nobody closes the loop per opportunity (see `docs/product/ANALYSIS-case-agent.md`). V1 turns each GO recommendation into a **case** the agent works: a habilitação verdict computed from the dossier against the company's own uploaded documents, a downloadable bundle, one question to the operator, and the outcome pulled from PNCP results after the session.
+`web/` has zero caching. Global aggregates identical for every user (dashboard KPIs, `/procurements` facets, modality options) are recomputed by parallel seq scans on every page view, though the data only changes when `sync-incremental` runs (3×/day). One page view saturates the 4 cores of `plugu-prod01` (load avg 5.8 on 2026-09-21). The session query runs 2–3× per request, paging a semantic search re-embeds `q`, and two batch queries defeat their own indexes.
 
-Repo facts that shape V1:
-- **Trigger**: a `recommendations` row (score ≥70, ≤5/company/day). One case per company × procurement, anchored on the existing `opportunities` row. If the procurement has no dossier yet, the case waits and enqueues `analysis_jobs` under the per-company cap.
-- **Verdict is code, not LLM.** `tender_analysis_requirements` (legal, fiscal_labor, economic_financial, technical; mandatory; severity; document + page citation) map to `company_documents.kind` by deterministic rules. Each line is *atende* (document present, `valid_until` ≥ session date or undated), *vence antes da sessão*, *falta*, or *verificar* (no rule matches). Tier-0 gates already in the match reasons (ME/EPP exclusivity vs. company size, state) sit on top. Zero LLM spend per case.
-- **Packet** = the case page: verdict table with citation links to the PNCP document and page, key dates from `tender_analysis_dates`, and a zip of the company's currently valid documents from `UPLOADS_DIR`.
-- **One question**: one email through the existing outbox (new template) links to the case; the operator answers **Vou enviar / Não vou / Falta documento** (which one). The answer is stored on the case (new tables only; cycle-18 tables untouched per ADR 001; `agent_actions` may carry it).
-- **Outcome**: after the session date the case's items enter the results demand queue (`results_requested_at`); `lixto sync results` runs in prod for those items only. Winner tax id equals the company → *ganhou*; another winner → *perdeu*; the operator can set *desclassificado*. Stored in `opportunity_feedback` (kinds already exist).
-- **Cost fence**: no new LLM calls; HTTP only for results.
+Repo facts that shape the cycle:
+- **Single Node process**, one replica, no Redis: in-process caches are exact; a deploy clears them.
+- **Invalidation source of truth is the sync.** `lixto sync incremental` already POSTs to `/api/internal/*` with `LIXTO_INTERNAL_TOKEN`. A new `POST /api/internal/cache/revalidate` drops the `sync` tag; the CLI hits it at the end of every sync run (also on partial failure); `lixto cache revalidate` is the manual trigger. TTL fallback (env, default 15 min) covers a sync that dies before the call.
+- **Cache is an in-process memo** (`web/lib/cache.ts`: key + tags + TTL, single-flight on concurrent misses, bounded entries), not Next's `unstable_cache`: in Next 16 `revalidateTag` is stale-while-revalidate and `unstable_cache` is deprecated for `"use cache"`, out of scope.
+- **Request scope**: `getSession` (`web/lib/auth.ts`) wrapped in `React.cache()`. ADR 003 §D3 holds: approval status is still re-read once per request; server actions are their own request.
+- **Global aggregates** memoised under tag `sync`: `fetchModalityOptions` (also gains the `ACTIVE_PORTALS` filter), the 5 facet queries keyed on the full filter set, `fetchStatusCounts`, `fetchByDay`, `fetchByModality`/`fetchByPortal` per scope. The dashboard/digest read of the last global match run is memoised under tag `match`, dropped by the match batch route itself. Per-company queries, session, and detail pages stay uncached.
+- **Query embedding**: in-process LRU `normalize(q) → pgvector literal` in `web/lib/agent/embed.ts` (bounded, env-sized). List rows and total come from one statement (`count(*) OVER ()`), so the semantic branch runs one HNSW scan per request instead of two.
+- **Profile embedding**: `company/profile/actions.ts` skips `embedText` when the new `embedding_text` equals the stored one.
+- **Query fixes that look like cache problems**: `match-queries.ts` OR-EXISTS FTS rewritten as `id IN (… UNION …)`; open/upcoming filter inside the semantic CTE of the match candidate query; Radar FTS drops `coalesce` so `idx_future_opportunities_title_fts` applies; Radar upsert guarded with `IS DISTINCT FROM`.
+- **Pool**: `web/lib/db.ts` sets `max`, `statement_timeout`, `application_name` from env.
+- **No schema change**, no new migration (ADR 001).
 
 ## Primary user story
-As an operator of a beta company, I receive one email per GO opportunity, open the case, see in one table which habilitação requirements my uploaded documents satisfy, which expire before the session and which are missing, download the bundle, answer whether I will submit, and later see whether we won — without reading the edital or keeping a spreadsheet.
+As a logged-in operator, I open `/dashboard` and `/procurements`, page through a semantic search, and every view answers from cached aggregates plus my company's own rows — the database is not rescanned for numbers that only change when the sync runs, and the same search text is embedded once.
 
 ## Out of scope
-- Price band or any homologated-price intelligence (V2)
-- PCA / Radar-triggered cases (V2)
-- WhatsApp, push, or any channel beyond in-app + email
-- Generated declarations or any LLM-written text; portal submission or bidding
-- Fetching certidões from government sites; OCR or fact extraction from uploaded documents (atestado scope, balance-sheet ratios)
-- Learning from outcomes (ranking or scoring changes)
-- Changes to the dossier, the match engine, or the recommender
-- Cases for procurements outside the fence or without a dossier, beyond enqueueing the analysis
+- pg-shared Step B (raise the memory limit, `shared_buffers`); manual infra, separate runbook
+- `"use cache"` / `cacheComponents` / PPR; Redis or any external cache
+- Caching per-company lists (opportunities, cases, radar), sessions, or procurement detail
+- `plan_item_embeddings` preservation by text hash on plan replace (Radar go-live cycle)
+- Text-hash column on `procurement_embeddings`
+- LLM prompt-cache instrumentation (`cached_tokens`), PDF byte storage, analysis re-run policy
+- `matches` growth redesign; recommendation invalidation
+- Any ranking or scoring change beyond restricting the semantic CTE to open/upcoming rows
 
 ## Success demo
-Done when, on prod, a GO recommendation for a beta company produces a case whose habilitação verdict cites the dossier and the company's uploaded documents; the operator gets one email, opens the case, downloads the bundle, answers "Vou enviar / Não vou / Falta documento"; and after the session the case shows *ganhou* or *perdeu* from PNCP results, correctable to *desclassificado*.
+Done when, on prod between two syncs, `/dashboard` and unfiltered `/procurements` hit Postgres only for the session (one query) and per-company rows, paging a search with `q` makes no new embeddings call, the sync run ends with a `cache/revalidate` call that refreshes the facets, and `EXPLAIN` on the match and Radar FTS predicates shows index scans.

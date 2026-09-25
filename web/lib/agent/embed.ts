@@ -87,16 +87,63 @@ export async function embedText(
   }
 }
 
+const DEFAULT_EMBED_CACHE_SIZE = 500;
+
+/** Process-wide memo of search-text embeddings: `${model}:${normalised q}` →
+ * pgvector literal. Single Node process, so paging or re-running the same
+ * search never calls the embeddings API twice; a deploy clears it. Map
+ * iteration order is insertion order, which gives FIFO eviction. */
+const queryEmbeddingCache = new Map<string, string>();
+
+/** `LIXTO_WEB_EMBED_CACHE_SIZE`, read at call time; anything non-finite or
+ * <= 0 falls back to the default. */
+function embedCacheSize(): number {
+  const parsed = Number(process.env.LIXTO_WEB_EMBED_CACHE_SIZE);
+  return Number.isFinite(parsed) && parsed > 0
+    ? Math.floor(parsed)
+    : DEFAULT_EMBED_CACHE_SIZE;
+}
+
+/** Case, surrounding and repeated whitespace don't change what the user is
+ * searching for, so they share one cache entry. */
+function normaliseQuery(q: string): string {
+  return q.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+/** Test-only: empties the query-embedding memo. */
+export function resetEmbedCache(): void {
+  queryEmbeddingCache.clear();
+}
+
 /**
  * Embeds a user's free-text search and returns it as a pgvector literal, ready
  * to bind as `$n::vector` (see `buildListQuery` in lib/procurement-queries.ts).
  * Returns null on any failure — no key, empty text, provider error — so search
  * degrades to keyword-only instead of erroring.
+ *
+ * Successful results are memoised per process (see `queryEmbeddingCache`);
+ * failures are not, so a transient provider error is retried next time.
  */
 export async function embedQuery(
   q: string,
   deps: { client?: OpenAI; model?: string } = {},
 ): Promise<string | null> {
-  const embedding = await embedText(q, deps);
-  return embedding === null ? null : toPgVector(embedding.vector);
+  const model = deps.model ?? EMBED_MODEL;
+  const key = `${model}:${normaliseQuery(q)}`;
+  const hit = queryEmbeddingCache.get(key);
+  if (hit !== undefined) return hit;
+
+  const embedding = await embedText(q, { ...deps, model });
+  if (embedding === null) return null;
+
+  const literal = toPgVector(embedding.vector);
+  if (!queryEmbeddingCache.has(key)) {
+    while (queryEmbeddingCache.size >= embedCacheSize()) {
+      const oldest = queryEmbeddingCache.keys().next().value;
+      if (oldest === undefined) break;
+      queryEmbeddingCache.delete(oldest);
+    }
+  }
+  queryEmbeddingCache.set(key, literal);
+  return literal;
 }

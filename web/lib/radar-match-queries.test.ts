@@ -44,6 +44,13 @@ describe("buildRadarCandidateQuery", () => {
     expect(q.text).not.toContain("42");
   });
 
+  it("uses the exact index expression for the title FTS (no coalesce)", () => {
+    // migrations/005_radar.sql: gin (to_tsvector('portuguese', f_unaccent(title)))
+    const q = buildRadarCandidateQuery(1, profile());
+    expect(q.text).toContain("to_tsvector('portuguese', f_unaccent(fo.title))");
+    expect(q.text).not.toContain("coalesce(fo.title");
+  });
+
   it("always filters on status = predicted", () => {
     const q = buildRadarCandidateQuery(1, profile());
     expect(q.text).toContain("fo.status = 'predicted'");

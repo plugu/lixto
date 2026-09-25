@@ -74,8 +74,13 @@ Key facts:
 | `LIXTO_RADAR_WEIGHT_RECENT_UPDATE` | Opportunity score weight: plan updated within 60 days | `20` |
 | `LIXTO_RADAR_ANALYSIS_MODEL` | LLM for on-demand Radar opportunity analysis (falls back to `LIXTO_RECOMMEND_MODEL`, then `gpt-5.1`) | — |
 | `LIXTO_RADAR_ANALYSIS_DAILY_CAP` | Max AI analyses per company per day; 0 = unlimited | `20` |
+| `LIXTO_WEB_CACHE_TTL_SECONDS` | In-process cache TTL (web only; optional) | `900` |
+| `LIXTO_WEB_CACHE_MAX_ENTRIES` | In-process cache max entries (web only; optional) | `500` |
+| `LIXTO_WEB_EMBED_CACHE_SIZE` | Query embedding LRU cache size (web only; optional) | `500` |
+| `LIXTO_PG_POOL_MAX` | Max database pool connections (web only; optional) | `10` |
+| `LIXTO_PG_STATEMENT_TIMEOUT_MS` | Database query timeout in milliseconds (web only; optional) | `60000` |
 
-**Note**: All `LIXTO_*` vars are read by Python (CLI); `web` also reads LLM, embedding, email, and Radar vars via `.env.local`.
+**Note**: All `LIXTO_*` vars are read by Python (CLI); `web` also reads LLM, embedding, email, Radar, and cache vars via `.env.local`.
 
 ### Production Deployment
 
@@ -83,7 +88,7 @@ Key facts:
 - Project: `lixto` (renamed from `plataforma-licitante`)
 - Apps: `lixto-web` (Next.js) + `lixto-cli` (Python, sleeps forever on `ENTRYPOINT ["sleep", "infinity"]`) + `lixto-mail` (Postfix + opendkim MTA, from `infra/mail/Dockerfile`)
 - Schedules on `lixto-cli` (state 2026-09-08; the README "Production Schedules" table is the authoritative list with LLM-cost flags):
-  - `sync-incremental` — `0 6,13,20 * * *` (pull procurements, then `; lixto enrich embed` so new open tenders get vectors right after ingest — `;` because sync exits non-zero on any failed modality)
+  - `sync-incremental` — `0 6,13,20 * * *` (pull procurements, then `; lixto enrich embed` so new open tenders get vectors right after ingest — `;` because sync exits non-zero on any failed modality; ends with a best-effort `lixto cache revalidate` call)
   - `results-sync` — `0 3 * * *` (homologated results; enabled for case outcomes)
   - `plans-sync` — `0 4 * * *` (pull annual procurement plans; DISABLED until Radar go-live — first run needs `--since`)
   - `plans-embed` — `20 4 * * *` (`lixto plans embed --limit 2000`, Radar embeddings; DISABLED — spends embedding tokens, LLM provider undecided)
@@ -128,6 +133,7 @@ Key facts:
 | Radar analysis | `web/lib/radar-analysis.ts` (on-demand AI analysis) |
 | Match engine | `web/lib/match-engine.ts` (deterministic scoring) |
 | Case agent | `web/lib/case-batch.ts`, `web/lib/case-verdict.ts`, `web/lib/case-queries.ts`; routes `web/app/(app)/cases/*`; CLI `src/lixto/cli/cases.py`; schema `migrations/008_cases.sql` |
+| Web cache | `web/lib/cache.ts` (tags sync/match, TTL, single-flight), route `web/app/api/internal/cache/revalidate`, CLI `src/lixto/cli/cache.py` |
 | Embeddings/LLM (web) | `web/lib/agent/embed.ts`, `web/lib/agent/llm.ts` (semantic search, recommend) |
 | Database queries | `web/lib/*-queries.ts` |
 | URL state & filters | `web/lib/url-state.ts`, `web/lib/procurement-url.ts`, `web/lib/radar-url.ts` (URL contracts, no root form builders) |

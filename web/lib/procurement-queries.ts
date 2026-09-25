@@ -7,6 +7,7 @@
 // in lib/status.ts, expressed on `proposal_opens_at` / `proposal_closes_at`
 // (docs/adr/001-lixto-data-model.md, D3).
 
+import { CACHE_TAGS, cached, stableKey } from "./cache";
 import { pool } from "./db";
 import { ACTIVE_PORTALS } from "./portals";
 import { STATUS_LABELS, type ProcurementStatus } from "./status";
@@ -461,6 +462,11 @@ const SORT_ORDER_BY: Record<ProcurementSort, string> = {
 // closed newest first — except on the hybrid path, where relevance (the fused
 // rank) decides and the date ordering would bury the semantic hits. An
 // explicit `filters.sort` overrides both.
+//
+// Both paths also return the full match count as a window aggregate in a
+// `total` column (computed before LIMIT/OFFSET), so one statement yields the
+// page and the pagination total — on the hybrid path that means one HNSW scan
+// of the `sem` CTE per request instead of two.
 export function buildListQuery(
   filters: ProcurementFilters,
   limit: number,
@@ -489,7 +495,8 @@ export function buildListQuery(
     SELECT
       source_id, description, agency_name, city_name, state,
       modality_name, estimated_value, proposal_opens_at, proposal_closes_at,
-      enriched, fused.match_kind, fused.similarity
+      enriched, fused.match_kind, fused.similarity,
+      count(*) OVER ()::text AS total
     FROM classified
     JOIN fused ON fused.id = classified.id
     ${filters.sort ? SORT_ORDER_BY[filters.sort] : "ORDER BY fused.rrf DESC, source_id"}
@@ -513,7 +520,8 @@ export function buildListQuery(
     SELECT
       source_id, description, agency_name, city_name, state,
       modality_name, estimated_value, proposal_opens_at, proposal_closes_at,
-      enriched, NULL::text AS match_kind, NULL::real AS similarity
+      enriched, NULL::text AS match_kind, NULL::real AS similarity,
+      count(*) OVER ()::text AS total
     FROM classified
     ${filters.sort ? SORT_ORDER_BY[filters.sort] : "ORDER BY status_group ASC, sort_val ASC NULLS LAST"}
     LIMIT $${limitIdx} OFFSET $${offsetIdx}
@@ -522,6 +530,9 @@ export function buildListQuery(
   return { text, values: [...values, limit, offset] };
 }
 
+/** Standalone total. `fetchProcurements` only needs it when the list query
+ * returns no rows past the first page (the window total rides on the rows, so
+ * an empty page carries none). */
 export function buildCountQuery(
   filters: ProcurementFilters,
   companyCnaes?: string[],
@@ -556,9 +567,10 @@ export function buildModalityOptionsQuery(): SqlQuery {
   return {
     text:
       `SELECT DISTINCT modality_id, modality_name FROM procurements` +
-      ` WHERE modality_id IS NOT NULL AND modality_name IS NOT NULL` +
+      ` WHERE origin_system = ANY($1)` +
+      ` AND modality_id IS NOT NULL AND modality_name IS NOT NULL` +
       ` ORDER BY modality_name`,
-    values: [],
+    values: [ACTIVE_PORTALS],
   };
 }
 
@@ -670,18 +682,30 @@ export type ProcurementRow = {
 
 export type ModalityOption = { id: number; name: string };
 
+/** Drops the window-aggregate `total` column so callers see the public
+ * `ProcurementRow` shape. */
+function withoutTotal(row: ProcurementRow & { total?: string }): ProcurementRow {
+  const copy = { ...row };
+  delete copy.total;
+  return copy;
+}
+
 /** `qEmbedding` is the pgvector text literal for `filters.q` (see
  * `embedQuery` in lib/agent/embed.ts). Pass null/undefined — or omit it — to
  * get the keyword-only behaviour. Facet counts stay keyword-only either way:
  * they are computed over the structured filters, not the fused candidate set
- * (documented limitation). */
+ * (documented limitation).
+ *
+ * One statement on the happy path: the list query carries the total as a
+ * window aggregate. Only a page past the end (no rows, offset > 0) runs the
+ * separate count, so the pagination still learns the real total. */
 export async function fetchProcurements(
   filters: ProcurementFilters,
   limit: number,
   offset: number,
   companyCnaes?: string[],
   qEmbedding?: string | null,
-) {
+): Promise<{ rows: ProcurementRow[]; total: number }> {
   const listQuery = buildListQuery(
     filters,
     limit,
@@ -689,17 +713,23 @@ export async function fetchProcurements(
     companyCnaes,
     qEmbedding,
   );
-  const countQuery = buildCountQuery(filters, companyCnaes, qEmbedding);
 
-  const [rowsResult, countResult] = await Promise.all([
-    pool.query<ProcurementRow>(listQuery.text, listQuery.values),
-    pool.query<{ count: string }>(countQuery.text, countQuery.values),
-  ]);
+  const listResult = await pool.query<ProcurementRow & { total: string }>(
+    listQuery.text,
+    listQuery.values,
+  );
+  const rows = listResult.rows.map(withoutTotal);
 
-  return {
-    rows: rowsResult.rows,
-    total: Number(countResult.rows[0]?.count ?? 0),
-  };
+  if (rows.length === 0 && offset > 0) {
+    const countQuery = buildCountQuery(filters, companyCnaes, qEmbedding);
+    const countResult = await pool.query<{ count: string }>(
+      countQuery.text,
+      countQuery.values,
+    );
+    return { rows, total: Number(countResult.rows[0]?.count ?? 0) };
+  }
+
+  return { rows, total: Number(listResult.rows[0]?.total ?? 0) };
 }
 
 export async function fetchPortalOptions(): Promise<string[]> {
@@ -708,22 +738,43 @@ export async function fetchPortalOptions(): Promise<string[]> {
   return result.rows.map((row) => row.portal);
 }
 
+/** Global (identical for every user) and only changed by the sync, so it is
+ * memoised under the `sync` tag. */
 export async function fetchModalityOptions(): Promise<ModalityOption[]> {
-  const query = buildModalityOptionsQuery();
-  const result = await pool.query<{ modality_id: number; modality_name: string }>(
-    query.text,
-    query.values,
+  return cached(
+    "procurements:modality-options",
+    { tags: [CACHE_TAGS.sync] },
+    async () => {
+      const query = buildModalityOptionsQuery();
+      const result = await pool.query<{
+        modality_id: number;
+        modality_name: string;
+      }>(query.text, query.values);
+      return result.rows.map((row) => ({
+        id: row.modality_id,
+        name: row.modality_name,
+      }));
+    },
   );
-  return result.rows.map((row) => ({
-    id: row.modality_id,
-    name: row.modality_name,
-  }));
 }
 
 /** Per-option counts for the 5 multi-select filters, each computed against
  * all other active filters (own dimension's selection excluded) — standard
- * faceting. */
+ * faceting. Facets never carry the per-company compat predicate, so they are
+ * global per filter set and memoised under the `sync` tag, keyed on the full
+ * filter set (key order irrelevant). Category counts also move when
+ * `analyze-jobs` writes categories; the cache TTL bounds that staleness. */
 export async function fetchFacetCounts(
+  filters: ProcurementFilters,
+): Promise<FacetCounts> {
+  return cached(
+    `procurements:facets:${stableKey(filters)}`,
+    { tags: [CACHE_TAGS.sync] },
+    () => loadFacetCounts(filters),
+  );
+}
+
+async function loadFacetCounts(
   filters: ProcurementFilters,
 ): Promise<FacetCounts> {
   const modalityQuery = buildModalityFacetQuery(filters);

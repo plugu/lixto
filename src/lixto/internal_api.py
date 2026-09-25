@@ -3,12 +3,12 @@
 The scoring/recommendation/email/case logic lives once, in the web app (tickets
 90/91/113/124/168): `POST /api/internal/match/run`, `POST /api/internal/recommend/run`,
 `POST /api/internal/email/send`, `POST /api/internal/email/digest`,
-`POST /api/internal/email/bounces`, `POST /api/internal/radar/run` and
-`POST /api/internal/cases/run`,
+`POST /api/internal/email/bounces`, `POST /api/internal/radar/run`,
+`POST /api/internal/cases/run` and `POST /api/internal/cache/revalidate`,
 authenticated with a shared secret header `x-lixto-internal-token`. The CLI
 (`lixto match run`, `lixto recommend run`, `lixto email worker`,
 `lixto email digest`, `lixto email bounces`, `lixto radar run`,
-`lixto cases run`) is a thin
+`lixto cases run`, `lixto cache revalidate`) is a thin
 trigger so operators and Dokploy schedules keep a single CLI surface — no
 scoring/rendering/SMTP in Python.
 
@@ -21,6 +21,8 @@ Contract:
   - email bounces: `{}`
   - radar run: `{"companyId"?: int}`
   - cases run: `{"companyId"?: int}`
+  - cache revalidate: `{"tags"?: list["sync" | "match", ...]}` (server
+    defaults to `["sync"]` when omitted)
 - response: `200` with the parsed JSON counters, or a non-2xx (401 on a bad
   token, 500 `{"error": ...}` on failure) — surfaced as `InternalApiError`.
 """
@@ -148,3 +150,13 @@ class InternalApi:
         if company_id is not None:
             body["companyId"] = company_id
         return self._post("/api/internal/cases/run", body)
+
+    def cache_revalidate(self, *, tags: list[str] | None = None) -> dict[str, Any]:
+        """`POST /api/internal/cache/revalidate` → drops the given in-process
+        cache tags (default `["sync"]` on the server when omitted):
+        `{revalidated, dropped}`.
+        """
+        body: dict[str, Any] = {}
+        if tags is not None:
+            body["tags"] = tags
+        return self._post("/api/internal/cache/revalidate", body)

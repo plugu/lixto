@@ -8,6 +8,7 @@ import {
   buildProfileEmbeddingText,
   embedQuery,
   embedText,
+  resetEmbedCache,
   toPgVector,
 } from "./embed";
 
@@ -22,6 +23,7 @@ function fakeVector(length: number): number[] {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  resetEmbedCache();
 });
 
 describe("toPgVector", () => {
@@ -185,5 +187,85 @@ describe("embedQuery", () => {
       if (before.lixto !== undefined) process.env.LIXTO_LLM_API_KEY = before.lixto;
       if (before.openai !== undefined) process.env.OPENAI_API_KEY = before.openai;
     }
+  });
+
+  describe("memoisation", () => {
+    it("embeds the same search text once, ignoring case and whitespace", async () => {
+      const create = vi
+        .fn()
+        .mockResolvedValue({ data: [{ embedding: fakeVector(EMBED_DIMS) }] });
+      const client = fakeClient(create);
+
+      const first = await embedQuery("Material  Escolar", { client });
+      const second = await embedQuery("  material escolar ", { client });
+
+      expect(create).toHaveBeenCalledTimes(1);
+      expect(second).toBe(first);
+      expect(second).toBe(toPgVector(fakeVector(EMBED_DIMS)));
+    });
+
+    it("keys the memo on the model too", async () => {
+      const create = vi
+        .fn()
+        .mockResolvedValue({ data: [{ embedding: fakeVector(EMBED_DIMS) }] });
+      const client = fakeClient(create);
+
+      await embedQuery("papel", { client, model: "model-a" });
+      await embedQuery("papel", { client, model: "model-b" });
+
+      expect(create).toHaveBeenCalledTimes(2);
+    });
+
+    it("does not cache a failed embedding", async () => {
+      vi.spyOn(console, "warn").mockImplementation(() => {});
+      const create = vi
+        .fn()
+        .mockRejectedValueOnce(new Error("429"))
+        .mockResolvedValue({ data: [{ embedding: fakeVector(EMBED_DIMS) }] });
+      const client = fakeClient(create);
+
+      expect(await embedQuery("papel", { client })).toBeNull();
+      expect(await embedQuery("papel", { client })).toBe(
+        toPgVector(fakeVector(EMBED_DIMS)),
+      );
+      expect(create).toHaveBeenCalledTimes(2);
+    });
+
+    it("evicts the oldest entry beyond LIXTO_WEB_EMBED_CACHE_SIZE", async () => {
+      const before = process.env.LIXTO_WEB_EMBED_CACHE_SIZE;
+      process.env.LIXTO_WEB_EMBED_CACHE_SIZE = "2";
+      const create = vi
+        .fn()
+        .mockResolvedValue({ data: [{ embedding: fakeVector(EMBED_DIMS) }] });
+      const client = fakeClient(create);
+
+      try {
+        await embedQuery("a", { client });
+        await embedQuery("b", { client });
+        await embedQuery("c", { client }); // evicts "a"
+        expect(create).toHaveBeenCalledTimes(3);
+
+        await embedQuery("c", { client }); // still cached
+        expect(create).toHaveBeenCalledTimes(3);
+
+        await embedQuery("a", { client }); // evicted, embeds again
+        expect(create).toHaveBeenCalledTimes(4);
+      } finally {
+        if (before === undefined) delete process.env.LIXTO_WEB_EMBED_CACHE_SIZE;
+        else process.env.LIXTO_WEB_EMBED_CACHE_SIZE = before;
+      }
+    });
+
+    it("does not memoise embedText", async () => {
+      const create = vi
+        .fn()
+        .mockResolvedValue({ data: [{ embedding: fakeVector(EMBED_DIMS) }] });
+      const client = fakeClient(create);
+
+      await embedText("papel", { client });
+      await embedText("papel", { client });
+
+      expect(create).toHaveBeenCalledTimes(2);
+    });
   });
 });
