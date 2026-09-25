@@ -8,6 +8,8 @@ ssh -o ConnectTimeout=15 plugu-prod01 \
   'docker exec -i $(docker ps --format "{{.Names}}" | grep pg-shared | head -1) psql -U shared -d postgres -X -v ON_ERROR_STOP=1' <<'SQL'
 ALTER SYSTEM SET shared_buffers = '1536MB';
 ALTER SYSTEM SET effective_cache_size = '4GB';
+-- Reload so pg_settings reports pending_restart = t for the two restart-only GUCs.
+SELECT pg_reload_conf();
 SELECT name, setting, unit, pending_restart FROM pg_settings WHERE name IN ('shared_buffers','effective_cache_size');
 SQL
 echo "Now redeploy pg-shared in Dokploy (or: docker service update --force pg-shared-nyfajl)."
