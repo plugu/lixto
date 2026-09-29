@@ -1,11 +1,10 @@
 # STATE — rewrite after every ticket completes; never append. ≤30 lines total.
 
 ## Now
-- Cycle 31 (cache + query hygiene, **mvp**): 174–181 done, approved 2 of 2, pushed as `7850d08` (autoDeploy web + cli). Prod verification pending.
+- Cycle 31 (cache + query hygiene, **mvp**): shipped `7850d08`, prod verified 2026-09-28 (sync logs `cache: revalidated sync`, GIN index scans on match/Radar FTS, load avg 0.3, shared_buffers 1536MB live).
 - Cycle 30 (case agent V1): deployed; concierge check on real GO case still pending.
 
 ## Next
-- Post-deploy success demo (manual): read-only prod EXPLAIN on match/Radar FTS predicates; one sync run logs `cache: revalidated sync`.
 - Carry-over: 167 (static shell ADR for `/`, `Vary: Cookie`); 162 review follow-ups; DMARC tighten; CNAE cleanup; Gemini billing; Radar schedules OFF; `analyze-run` OFF; restart `plugu-clientes-db-1`.
 
 ## Decisions
