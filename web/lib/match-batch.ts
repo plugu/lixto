@@ -131,7 +131,7 @@ export async function runMatchBatch(
       try {
         const rows = await fetchMatches(
           companyId,
-          { statuses: ["open", "upcoming"], enrichedSince: since },
+          { statuses: ["open", "upcoming"], signalsSince: since },
           PER_COMPANY_LIMIT,
           opts.candidateLimit ?? BATCH_CANDIDATE_LIMIT,
         );

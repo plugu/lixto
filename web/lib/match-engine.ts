@@ -9,7 +9,8 @@
 /** Version of the weights below, stamped on every persisted `matches` row
  * (ADR 001 §D5). Bump it whenever a weight or rule changes, so old scores stay
  * interpretable and a rescore can be told apart from a rerun. */
-export const MATCH_ENGINE_VERSION = "1";
+// v2: facts now sourced from ingest classification + item benefit (ticket 185).
+export const MATCH_ENGINE_VERSION = "2";
 
 export type ReasonCode =
   | "cnae_primary"

@@ -110,7 +110,7 @@ describe("runMatchBatch", () => {
 
     const [, filters, limit, candidateLimit] = mock(fetchMatches).mock.calls[0];
     expect(filters.statuses).toEqual(["open", "upcoming"]);
-    expect((filters.enrichedSince as Date).getTime()).toBe(0);
+    expect((filters.signalsSince as Date).getTime()).toBe(0);
     expect(limit).toBe(1000);
     expect(candidateLimit).toBe(500);
   });
@@ -131,7 +131,7 @@ describe("runMatchBatch", () => {
 
     expect(getLastRun).toHaveBeenCalledWith("match");
     const [, filters] = mock(fetchMatches).mock.calls[0];
-    expect(filters.enrichedSince).toBe(startedAt);
+    expect(filters.signalsSince).toBe(startedAt);
   });
 
   it("rescans from the epoch when the last run failed", async () => {
@@ -148,7 +148,7 @@ describe("runMatchBatch", () => {
     await runMatchBatch();
 
     const [, filters] = mock(fetchMatches).mock.calls[0];
-    expect((filters.enrichedSince as Date).getTime()).toBe(0);
+    expect((filters.signalsSince as Date).getTime()).toBe(0);
   });
 
   it("an explicit `since` wins over the watermark", async () => {
@@ -158,7 +158,7 @@ describe("runMatchBatch", () => {
 
     await runMatchBatch({ since });
 
-    expect(mock(fetchMatches).mock.calls[0][1].enrichedSince).toBe(since);
+    expect(mock(fetchMatches).mock.calls[0][1].signalsSince).toBe(since);
   });
 
   it("persists only rows at or above the match threshold", async () => {
@@ -182,7 +182,7 @@ describe("runMatchBatch", () => {
     // company, procurement, score, reasons, engine version
     expect(mock(insertMatch).mock.calls[0][0]).toBe(1);
     expect(mock(insertMatch).mock.calls[0][2]).toBe(40);
-    expect(mock(insertMatch).mock.calls[0][4]).toBe("1");
+    expect(mock(insertMatch).mock.calls[0][4]).toBe("2");
   });
 
   it("moves created opportunities to `matched` and leaves existing ones alone", async () => {

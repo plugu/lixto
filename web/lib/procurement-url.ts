@@ -4,7 +4,7 @@
 //
 // The URL contract is frozen and *owned* by `parseFilters`
 // (lib/procurement-queries.ts): `q`, repeated `portal` / `modality` /
-// `status` / `category` / `state`, plus `kind`, `valueMin`, `valueMax`,
+// `status` / `segment` / `state`, plus `kind`, `valueMin`, `valueMax`,
 // `compat=1`, `sort` and `page`. `buildProcurementQueryString` is its exact inverse.
 //
 // Why the read side is re-implemented here instead of importing
@@ -41,7 +41,7 @@ export function buildProcurementQueryString(
   filters.modalityIds?.forEach((id) => params.append("modality", String(id)));
   filters.statuses?.forEach((status) => params.append("status", status));
   if (filters.kind) params.set("kind", filters.kind);
-  filters.categories?.forEach((category) => params.append("category", category));
+  filters.segments?.forEach((segment) => params.append("segment", segment));
   filters.states?.forEach((state) => params.append("state", state));
   if (filters.valueMin !== undefined) {
     params.set("valueMin", String(filters.valueMin));
@@ -127,8 +127,8 @@ export function parseProcurementSearchParams(
     filters.kind = kind;
   }
 
-  const categories = nonEmptyValues(params, "category");
-  if (categories.length > 0) filters.categories = categories;
+  const segments = nonEmptyValues(params, "segment");
+  if (segments.length > 0) filters.segments = segments;
 
   const states = nonEmptyValues(params, "state")
     .map((value) => value.toUpperCase())

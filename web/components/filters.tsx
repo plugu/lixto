@@ -53,7 +53,7 @@ function countActiveFilters(filters: ProcurementFilters): number {
   return (
     (filters.statuses?.length ?? 0) +
     (filters.modalityIds?.length ?? 0) +
-    (filters.categories?.length ?? 0) +
+    (filters.segments?.length ?? 0) +
     (filters.states?.length ?? 0) +
     (filters.portals?.length ?? 0) +
     (filters.compat ? 1 : 0) +
@@ -471,11 +471,11 @@ export function Filters({ showCompat }: FiltersProps) {
                   }
                 />
                 <MultiSelect
-                  label="Categoria"
-                  options={facetCounts.category}
-                  selected={active.categories ?? []}
+                  label="Segmento"
+                  options={facetCounts.segment}
+                  selected={active.segments ?? []}
                   onChange={(next) =>
-                    setFilters({ ...active, categories: orUndefined(next) })
+                    setFilters({ ...active, segments: orUndefined(next) })
                   }
                 />
                 <MultiSelect

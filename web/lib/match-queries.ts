@@ -27,10 +27,9 @@ export type MatchFilters = {
   valueMax?: number;
   /** "Score exactly these" mode: `procurements.source_id` values. */
   sourceIds?: string[];
-  /** Batch mode (match-batch.ts): only procurements whose enrichment landed
-   * after this instant. Implies "enriched": the LEFT JOIN on
-   * `procurement_enrichments` becomes effectively an inner join for this run. */
-  enrichedSince?: Date;
+  /** Batch mode (match-batch.ts): only procurements whose enrichment or
+   * ingest classification landed after this instant. */
+  signalsSince?: Date;
 };
 
 export type MatchRow = {
@@ -177,7 +176,7 @@ export function buildCandidateQuery(
           JOIN company_codes c ON c.cnae_code = pc.cnae_code AND NOT c.is_primary
          WHERE pc.procurement_id = p.id
       )`;
-  const enrichmentTerms = `(coalesce(e.keywords, '{}'::text[]) || coalesce(e.concepts, '{}'::text[]))`;
+  const enrichmentTerms = `(coalesce(e.keywords, '{}'::text[]) || coalesce(e.concepts, '{}'::text[]) || coalesce(pcl.keywords, '{}'::text[]))`;
   const termHits = `ARRAY(
         SELECT unnest(${enrichmentTerms})
         INTERSECT
@@ -232,8 +231,9 @@ export function buildCandidateQuery(
 
   conditions.push(statusPredicate);
 
-  if (filters.enrichedSince) {
-    conditions.push(`e.enriched_at > ${bind(filters.enrichedSince)}`);
+  if (filters.signalsSince) {
+    const since = bind(filters.signalsSince);
+    conditions.push(`(e.enriched_at > ${since} OR pcl.classified_at > ${since})`);
   }
   if (filters.states && filters.states.length > 0) {
     conditions.push(`p.state = ANY(${bind(filters.states)})`);
@@ -312,7 +312,10 @@ export function buildCandidateQuery(
       e.risks,
       e.complexity,
       (e.procurement_id IS NOT NULL) AS enriched,
-      e.me_epp_exclusive,
+      coalesce(e.me_epp_exclusive, (
+        SELECT bool_and(i.benefit_type_id = 1) FROM procurement_items i
+         WHERE p.id = i.procurement_id AND i.benefit_type_id IS NOT NULL
+      )) AS me_epp_exclusive,
       e.requires_certification,
       e.requires_technical_certificate,
       ${cnaeHitsPrimary} AS cnae_hits_primary,
@@ -324,7 +327,9 @@ export function buildCandidateQuery(
     FROM procurements p
     JOIN agencies a ON a.tax_id = p.agency_tax_id
     LEFT JOIN procurement_enrichments e
-      ON e.procurement_id = p.id AND e.status = 'done'${semanticJoin}
+      ON e.procurement_id = p.id AND e.status = 'done'
+    LEFT JOIN procurement_classifications pcl
+      ON pcl.procurement_id = p.id AND pcl.status = 'done'${semanticJoin}
     WHERE ${conditions.join("\n      AND ")}
     ORDER BY p.proposal_closes_at ASC NULLS LAST
     LIMIT ${limitParam}

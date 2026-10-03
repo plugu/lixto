@@ -1,19 +1,21 @@
 # STATE — rewrite after every ticket completes; never append. ≤30 lines total.
 
 ## Now
-- Cycle 31 (cache + query hygiene, **mvp**): shipped `7850d08`, prod verified 2026-09-28 (sync logs `cache: revalidated sync`, GIN index scans on match/Radar FTS, load avg 0.3, shared_buffers 1536MB live).
-- Cycle 30 (case agent V1): deployed; concierge check on real GO case still pending.
+- Cycle 32 (classification at ingest, **mvp**): tickets 182–187 done, awaiting approval 2 of 2 + deploy.
+- Cycle 31 (cache): shipped `7850d08`, prod verified 2026-09-28.
 
 ## Next
-- Carry-over: 167 (static shell ADR for `/`, `Vary: Cookie`); 162 review follow-ups; DMARC tighten; CNAE cleanup; Gemini billing; Radar schedules OFF; `analyze-run` OFF; restart `plugu-clientes-db-1`.
+- Approval 2 of 2 (diff review), commit, push.
+- Prod rollout: `lixto db init`, `lixto cnae seed` if empty, `lixto classify embed-labels`, Dokploy `sync-incremental` command += `; lixto classify run`, one backfill `lixto classify run --limit 5000` until pending = 0, `lixto classify export --limit 100` for 100-row owner review (target ≥80% CNAE top-1, ≥90% segment).
+- Verify `/opportunities` shows `cnae_primary`/`cnae_secondary` reasons; `/procurements?segment=` filters by segment.
+- Uncommitted from this session: `lixto comprasnet scrape` (Camoufox operator tool, token-reuse untested), `claude_product_analysis.md`.
 
 ## Decisions
-- Execution: sequential, in place, on `main` (same as cycle 30).
-- Cache: in-process memo (`web/lib/cache.ts`, tags `sync`/`match`, TTL 900 s, single-flight), not Next `unstable_cache`/`"use cache"`.
-- Invalidation: `lixto sync incremental` ends with a best-effort `POST /api/internal/cache/revalidate`; never changes exit code.
-- Pool: `statement_timeout` 60 s default, `max` 10 default, both env-driven.
-- No schema change this cycle; Radar embedding preservation deferred.
-- pg-shared tuned 2026-09-25: 6 GiB / 3 CPU, shared_buffers 1536MB (step B applied + postgres-deploy).
+- Classification: cosine NN candidates (15 CNAE + 6 segment) → one CHEAP LLM choice (≤3 CNAEs, 1 segment, 1 nature, ≤10 keywords).
+- Closed 24-segment taxonomy seeded by migration 009, synced with code by test.
+- Keywords on `procurement_classifications`; dossier CNAE wins on shared code (not overwritten).
+- `MATCH_ENGINE_VERSION` = 2; `term_enrichment` reads dossier + ingest keywords; match keyed on `signalsSince`.
+- Comprasnet scraper shipped as operator-only tool, hCaptcha manual solve.
 
 ## Blockers
 - None.

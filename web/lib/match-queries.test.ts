@@ -159,15 +159,37 @@ describe("buildCandidateQuery", () => {
     );
   });
 
-  it("binds enrichedSince and requires a non-null enrichment row", () => {
+  it("binds signalsSince against enrichment or ingest classification", () => {
     const since = new Date("2026-08-01T00:00:00Z");
-    const q = buildCandidateQuery(1, { enrichedSince: since }, profile(), 200);
+    const q = buildCandidateQuery(1, { signalsSince: since }, profile(), 200);
     expect(q.text).toContain("e.enriched_at > $");
+    expect(q.text).toContain("pcl.classified_at > $");
     expect(q.values).toContainEqual(since);
     expect(q.text).not.toContain("2026-08-01");
 
     const without = buildCandidateQuery(1, {}, profile(), 200);
-    expect(without.text).not.toContain("e.enriched_at");
+    expect(without.text).not.toContain("e.enriched_at >");
+    expect(without.text).not.toContain("pcl.classified_at >");
+  });
+
+  it("joins ingest classification and reads its keywords and item ME/EPP benefit", () => {
+    const q = buildCandidateQuery(1, {}, profile(), 200);
+    expect(q.text).toContain(
+      "LEFT JOIN procurement_classifications pcl",
+    );
+    expect(q.text).toContain("pcl.status = 'done'");
+    expect(q.text).toContain("coalesce(pcl.keywords, '{}'::text[])");
+    expect(q.text).toContain("bool_and(i.benefit_type_id = 1)");
+    expect(q.text).toContain("i.benefit_type_id IS NOT NULL");
+    expect(q.text).toContain("coalesce(e.me_epp_exclusive");
+  });
+
+  it("keeps the CNAE hit arrays unfiltered by origin", () => {
+    const q = buildCandidateQuery(1, {}, profile(), 200);
+    expect(q.text).toContain(
+      "SELECT pc.cnae_code FROM procurement_cnaes pc\n          JOIN company_codes c ON c.cnae_code = pc.cnae_code AND c.is_primary",
+    );
+    expect(q.text).not.toContain("pc.origin");
   });
 
   it("binds every optional filter as a parameter", () => {

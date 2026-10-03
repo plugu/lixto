@@ -39,9 +39,9 @@ export type ProcurementFilters = {
   modalityIds?: number[];
   statuses?: ProcurementStatus[];
   kind?: ProcurementKind;
-  /** `procurement_categories.category` (from enrichment) — replaces the
-   * legacy Ollama `setor` facet. */
-  categories?: string[];
+  /** `classification_segments.code` of the ingest classification
+   * (`procurement_classifications.segment`, status 'done'). */
+  segments?: string[];
   states?: string[];
   valueMin?: number;
   valueMax?: number;
@@ -57,7 +57,7 @@ export type ProcurementFilters = {
 /** The five filter dimensions with per-option facet counts. */
 type MultiFilterKey =
   | "modalityIds"
-  | "categories"
+  | "segments"
   | "portals"
   | "statuses"
   | "states";
@@ -75,7 +75,7 @@ export type FacetOption = {
 
 export type FacetCounts = {
   modality: FacetOption[];
-  category: FacetOption[];
+  segment: FacetOption[];
   portal: FacetOption[];
   status: FacetOption[];
   state: FacetOption[];
@@ -171,8 +171,8 @@ export function parseFilters(
     filters.kind = kind;
   }
 
-  const categories = allValues(raw.category);
-  if (categories.length > 0) filters.categories = categories;
+  const segments = allValues(raw.segment);
+  if (segments.length > 0) filters.segments = segments;
 
   const states = allValues(raw.state)
     .map((v) => v.toUpperCase())
@@ -262,13 +262,13 @@ function buildFilterConditions(
   }
 
   if (
-    exclude !== "categories" &&
-    filters.categories &&
-    filters.categories.length > 0
+    exclude !== "segments" &&
+    filters.segments &&
+    filters.segments.length > 0
   ) {
-    values.push(filters.categories);
+    values.push(filters.segments);
     conditions.push(
-      `EXISTS (SELECT 1 FROM procurement_categories pc WHERE pc.procurement_id = procurements.id AND pc.category = ANY($${values.length}))`,
+      `EXISTS (SELECT 1 FROM procurement_classifications pcl WHERE pcl.procurement_id = procurements.id AND pcl.status = 'done' AND pcl.segment = ANY($${values.length}))`,
     );
   }
 
@@ -598,17 +598,18 @@ export function buildModalityFacetQuery(filters: ProcurementFilters): SqlQuery {
   };
 }
 
-export function buildCategoryFacetQuery(filters: ProcurementFilters): SqlQuery {
-  const { conditions, values } = buildFilterConditions(filters, "categories");
+export function buildSegmentFacetQuery(filters: ProcurementFilters): SqlQuery {
+  const { conditions, values } = buildFilterConditions(filters, "segments");
   const where = conditions.join(" AND ");
   return {
     text: `
-      SELECT c.category AS value, c.category AS label, count(*)::text AS count
+      SELECT s.code AS value, s.label AS label, count(*)::text AS count
       FROM procurements
-      JOIN procurement_categories c ON c.procurement_id = procurements.id
+      JOIN procurement_classifications pcl ON pcl.procurement_id = procurements.id AND pcl.status = 'done'
+      JOIN classification_segments s ON s.code = pcl.segment
       WHERE ${where}
-      GROUP BY c.category
-      ORDER BY count(*) DESC
+      GROUP BY s.code, s.label, s.sort_order
+      ORDER BY count(*) DESC, s.sort_order
     `,
     values,
   };
@@ -762,8 +763,8 @@ export async function fetchModalityOptions(): Promise<ModalityOption[]> {
  * all other active filters (own dimension's selection excluded) — standard
  * faceting. Facets never carry the per-company compat predicate, so they are
  * global per filter set and memoised under the `sync` tag, keyed on the full
- * filter set (key order irrelevant). Category counts also move when
- * `analyze-jobs` writes categories; the cache TTL bounds that staleness. */
+ * filter set (key order irrelevant). Segment counts also move when
+ * `classify run` writes classifications; the cache TTL bounds that staleness. */
 export async function fetchFacetCounts(
   filters: ProcurementFilters,
 ): Promise<FacetCounts> {
@@ -778,14 +779,14 @@ async function loadFacetCounts(
   filters: ProcurementFilters,
 ): Promise<FacetCounts> {
   const modalityQuery = buildModalityFacetQuery(filters);
-  const categoryQuery = buildCategoryFacetQuery(filters);
+  const segmentQuery = buildSegmentFacetQuery(filters);
   const portalQuery = buildPortalFacetQuery(filters);
   const statusQuery = buildStatusFacetQuery(filters);
   const stateQuery = buildStateFacetQuery(filters);
 
   const [
     modalityResult,
-    categoryResult,
+    segmentResult,
     portalResult,
     statusResult,
     stateResult,
@@ -795,8 +796,8 @@ async function loadFacetCounts(
       modalityQuery.values,
     ),
     pool.query<{ value: string; label: string; count: string }>(
-      categoryQuery.text,
-      categoryQuery.values,
+      segmentQuery.text,
+      segmentQuery.values,
     ),
     pool.query<{ value: string; label: string; count: string }>(
       portalQuery.text,
@@ -820,7 +821,7 @@ async function loadFacetCounts(
       label: row.label,
       count: Number(row.count),
     })),
-    category: categoryResult.rows.map((row) => ({
+    segment: segmentResult.rows.map((row) => ({
       value: row.value,
       label: row.label,
       count: Number(row.count),

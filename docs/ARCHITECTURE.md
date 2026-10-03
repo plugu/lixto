@@ -15,6 +15,10 @@ source_payloads (raw JSON retention for reprocessing)
   ↓
 procurement_documents → [deterministic PDF extraction]
   ↓
+[classify.run] CNAE/segment/keywords for open tenders (cosine candidates + CHEAP choice)
+  ↓
+procurement_classifications + procurement_cnaes(origin='ingest')
+  ↓
 [analyze.run] Global LLM analysis (one per open procurement: dossier + enrichment facets)
   ↓
 tender_analyses + procurement_enrichments + procurement_categories + procurement_cnaes + procurement_requirements
@@ -85,14 +89,14 @@ Production ingestion is cost-fenced to keep enrichment spend within bounds.
 |---|---|---|---|
 | `cnae_primary` | CNAE in enrichment matches company's primary CNAE | +20 | Direct industry match |
 | `cnae_secondary` | CNAE in enrichment matches any secondary CNAE | +10 | Secondary alignment |
-| `term_enrichment` | Company terms overlap with enrichment keywords/concepts | +15 | Keyword/concept hit |
+| `term_enrichment` | Company terms overlap with enrichment keywords + classification keywords | +35 | Keyword/concept hit |
 | `term_text` | Company terms found in procurement description/items (FTS) | +10 | Text search match |
 | `state_ok` | Procurement's state in company's allowed states (empty = all) | +5 | Geography match |
 | `state_out` | Procurement's state NOT in company's allowed states | -30 | Geography mismatch |
 | `value_ok` | Estimated value in company's min/max range | +5 | Budget fit |
 | `value_out` | Estimated value outside range | -30 | Budget mismatch |
 | `value_unknown` | No estimated value in procurement | -5 | Data gap |
-| `me_epp_exclusive` | Procurement reserved to ME/EPP; company qualifies (MEI/ME/EPP) | +25 | Regulatory advantage |
+| `me_epp_exclusive` | Procurement reserved to ME/EPP; company qualifies (MEI/ME/EPP) | +25 | Regulatory advantage (dossier flag or items) |
 | `me_epp_exclusive` | Procurement reserved to ME/EPP; company does NOT qualify | -40 | Disqualifying |
 | `requires_certification` | Procurement requires cert; company claims to have it (via document upload) | +10 | Qualification ready |
 | `requires_technical_certificate` | Procurement requires technical cert; company has it | +15 | Technical readiness |
@@ -406,6 +410,35 @@ One GO recommendation becomes one case: a structured habilitação verdict compu
 
 **Pool**: `web/lib/db.ts` sets `max`, `statement_timeout`, `application_name` from env. Connection string from `LIXTO_DATABASE_URL`.
 
+## Classification at ingest (Cycle 32)
+
+Every open/upcoming tender (modalities 6, 8) gets a lightweight classification right after sync, independent of analysis.
+
+### What it does
+
+- **Input**: PNCP procurement description + items
+- **Candidates**: Cosine NN on CNAE embeddings (15 nearest) + segment label embeddings (6 nearest)
+- **Choice**: One CHEAP LLM call (closed-set output: ≤3 CNAEs with confidence, 1 segment, 1 nature, ≤10 keywords)
+- **Output**: `procurement_classifications` row (schema_version "1", model, status done|error, segment + confidence, nature, keywords JSONB). Also upserts `procurement_cnaes` with `origin='ingest'` at each CNAE's confidence.
+- **Cost**: ~US$ 0.0007 per tender (keywords add ~15%); daily cap by `LIXTO_CLASSIFY_DAILY_CAP` (0/unset = unlimited). Counts in `agent_runs.counters`.
+
+### Coexistence with analysis
+
+- `procurement_cnaes.origin` now has two values: `'ingest'` (this cycle) and `'enrichment'` (from `lixto analyze run`, legacy/exclusive)
+- When analysis runs, it deletes only `origin='enrichment'` CNAE rows, never `origin='ingest'`
+- When analysis upserts shared CNAE codes, it uses `origin='enrichment'`, which wins on CNAE confidence (no override; the dossier result is treated as authoritative if present)
+- Ingest classification persists through analysis reruns (analysis re-runs don't overwrite it, only add dossier rows alongside)
+
+### Matching impact
+
+- `procurement_classifications.keywords` are merged into the match engine's `term_enrichment` reason alongside dossier keywords/concepts
+- `procurement_classifications.segment` replaces the category facet: `/procurements?segment=informatica` filters procurements with that segment
+- Match batch (`lixto match run`) is keyed on `signalsSince` = `MAX(enriched_at, classified_at)` per procurement, so new classifications trigger re-scoring
+
+### Classification taxonomy
+
+24 closed segments (Portuguese labels, fully specified in `migrations/009_classification.sql`): Informática, Saúde, Alimentação, Obras, ..., Outros. Nature: `bens|servicos|obras`. These are seeded per migration; code mirrors them in `src/lixto/classify/taxonomy.py` with a test keeping them in sync.
+
 ## Web app interaction model (Cycle 27)
 
 **Loading boundaries**: Each route (`/dashboard`, `/procurements`, `/radar`, `/opportunities`, etc.) has a per-route `loading.tsx` skeleton. No root `loading.tsx`; streams begin immediately with skeleton + fast metadata, then `Suspense` boundaries paint results on arrival. Per-page `loading.tsx` + route-level Suspense sections = instant visual feedback on every navigation.
@@ -481,6 +514,8 @@ See `docs/PNCP_API.md` for DTO field mappings.
 - `LIXTO_LLM_FALLBACK_*` — Fallback provider when primary errors (see LLM Strategy section)
 - `LIXTO_FENCE_PORTALS`, `LIXTO_FENCE_MODALITIES`, `LIXTO_FENCE_OPEN_ONLY` — Cost fence scope (see Cost Fence section)
 - `LIXTO_ENRICH_DAILY_CAP` — Daily enrichment row limit (see Cost Fence section)
+- `LIXTO_CLASSIFY_DAILY_CAP` — Daily classification row limit (0/unset = unlimited)
+- `LIXTO_CLASSIFY_MODALITIES` — Comma-separated modality IDs to classify (default 6,8)
 - `LIXTO_IBGE_CNAE_URL` — CNAE seed source
 - `LIXTO_MIN_REQUEST_INTERVAL` — Seconds between PNCP HTTP requests (default 0.5)
 - `UPLOADS_DIR` — Document storage

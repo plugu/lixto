@@ -30,6 +30,9 @@ def _conn(
     fenced_pending=0,
     email_messages_exists=True,
     email_stats=(0, 0, 0, 0, 0),
+    classifications_exist=True,
+    classified_today=(0, 0),
+    classify_pending=0,
 ):
     cur = MagicMock()
     fetchone_results = (
@@ -47,6 +50,9 @@ def _conn(
     )
     if email_messages_exists:
         fetchone_results.append(email_stats)
+    fetchone_results.append((classifications_exist,))
+    if classifications_exist:
+        fetchone_results += [classified_today, (classify_pending,)]
     cur.fetchone.side_effect = fetchone_results
     cur.fetchall.side_effect = [
         list((by_modality or {}).items()),
@@ -107,8 +113,8 @@ def test_llm_today_and_7d_queries_cover_both_analyze_run_kinds():
     executed_sql = [str(c.args[0]) for c in cur.execute.call_args_list]
     llm_today_sql = next(sql for sql in executed_sql if "llm_calls" in sql)
     llm_7d_sql = next(sql for sql in executed_sql if "interval '7 days'" in sql)
-    assert "kind IN ('analyze', 'analyze_jobs')" in llm_today_sql
-    assert "kind IN ('analyze', 'analyze_jobs')" in llm_7d_sql
+    assert "kind IN ('analyze', 'analyze_jobs', 'classify')" in llm_today_sql
+    assert "kind IN ('analyze', 'analyze_jobs', 'classify')" in llm_7d_sql
     assert "kind = 'enrich'" not in llm_today_sql
     assert "kind = 'enrich'" not in llm_7d_sql
 
@@ -207,6 +213,29 @@ def test_get_status_reports_zero_email_stats_on_a_pre_003_database():
     assert "FROM email_messages" not in executed_sql
 
 
+def test_get_status_reads_classification_counters(monkeypatch):
+    monkeypatch.setenv("LIXTO_CLASSIFY_DAILY_CAP", "500")
+    conn, _cur = _conn(classified_today=(12, 1), classify_pending=34)
+
+    report = get_status(conn)
+
+    assert report.classified_today == 12
+    assert report.classified_today_errors == 1
+    assert report.classify_pending == 34
+    assert report.classify_daily_cap == 500
+
+
+def test_get_status_reports_zero_classification_on_a_pre_009_database():
+    conn, cur = _conn(classifications_exist=False)
+
+    report = get_status(conn)
+
+    assert report.classified_today == 0
+    assert report.classify_pending == 0
+    executed_sql = " ".join(str(c.args[0]) for c in cur.execute.call_args_list)
+    assert "FROM procurement_classifications" not in executed_sql
+
+
 # --- format_status ---------------------------------------------------------
 
 
@@ -239,6 +268,10 @@ def _report(**overrides):
             "failed_24h": 2,
             "suppressed": 3,
         },
+        "classify_daily_cap": 2000,
+        "classified_today": 75,
+        "classified_today_errors": 2,
+        "classify_pending": 310,
     }
     defaults.update(overrides)
     return StatusReport(**defaults)
@@ -253,6 +286,16 @@ def test_format_status_includes_the_enrichment_block():
     assert "pending in fence: 980" in text
     assert "llm today: 130 calls, 250000 prompt + 40000 completion tokens, est US$ 0.0452" in text
     assert "llm last 7 days: est US$ 0.81" in text
+
+
+def test_format_status_includes_the_classification_block():
+    lines = format_status(_report()).splitlines()
+
+    assert lines[lines.index("classification:") + 1] == (
+        "  today: 75 classified (2 errors) / cap 2000"
+    )
+    assert "  pending: 310" in lines
+    assert lines.index("classification:") > lines.index("enrichment:")
 
 
 def test_format_status_shows_unlimited_when_cap_is_zero():

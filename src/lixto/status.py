@@ -13,6 +13,9 @@ from dataclasses import dataclass, field
 import psycopg
 
 from lixto.analyze.worker import LIXTO_ENRICH_DAILY_CAP
+from lixto.classify.schema import SCHEMA_VERSION as CLASSIFY_SCHEMA_VERSION
+from lixto.classify.worker import _daily_cap as _classify_daily_cap
+from lixto.classify.worker import _modalities as _classify_modalities
 from lixto.fence import get_fence
 
 # Every table this cycle's syncs write. Counted with one query each (all are
@@ -61,13 +64,13 @@ SELECT
     coalesce(sum((counters->>'llm_completion_tokens')::bigint), 0),
     coalesce(sum((counters->>'llm_est_usd_micros')::bigint), 0)
 FROM agent_runs
-WHERE kind IN ('analyze', 'analyze_jobs') AND started_at >= date_trunc('day', now())
+WHERE kind IN ('analyze', 'analyze_jobs', 'classify') AND started_at >= date_trunc('day', now())
 """
 
 _LLM_LAST_7D_SQL = """
 SELECT coalesce(sum((counters->>'llm_est_usd_micros')::bigint), 0)
 FROM agent_runs
-WHERE kind IN ('analyze', 'analyze_jobs') AND started_at >= now() - interval '7 days'
+WHERE kind IN ('analyze', 'analyze_jobs', 'classify') AND started_at >= now() - interval '7 days'
 """
 
 
@@ -107,6 +110,26 @@ SELECT
 FROM email_messages
 """
 
+_CLASSIFIED_TODAY_SQL = (
+    "SELECT count(*), count(*) FILTER (WHERE status='error') "
+    "FROM procurement_classifications WHERE classified_at >= date_trunc('day', now())"
+)
+
+_CLASSIFY_PENDING_SQL = """
+SELECT count(*)
+FROM procurements p
+JOIN procurement_embeddings pe ON pe.procurement_id = p.id
+WHERE p.status_id = 1
+  AND (p.proposal_closes_at >= now() OR p.proposal_opens_at > now())
+  AND p.modality_id = ANY(%(modalities)s)
+  AND NOT EXISTS (
+        SELECT 1 FROM procurement_classifications c
+        WHERE c.procurement_id = p.id
+          AND c.schema_version = %(schema_version)s
+          AND c.status = 'done'
+      )
+"""
+
 
 @dataclass
 class StatusReport:
@@ -126,6 +149,10 @@ class StatusReport:
     llm_last_7d_est_usd_micros: int = 0
     fenced_pending: int = 0
     email: dict[str, int] = field(default_factory=dict)
+    classify_daily_cap: int = 0
+    classified_today: int = 0
+    classified_today_errors: int = 0
+    classify_pending: int = 0
 
 
 def get_status(conn: psycopg.Connection) -> StatusReport:
@@ -186,6 +213,23 @@ def get_status(conn: psycopg.Connection) -> StatusReport:
         else:
             queued = sending = sent_24h = failed_24h = suppressed = 0
 
+        # Guarded like email: databases predating migration 009 report zeros.
+        cur.execute("SELECT to_regclass('procurement_classifications') IS NOT NULL")
+        (has_classifications,) = cur.fetchone()
+        if has_classifications:
+            cur.execute(_CLASSIFIED_TODAY_SQL)
+            classified_today, classified_today_errors = cur.fetchone()
+            cur.execute(
+                _CLASSIFY_PENDING_SQL,
+                {
+                    "modalities": _classify_modalities(),
+                    "schema_version": CLASSIFY_SCHEMA_VERSION,
+                },
+            )
+            (classify_pending,) = cur.fetchone()
+        else:
+            classified_today = classified_today_errors = classify_pending = 0
+
     return StatusReport(
         table_counts=table_counts,
         by_modality=by_modality,
@@ -214,6 +258,10 @@ def get_status(conn: psycopg.Connection) -> StatusReport:
             "failed_24h": failed_24h,
             "suppressed": suppressed,
         },
+        classify_daily_cap=_classify_daily_cap(),
+        classified_today=classified_today,
+        classified_today_errors=classified_today_errors,
+        classify_pending=classify_pending,
     )
 
 
@@ -256,6 +304,16 @@ def format_status(report: StatusReport) -> str:
         f"  pending in fence: {report.fenced_pending}",
         llm_today_line,
         f"  llm last 7 days: est US$ {llm_7d_usd:.2f}",
+    ]
+
+    classify_cap = "unlimited" if report.classify_daily_cap == 0 else str(report.classify_daily_cap)
+    lines += [
+        "classification:",
+        (
+            f"  today: {report.classified_today} classified "
+            f"({report.classified_today_errors} errors) / cap {classify_cap}"
+        ),
+        f"  pending: {report.classify_pending}",
     ]
 
     email = report.email

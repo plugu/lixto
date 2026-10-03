@@ -16,6 +16,8 @@ import lixto.cli.analyze as analyze_cli
 from lixto.analyze import worker
 from lixto.analyze.schema import SCHEMA_VERSION, validate_analysis
 from lixto.analyze.worker import (
+    _DELETE_CNAES_SQL,
+    _INSERT_CNAE_SQL,
     _SELECT_PENDING_SQL,
     DOCUMENT_SET_HASH_SQL,
     analyze,
@@ -440,6 +442,30 @@ def test_facet_tables_are_replaced_from_the_dossier(patched):
     assert _params_for(persist_cur, "INSERT INTO procurement_cnaes") == [
         {"procurement_id": 7, "cnae_code": "4761003", "confidence": 0.8}
     ]
+
+
+def test_delete_cnaes_sql_scopes_to_enrichment_origin():
+    """Ingest CNAEs (from `lixto classify run`) are never deleted by analysis."""
+    assert "AND origin = 'enrichment'" in _DELETE_CNAES_SQL
+
+
+def test_insert_cnae_sql_upserts_shared_codes():
+    """If a CNAE code exists (from ingest), upgrade its confidence and origin."""
+    assert "ON CONFLICT (procurement_id, cnae_code) DO UPDATE" in _INSERT_CNAE_SQL
+    assert "confidence = EXCLUDED.confidence" in _INSERT_CNAE_SQL
+    assert "origin = 'enrichment'" in _INSERT_CNAE_SQL
+
+
+def test_analysis_executes_scoped_delete_of_enrichment_cnaes(patched):
+    """A done analysis deletes only enrichment-origin CNAEs, leaving ingest rows."""
+    patched.docs = [_doc(method="pypdf")]
+    conn, persist_cur = _conn([])
+
+    analyze_one(conn, _row(7), llm=_llm(), http_client=MagicMock())
+
+    executed = [c.args[0] for c in persist_cur.execute.call_args_list]
+    delete_cnae_sql = next(sql for sql in executed if "DELETE FROM procurement_cnaes" in sql)
+    assert "AND origin = 'enrichment'" in delete_cnae_sql
 
 
 def test_enrichment_and_dossier_land_in_one_commit(patched):

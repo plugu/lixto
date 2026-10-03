@@ -4,13 +4,11 @@ from __future__ import annotations
 
 from datetime import date
 
-import httpx
 import typer
 
 from lixto import db
-from lixto.internal_api import InternalApi, InternalApiError
+from lixto.internal_api import revalidate_web_cache_best_effort
 from lixto.runs import run
-from lixto.settings import get_internal_token, get_web_internal_url
 from lixto.sync.details import sync_details
 from lixto.sync.incremental import DEFAULT_MAX_DETAILS
 from lixto.sync.incremental import sync_incremental as run_sync_incremental
@@ -35,21 +33,6 @@ _LIMIT_OPTION = typer.Option(
     "--limit",
     help="Max procurements to process; default no limit.",
 )
-
-
-def _revalidate_web_cache() -> None:
-    """Ask the web app to drop its `sync` cache tag after a sync run.
-
-    Called unconditionally (also when modalities failed) — the exit code is
-    decided only by `modalities_failed`, never by this call.
-    """
-    try:
-        with InternalApi(get_web_internal_url(), get_internal_token()) as client:
-            client.cache_revalidate()
-    except (InternalApiError, httpx.HTTPError, RuntimeError) as exc:
-        typer.echo(f"warning: cache revalidate failed: {exc}", err=True)
-        return
-    typer.echo("cache: revalidated sync")
 
 
 @app.command("incremental")
@@ -80,7 +63,7 @@ def incremental_cmd(
         f"details: {result['details_processed']} processed"
     )
 
-    _revalidate_web_cache()
+    revalidate_web_cache_best_effort()
 
     if result["modalities_failed"]:
         typer.echo(

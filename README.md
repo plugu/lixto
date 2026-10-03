@@ -111,6 +111,8 @@ Opens at `http://localhost:3000`. Routes:
 | `LIXTO_FENCE_MODALITIES` | Comma-separated modality IDs (cost fence) | `6,8` |
 | `LIXTO_FENCE_OPEN_ONLY` | Restrict to open/upcoming procurements (cost fence) | `1` |
 | `LIXTO_ENRICH_DAILY_CAP` | Max analyses/day (cron); 0 or unset = unlimited | `1500` |
+| `LIXTO_CLASSIFY_DAILY_CAP` | Max classifications/day (cron); 0 or unset = unlimited | `0` |
+| `LIXTO_CLASSIFY_MODALITIES` | Comma-separated modality IDs to classify (ingest only) | `6,8` |
 | `LIXTO_ANALYZE_MAX_BYTES` | Combined byte cap for a procurement's active PDFs | `60` (MB) |
 | `LIXTO_ANALYZE_MAX_CHARS` | Character cap for LLM prompt | `400000` |
 | `LIXTO_IBGE_CNAE_URL` | CNAE seed source | `https://concla.ibge.gov.br/export/tabelas/ascii/subclasses.txt` |
@@ -175,6 +177,14 @@ Opens at `http://localhost:3000`. Routes:
 ### Web Cache Invalidation
 - `lixto cache revalidate [--tag sync --tag match]` — Manually trigger cache invalidation on the web app by tag (sync or match; default all). Called automatically at the end of `lixto sync incremental`.
 
+### Classification (Cycle 32)
+- `lixto classify embed-labels [--force]` — Embed segment labels (24 closed set) and CNAE codes (once, cached per model); `--force` re-embeds. Run once per model change.
+- `lixto classify run [--limit N] [--retry-errors]` — Classify open/upcoming tenders (modalities 6, 8 by default; see `LIXTO_CLASSIFY_MODALITIES`): infer probable CNAE subclasses via cosine candidates, one segment, nature (`bens|servicos|obras`), ≤10 keywords. One `CHEAP` LLM call per tender; capped by `LIXTO_CLASSIFY_DAILY_CAP`. Output: `procurement_classifications` row + upsert `procurement_cnaes (origin='ingest')`. Ends with a best-effort cache revalidate. Run `--retry-errors` to reprocess failures (no cap).
+- `lixto classify export [--limit 100] [--out scrape-out/classify-sample.csv]` — Export a sample of classified procurements (CNAE, segment, nature, keywords, model, confidence) for manual review (≥80% top-1 CNAE, ≥90% segment success rate).
+
+### Compras.gov.br scraper (operator-only, hCaptcha)
+- `lixto comprasnet scrape <compra_id|url> [--engine camoufox|chromium] [--out DIR] [--profile DIR] [--timeout SEC] [--passive]` — Open the public *acompanhamento* page of a Compras.gov.br tender in a headed Chromium, wait for **you** to solve the hCaptcha, then save bid history (lances), proposals, item details and session chat as JSON under `scrape-out/comprasnet/<compra_id>/raw/`. Compra id = UASG(6)+`05`+number(5)+year(4), e.g. `98233305900382026`. Default engine is Camoufox (anti-fingerprint Firefox; you still solve the captcha). Needs `uv sync --extra scrape && python -m camoufox fetch` (or `playwright install chromium` for `--engine chromium`). Never scheduled: PNCP has no bid history and the SPA's public API is captcha-gated; the legacy `comprasnet.gov.br/livre/pregao/ata*.asp` pages only cover pre-Lei 14.133 tenders.
+
 ### Users & access
 - `lixto users grant-superadmin <email>` — Grant superadmin access to a user (for company approval workflow). Normalizes email to lowercase.
 - `lixto users revoke-superadmin <email>` — Revoke superadmin access from a user.
@@ -202,7 +212,7 @@ State as of 2026-09-08 (read from Dokploy; "LLM $" marks jobs that spend provide
 
 | Schedule | Cron | Command | LLM $ | Status |
 |---|---|---|---|---|
-| sync-incremental | `0 6,13,20 * * *` | `lixto sync incremental --max-details 2000; lixto enrich embed` (`;`, not `&&`: sync exits non-zero when any modality fails, and the embed must still run) — ends with a `cache/revalidate` call to lixto-web | **yes** (embeddings) | Enabled |
+| sync-incremental | `0 6,13,20 * * *` | `lixto sync incremental --max-details 2000; lixto enrich embed; lixto classify run` (`;`, not `&&`: sync exits non-zero when any modality fails, and the embed must still run) — ends with a `cache/revalidate` call to lixto-web | **yes** (embeddings) | Enabled |
 | results-sync | `0 3 * * *` | `lixto results sync --limit 2000` | no | Enabled (case outcomes; demand queue only) |
 | plans-sync | `0 4 * * *` | `lixto plans sync` | no | Disabled — see Radar go-live |
 | plans-embed | `20 4 * * *` | `lixto plans embed --limit 2000` | **yes** (embeddings) | Disabled — see Radar go-live |
@@ -410,6 +420,9 @@ Adjust `LIXTO_MIN_REQUEST_INTERVAL` (PNCP, not LLM) and set `LIXTO_LLM_MODEL_FAL
 ```bash
 lixto analyze run --limit 10 --retry-errors  # Reprocess failures
 ```
+
+### No matches for a company with CNAEs?
+Check `lixto status` for a `classification:` block showing pending classifications. New tenders may still be queued for ingest-time classification; `lixto classify run` without a cap runs to completion.
 
 ## Architecture
 

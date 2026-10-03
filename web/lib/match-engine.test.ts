@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  MATCH_ENGINE_VERSION,
   scoreCandidate,
   type CandidateFacts,
   type ProfileSummary,
@@ -379,5 +380,11 @@ describe("scoreCandidate — clamping", () => {
     expect(out.score).toBe(0);
     expect(weight(out.reasons, "me_epp_exclusive")).toBe(-40);
     expect(weight(out.reasons, "exclusion")).toBe(-50);
+  });
+});
+
+describe("MATCH_ENGINE_VERSION", () => {
+  it("is 2 (facts from ingest classification + item benefit)", () => {
+    expect(MATCH_ENGINE_VERSION).toBe("2");
   });
 });

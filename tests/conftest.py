@@ -95,7 +95,7 @@ def db_conn(migrated_database_url: str) -> Iterator[psycopg.Connection]:
                 SELECT string_agg(format('%I.%I', schemaname, tablename), ', ')
                 FROM pg_tables
                 WHERE schemaname = 'public'
-                  AND tablename NOT IN ('sources', 'schema_migrations', 'cnae_codes')
+                  AND tablename NOT IN ('sources', 'schema_migrations', 'cnae_codes', 'classification_segments')
                 """
             )
             tables = cur.fetchone()[0]

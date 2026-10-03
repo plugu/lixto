@@ -119,11 +119,12 @@ Participation requirements (certifications, documents, qualifications).
 - **Purpose**: Qualification filtering (company has/lacks required certs).
 
 ### `procurement_cnaes`
-Industry classifications for procurements (from enrichment).
+Industry classifications for procurements (from enrichment or ingest classification).
 - **Key**: `(procurement_id, cnae_code)` compound
-- **Notable columns**: `cnae_code` (CHAR(7)), `confidence` (REAL), `origin` (enrichment only)
+- **Notable columns**: `cnae_code` (CHAR(7)), `confidence` (REAL), `origin` (enrichment | ingest)
 - **Notable indexes**: `cnae_code`
 - **Purpose**: CNAE-based matching (company CNAEs vs procurement CNAEs). Not FK-enforced; enrichment may emit unknown codes.
+- **Origin precedence**: `enrichment` (from dossier analysis) rows are authoritative and never overwritten by `ingest` (classification); analysis deletes only `origin='enrichment'` rows on re-run.
 
 ### `procurement_embeddings`
 pgvector embeddings for semantic search.
@@ -131,6 +132,29 @@ pgvector embeddings for semantic search.
 - **Notable columns**: `model`, `embedding` (vector(1536)), `embedded_at`
 - **Notable indexes**: HNSW cosine index on `embedding`
 - **Purpose**: Semantic matching (company profile vector vs procurement vector).
+
+## Classification (Cycle 32)
+
+### `classification_segments`
+Closed taxonomy of 24 procurement segments.
+- **Key**: `code` (TEXT, e.g., 'informatica') PK
+- **Notable columns**: `label` (Portuguese), `description`, `sort_order`, `embedding` (vector(1536), per model), `embedding_model`, `embedded_at`
+- **Notable indexes**: PK only
+- **Purpose**: Reference data for ingest classification. Seeded by migration 009; synced with `src/lixto/classify/taxonomy.py` by test.
+
+### `cnae_code_embeddings`
+Embeddings for all CNAE subclasses (vectors for cosine NN candidate retrieval).
+- **Key**: `cnae_code` (CHAR(7)) PK, FK to `cnae_codes`
+- **Notable columns**: `model` (embedding model name), `embedding` (vector(1536)), `embedded_at`
+- **Notable indexes**: PK only
+- **Purpose**: Cosine nearest-neighbor retrieval of CNAE candidates during classification.
+
+### `procurement_classifications`
+Ingest-time classification (one per open/upcoming procurement).
+- **Key**: `procurement_id` (BIGINT) PK, FK to `procurements`
+- **Notable columns**: `schema_version` (TEXT, "1"), `model` (CHEAP LLM model name), `status` (done|error), `error` (null if done), `segment` (TEXT FK to classification_segments), `segment_confidence` (REAL), `segment_source` (llm|cosine), `nature` (bens|servicos|obras), `keywords` (TEXT[] of 0–10 terms), `data` (JSONB full LLM output), `classified_at`, `created_at`, `updated_at`
+- **Notable indexes**: `segment` (filter by segment facet), `status` (done|error), `keywords` GIN (match engine term search), `classified_at DESC` (order by recency)
+- **Purpose**: Global classification of open tenders (no dossier required). Keywords merged into match `term_enrichment` reason. `segment` replaces the old category facet.
 
 ## Tender Analysis (Deep Dossier, Cycle 25)
 

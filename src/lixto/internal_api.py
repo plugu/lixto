@@ -29,9 +29,13 @@ Contract:
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any, Self
 
 import httpx
+import typer
+
+from lixto.settings import get_internal_token, get_web_internal_url
 
 DEFAULT_TIMEOUT_SECONDS = 600.0
 
@@ -160,3 +164,19 @@ class InternalApi:
         if tags is not None:
             body["tags"] = tags
         return self._post("/api/internal/cache/revalidate", body)
+
+
+def revalidate_web_cache_best_effort(*, echo: Callable[..., Any] = typer.echo) -> None:
+    """Ask the web app to drop its `sync` cache tag after a run that changed
+    data the web reads (sync, classify).
+
+    Best effort: any failure prints a warning and returns, so the caller's
+    exit code is never decided by this call.
+    """
+    try:
+        with InternalApi(get_web_internal_url(), get_internal_token()) as client:
+            client.cache_revalidate()
+    except (InternalApiError, httpx.HTTPError, RuntimeError) as exc:
+        echo(f"warning: cache revalidate failed: {exc}", err=True)
+        return
+    echo("cache: revalidated sync")

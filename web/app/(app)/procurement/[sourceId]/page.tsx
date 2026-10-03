@@ -3,15 +3,20 @@ import { after } from "next/server";
 import { AnalysisPanel } from "@/components/analysis-panel";
 import { AnalyzeButton } from "@/components/analyze-button";
 import { DocumentsList } from "@/components/documents-list";
+import { ClassificationCard } from "@/components/procurement/classification-card";
 import { ItemsTable } from "@/components/items-table";
 import { ListBackLink } from "@/components/list-back-link";
 import { StatusBadge } from "@/components/status-badge";
 import { Card, CollapsibleCard } from "@/components/ui/card";
 import { fetchAnalysis, getAnalysisState } from "@/lib/analysis-queries";
 import { requireSession } from "@/lib/auth";
+import { fetchClassification } from "@/lib/classification-queries";
 import { fetchEnrichment } from "@/lib/enrichment-queries";
 import { formatCurrencyBRL, formatDateBR } from "@/lib/format";
-import { enqueueMissingResults, fetchPriceBenchmark } from "@/lib/price-queries";
+import {
+  enqueueMissingResults,
+  fetchPriceBenchmark,
+} from "@/lib/price-queries";
 import {
   fetchDocuments,
   fetchItems,
@@ -44,11 +49,19 @@ export default async function ProcurementDetailPage(
 
   if (!detail) notFound();
 
-  const [items, documents, enrichment, prices, analysisState, analysis] =
-    await Promise.all([
+  const [
+    items,
+    documents,
+    enrichment,
+    classification,
+    prices,
+    analysisState,
+    analysis,
+  ] = await Promise.all([
       fetchItems(detail.id),
       fetchDocuments(detail.id),
       fetchEnrichment(detail.id),
+      fetchClassification(detail.id),
       fetchPriceBenchmark(detail.id),
       getAnalysisState(detail.id, session.user.companyId),
       fetchAnalysis(detail.id),
@@ -156,7 +169,8 @@ export default async function ProcurementDetailPage(
         // The dossier is the page's content: it renders full width above
         // "Itens", never in the sidebar. The 22rem sidebar only exists to
         // point at the shallow enrichment while there is no dossier yet.
-        const showSidebar = analysis === null && enrichment !== null;
+        const showSummaryNote = analysis === null && enrichment !== null;
+        const showSidebar = showSummaryNote || classification !== null;
 
         return (
           <div
@@ -185,13 +199,16 @@ export default async function ProcurementDetailPage(
             </div>
 
             {showSidebar && (
-              <div className="min-w-0 lg:sticky lg:top-8 lg:self-start">
-                <Card>
-                  <p className="text-sm text-ink">
-                    Análise resumida disponível — clique em Analisar com IA
-                    para o dossiê completo
-                  </p>
-                </Card>
+              <div className="flex min-w-0 flex-col gap-6 lg:sticky lg:top-8 lg:self-start">
+                {showSummaryNote && (
+                  <Card>
+                    <p className="text-sm text-ink">
+                      Análise resumida disponível — clique em Analisar com IA
+                      para o dossiê completo
+                    </p>
+                  </Card>
+                )}
+                <ClassificationCard classification={classification} />
               </div>
             )}
           </div>

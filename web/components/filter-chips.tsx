@@ -2,6 +2,7 @@
 
 import { applyCompatGate } from "@/components/filters";
 import { Badge } from "@/components/ui/badge";
+import { useFacetToolbar } from "@/components/procurements/facet-toolbar";
 import { X } from "@/components/ui/icons";
 import type {
   ModalityOption,
@@ -41,6 +42,7 @@ export function FilterChips({
   showCompat?: boolean;
 }) {
   const { filters, pending, setFilters } = useProcurementFilters();
+  const segmentOptions = useFacetToolbar()?.facetCounts.segment ?? [];
   const active = applyCompatGate(filters, showCompat);
   const chips: Chip[] = [];
 
@@ -62,14 +64,16 @@ export function FilterChips({
     });
   });
 
-  active.categories?.forEach((category) => {
+  active.segments?.forEach((segment) => {
     chips.push({
-      key: `category-${category}`,
-      label: category,
+      key: `segment-${segment}`,
+      label:
+        segmentOptions.find((option) => option.value === segment)
+          ?.label ?? segment,
       remove: {
         ...active,
-        categories: orUndefined(
-          (active.categories ?? []).filter((v) => v !== category),
+        segments: orUndefined(
+          (active.segments ?? []).filter((v) => v !== segment),
         ),
       },
     });

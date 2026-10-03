@@ -13,6 +13,7 @@ import httpx
 from typer.testing import CliRunner
 
 import lixto.cli.sync as sync_module
+import lixto.internal_api as internal_api_module
 from lixto.cli import app
 
 runner = CliRunner()
@@ -68,7 +69,7 @@ def test_success_calls_cache_revalidate_once_and_exits_0(monkeypatch):
         sync_module, "run_sync_incremental", lambda conn, **kwargs: _success_result()
     )
     stub, calls = _make_internal_api_stub()
-    monkeypatch.setattr(sync_module, "InternalApi", stub)
+    monkeypatch.setattr(internal_api_module, "InternalApi", stub)
 
     result = runner.invoke(app, ["sync", "incremental"])
 
@@ -86,7 +87,7 @@ def test_modalities_failed_still_calls_cache_revalidate_and_exits_1(monkeypatch)
         lambda conn, **kwargs: _success_result(modalities_failed=[8]),
     )
     stub, calls = _make_internal_api_stub()
-    monkeypatch.setattr(sync_module, "InternalApi", stub)
+    monkeypatch.setattr(internal_api_module, "InternalApi", stub)
 
     result = runner.invoke(app, ["sync", "incremental"])
 
@@ -102,7 +103,7 @@ def test_revalidate_failure_warns_but_does_not_change_exit_code(monkeypatch):
         sync_module, "run_sync_incremental", lambda conn, **kwargs: _success_result()
     )
     stub, calls = _make_internal_api_stub(exc=RuntimeError("LIXTO_INTERNAL_TOKEN is not set"))
-    monkeypatch.setattr(sync_module, "InternalApi", stub)
+    monkeypatch.setattr(internal_api_module, "InternalApi", stub)
 
     result = runner.invoke(app, ["sync", "incremental"])
 
@@ -121,7 +122,7 @@ def test_revalidate_http_error_warns_but_does_not_change_exit_code(monkeypatch):
         lambda conn, **kwargs: _success_result(modalities_failed=[8]),
     )
     stub, calls = _make_internal_api_stub(exc=httpx.ConnectError("connection refused"))
-    monkeypatch.setattr(sync_module, "InternalApi", stub)
+    monkeypatch.setattr(internal_api_module, "InternalApi", stub)
 
     result = runner.invoke(app, ["sync", "incremental"])
 

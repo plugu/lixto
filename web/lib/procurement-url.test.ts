@@ -15,7 +15,7 @@ const FULL_FIXTURE: ProcurementFilters = {
   modalityIds: [6, 8],
   statuses: ["open", "upcoming"],
   kind: "service",
-  categories: ["Alimentação", "Serviços gerais"],
+  segments: ["informatica", "saude"],
   states: ["SP", "RJ"],
   valueMin: 1000,
   valueMax: 250000,
@@ -43,10 +43,7 @@ describe("buildProcurementQueryString", () => {
       "Compras.gov.br",
       "IPM Sistemas",
     ]);
-    expect(params.getAll("category")).toEqual([
-      "Alimentação",
-      "Serviços gerais",
-    ]);
+    expect(params.getAll("segment")).toEqual(["informatica", "saude"]);
     expect(qs).not.toContain(",");
   });
 

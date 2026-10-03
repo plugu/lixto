@@ -158,11 +158,17 @@ INSERT INTO procurement_requirements (procurement_id, sequence, kind, descriptio
 VALUES (%(procurement_id)s, %(sequence)s, %(kind)s, %(description)s)
 """
 
-_DELETE_CNAES_SQL = "DELETE FROM procurement_cnaes WHERE procurement_id = %(id)s"
+# Ingest CNAEs (origin='ingest', from `lixto classify run`) are owned by the
+# classifier and never deleted by deep analysis. The dossier's CNAEs (origin=
+# 'enrichment') are replaced: a shared code gets confidence upgraded, and new
+# codes are added; ingest rows with the same code are left in place.
+_DELETE_CNAES_SQL = (
+    "DELETE FROM procurement_cnaes WHERE procurement_id = %(id)s AND origin = 'enrichment'"
+)
 _INSERT_CNAE_SQL = """
 INSERT INTO procurement_cnaes (procurement_id, cnae_code, confidence, origin)
 VALUES (%(procurement_id)s, %(cnae_code)s, %(confidence)s, 'enrichment')
-ON CONFLICT DO NOTHING
+ON CONFLICT (procurement_id, cnae_code) DO UPDATE SET confidence = EXCLUDED.confidence, origin = 'enrichment'
 """
 
 _UPSERT_EMBEDDING_SQL = """

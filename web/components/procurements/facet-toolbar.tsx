@@ -22,7 +22,7 @@ export type FacetToolbarSnapshot = {
 
 export const EMPTY_FACET_COUNTS: FacetCounts = {
   modality: [],
-  category: [],
+  segment: [],
   portal: [],
   status: [],
   state: [],

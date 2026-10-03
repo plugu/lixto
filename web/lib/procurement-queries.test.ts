@@ -9,7 +9,7 @@ import { invalidateTags, resetCache } from "./cache";
 import { pool } from "./db";
 import { ACTIVE_PORTALS } from "./portals";
 import {
-  buildCategoryFacetQuery,
+  buildSegmentFacetQuery,
   buildCountQuery,
   buildListQuery,
   buildModalityFacetQuery,
@@ -110,16 +110,16 @@ describe("parseFilters", () => {
     });
   });
 
-  describe("categories", () => {
-    it("parses a single category as a one-element array", () => {
-      expect(parseFilters({ category: "saude" })).toEqual({
-        categories: ["saude"],
+  describe("segments", () => {
+    it("parses a single segment as a one-element array", () => {
+      expect(parseFilters({ segment: "saude" })).toEqual({
+        segments: ["saude"],
       });
     });
 
-    it("parses repeated category params as an array", () => {
-      expect(parseFilters({ category: ["saude", "educacao"] })).toEqual({
-        categories: ["saude", "educacao"],
+    it("parses repeated segment params as an array", () => {
+      expect(parseFilters({ segment: ["saude", "educacao"] })).toEqual({
+        segments: ["saude", "educacao"],
       });
     });
   });
@@ -214,7 +214,7 @@ describe("parseFilters", () => {
         portal: ["BLL Compras", "IPM Sistemas"],
         modality: ["6", "8"],
         status: "open",
-        category: "saude",
+        segment: "saude",
         state: ["SP", "MG"],
         kind: "product",
         valueMin: "1000",
@@ -226,7 +226,7 @@ describe("parseFilters", () => {
       portals: ["BLL Compras", "IPM Sistemas"],
       modalityIds: [6, 8],
       statuses: ["open"],
-      categories: ["saude"],
+      segments: ["saude"],
       states: ["SP", "MG"],
       kind: "product",
       valueMin: 1000,
@@ -293,10 +293,10 @@ describe("buildWhereClause", () => {
     );
   });
 
-  it("builds the categories predicate as an EXISTS against procurement_categories", () => {
-    const { where, values } = buildWhereClause({ categories: ["saude"] });
+  it("builds the segments predicate as an EXISTS against procurement_classifications", () => {
+    const { where, values } = buildWhereClause({ segments: ["saude"] });
     expect(where).toBe(
-      "WHERE origin_system = ANY($1) AND EXISTS (SELECT 1 FROM procurement_categories pc WHERE pc.procurement_id = procurements.id AND pc.category = ANY($2))",
+      "WHERE origin_system = ANY($1) AND EXISTS (SELECT 1 FROM procurement_classifications pcl WHERE pcl.procurement_id = procurements.id AND pcl.status = 'done' AND pcl.segment = ANY($2))",
     );
     expect(values).toEqual([ACTIVE_PORTALS, ["saude"]]);
   });
@@ -371,7 +371,7 @@ describe("buildWhereClause", () => {
       portals: ["BLL Compras"],
       modalityIds: [6],
       statuses: ["open"],
-      categories: ["saude"],
+      segments: ["saude"],
       states: ["SP"],
       valueMin: 1000,
       valueMax: 9000,
@@ -392,7 +392,7 @@ describe("buildWhereClause", () => {
     expect(where).toContain(
       "(proposal_opens_at <= now() AND now() < proposal_closes_at)",
     );
-    expect(where).toContain("pc.category = ANY($5)");
+    expect(where).toContain("pcl.segment = ANY($5)");
     expect(where).toContain("state = ANY($6)");
     expect(where).toContain("estimated_value >= $7");
     expect(where).toContain("estimated_value <= $8");
@@ -723,14 +723,20 @@ describe("facet-count query builders", () => {
     expect(values).toEqual([ACTIVE_PORTALS, ["SP"]]);
   });
 
-  it("category facet excludes categories but keeps other active filters", () => {
-    const { text, values } = buildCategoryFacetQuery({
-      categories: ["saude"],
+  it("list query no longer references the legacy category table", () => {
+    const { text } = buildListQuery({ segments: ["saude"] }, 1, 20);
+    expect(text).not.toContain("procurement_" + "categories");
+    expect(text).toContain("procurement_classifications");
+  });
+
+  it("segment facet excludes segments but keeps other active filters", () => {
+    const { text, values } = buildSegmentFacetQuery({
+      segments: ["saude"],
       states: ["SP"],
     });
-    expect(text).not.toContain("pc.category = ANY");
+    expect(text).not.toContain("pcl.segment = ANY");
     expect(text).toContain("state = ANY($2)");
-    expect(text).toContain("GROUP BY c.category");
+    expect(text).toContain("GROUP BY s.code, s.label, s.sort_order");
     expect(values).toEqual([ACTIVE_PORTALS, ["SP"]]);
   });
 
