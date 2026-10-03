@@ -347,3 +347,7 @@ Fetch contract modifications (additions, readjustments, extensions).
 | 13 | Leilão presencial |
 
 Lixto syncs all 13 modalities incrementally.
+
+## Bid history (lances) and losing proposals — not on PNCP
+
+PNCP publishes only the homologated result per item (§4). Bid-by-bid history, all proposals and the session chat stay in the originating portal. Measured 2026-10-02 on 80 closed pregões/dispensas (live `/arquivos` calls): 7/80 (~9%) had a session ata uploaded as `tipoDocumentoId=16` "Outros Documentos" (BLL, Portal de Compras Públicas zips, Megasoft, SH3, Licitar Digital, SISLOG proposals); Compras.gov.br 0/23. Compras.gov.br tenders need the browser scraper (`lixto comprasnet scrape`, see README) because the public SPA API requires an hCaptcha token per session.

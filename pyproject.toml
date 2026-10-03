@@ -13,6 +13,12 @@ dependencies = [
     "pillow>=12.3.0",
 ]
 
+[project.optional-dependencies]
+scrape = [
+    "playwright>=1.50",
+    "camoufox[geoip]>=0.4",
+]
+
 [project.scripts]
 lixto = "lixto.cli:main"
 

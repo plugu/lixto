@@ -19,3 +19,4 @@ infra/terraform/*.tfstate*
 infra/terraform/.terraform/
 *.tfvars
 *.tfplan
+scrape-out/
