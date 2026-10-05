@@ -1,14 +1,16 @@
 # STATE — rewrite after every ticket completes; never append. ≤30 lines total.
 
 ## Now
-- Cycle 32 (classification at ingest, **mvp**): tickets 182–187 done, awaiting approval 2 of 2 + deploy.
+- Cycle 32 (classification at ingest, **mvp**): approved, `31a17b1` + `1f23184` deployed 2026-10-04 (web + cli). Prod rollout 2026-10-05: migration 009 (applied by the cli container's boot `db init`), `cnae seed` 1332, `classify embed-labels` 1332+24 OK, `sync-incremental` now ends with `; lixto classify run`, `classify-backfill` (5000/run, ~1.3 s each) started 15:55 UTC.
 - Cycle 31 (cache): shipped `7850d08`, prod verified 2026-09-28.
 
 ## Next
-- Approval 2 of 2 (diff review), commit, push.
-- Prod rollout: `lixto db init`, `lixto cnae seed` if empty, `lixto classify embed-labels`, Dokploy `sync-incremental` command += `; lixto classify run`, one backfill `lixto classify run --limit 5000` until pending = 0, `lixto classify export --limit 100` for 100-row owner review (target ≥80% CNAE top-1, ≥90% segment).
-- Verify `/opportunities` shows `cnae_primary`/`cnae_secondary` reasons; `/procurements?segment=` filters by segment.
-- Uncommitted from this session: `lixto comprasnet scrape` (Camoufox operator tool, token-reuse untested), `claude_product_analysis.md`.
+- Backfill: read the `classify-backfill` schedule log in Dokploy; re-run until `lixto status` shows `pending: 0` (each run ≤5000, ~1h50).
+- Owner review: `lixto classify export --limit 100` in the cli container + `docker cp`; targets ≥80% CNAE top-1, ≥90% segment.
+- Verify `/opportunities` shows `cnae_primary`/`cnae_secondary` after the next `match-run` (08/15/22 BRT); `/procurements?segment=informatica` filters.
+- Dokploy also changed 2026-10-05: `cases-run` CREATED (`45 8,20 * * *`, enabled; first real run of the case agent), `results-sync` ENABLED. Watch `lixto status` email/cases blocks and LLM spend.
+- Uncommitted: `claude_product_analysis.md`. Scraper token-reuse branch still untested.
+- Carry-over: 167 (static shell ADR, `Vary: Cookie`); 162 follow-ups; DMARC; Gemini billing; Radar schedules OFF; `analyze-run` OFF; restart `plugu-clientes-db-1`.
 
 ## Decisions
 - Classification: cosine NN candidates (15 CNAE + 6 segment) → one CHEAP LLM choice (≤3 CNAEs, 1 segment, 1 nature, ≤10 keywords).
