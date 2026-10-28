@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Lixto — interview architecture</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#edf2f8;color:#172b4d;font:16px system-ui,sans-serif}header{display:flex;align-items:center;gap:12px;padding:14px 24px;background:white;border-bottom:1px solid #d6dfeb;flex-wrap:wrap}strong{margin-right:auto}a{color:#254f98}button,select{padding:9px 12px;border:1px solid #b9c8dc;border-radius:7px;background:white;color:inherit;font:inherit;cursor:pointer}button:disabled{opacity:.4;cursor:default}button:focus-visible,select:focus-visible,a:focus-visible{outline:3px solid #4677d5;outline-offset:3px}main{max-width:1600px;margin:auto;padding:16px}.slide{display:none}.slide.active{display:block}.slide svg{display:block;width:100%;height:auto;max-height:calc(100vh - 160px)}.note{max-width:1200px;margin:12px auto;padding:16px 20px;border-radius:10px;background:#fff;line-height:1.55}footer{padding:0 24px 14px;text-align:center;color:#52657d;font-size:14px}body:fullscreen{overflow:auto}body:fullscreen header{display:none}body:fullscreen .slide svg{max-height:calc(100vh - 60px)}@media print{@page{size:landscape;margin:5mm}header,footer,.note{display:none!important}main{padding:0;max-width:none}.slide{display:block!important;break-after:page}.slide:last-child{break-after:auto}.slide svg{height:95vh;max-height:95vh;width:100%}body{background:white}}
+</style>
+<header><strong>Lixto / Interview architecture</strong><select id="jump" aria-label="Choose architecture slide">
+<option value="0">Current · System overview</option>
+<option value="1">Current · Hybrid retrieval</option>
+<option value="2">Current · Evidence and decisions</option>
+<option value="3">AWS proposal · Deployment</option>
+<option value="4">AWS proposal · Migration</option>
+</select><button id="prev" aria-label="Previous slide">←</button><button id="next" aria-label="Next slide">→</button><button id="notes" aria-pressed="false">Speaker notes</button><button id="full">Fullscreen</button><a href="lixto-current.excalidraw" download>Current .excalidraw</a><a href="lixto-aws.excalidraw" download>AWS .excalidraw</a></header><main>
+<section class="slide" aria-label="Current · System overview"><svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000">
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10" fill="none" stroke="#172b4d" stroke-width="1.5"/></marker></defs>
+<rect x="0" y="0" width="1600" height="1000" rx="12" fill="#fbfcfe" stroke="#d6dfeb" stroke-width="1.5"/>
+<text x="55" y="73.0" font-family="Arial, Helvetica, sans-serif" font-size="38" fill="#172b4d">01  /  Lixto today: procurement to decision</text>
+<text x="55" y="111.0" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#52657d">Observed application architecture · Python workers + Next.js domain logic + shared PostgreSQL</text>
+<text x="55" y="966.0" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#52657d">LIXTO  /  Interview architecture  /  28 Oct 2026</text>
+<text x="1460" y="968.0" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#52657d">01</text>
+<rect x="55" y="200" width="300" height="165" rx="12" fill="#eef1f5" stroke="#172b4d" stroke-width="1.5"/>
+<text x="77" y="243.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">PNCP public API</text>
+<text x="77" y="275.0" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#172b4d">Tenders, items, document URLs</text>
+<text x="77" y="297.5" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#172b4d">and awarded results</text>
+<rect x="445" y="200" width="460" height="165" rx="12" fill="#e8f1ff" stroke="#172b4d" stroke-width="1.5"/>
+<text x="467" y="243.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">lixto-cli  /  Python</text>
+<text x="467" y="277.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#172b4d">Incremental sync + detail fetch</text>
+<text x="467" y="302.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#172b4d">Embedding + ingest classification</text>
+<text x="467" y="327.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#172b4d">Queued document analysis</text>
+<rect x="1045" y="200" width="500" height="165" rx="12" fill="#e5f6ee" stroke="#172b4d" stroke-width="1.5"/>
+<text x="1067" y="243.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">PostgreSQL + pgvector</text>
+<text x="1067" y="277.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#172b4d">Global tender data + raw payloads</text>
+<text x="1067" y="302.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#172b4d">Tenant profiles, jobs, cases, outbox</text>
+<text x="1067" y="327.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#172b4d">GIN full-text + HNSW vector indexes</text>
+<polyline points="355,280 445,280" fill="none" stroke="#172b4d" stroke-width="1.5" marker-end="url(#arrow)" />
+<text x="375" y="266.0" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#52657d">HTTP</text>
+<polyline points="905,280 1045,280" fill="none" stroke="#172b4d" stroke-width="1.5" marker-end="url(#arrow)" />
+<text x="923" y="266.0" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#52657d">read / write</text>
+<rect x="55" y="490" width="300" height="165" rx="12" fill="#eef1f5" stroke="#172b4d" stroke-width="1.5"/>
+<text x="77" y="533.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">Company operator</text>
+<text x="77" y="567.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#172b4d">Discover tenders</text>
+<text x="77" y="592.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#172b4d">Review evidence</text>
+<text x="77" y="617.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#172b4d">Decide and record outcomes</text>
+<rect x="445" y="490" width="460" height="165" rx="12" fill="#e8f1ff" stroke="#172b4d" stroke-width="1.5"/>
+<text x="467" y="533.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">lixto-web  /  Next.js</text>
+<text x="467" y="567.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#172b4d">Session + company authorization</text>
+<text x="467" y="592.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#172b4d">Hybrid search + deterministic match</text>
+<text x="467" y="617.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#172b4d">Recommendations, cases, dashboards</text>
+<polyline points="355,570 445,570" fill="none" stroke="#172b4d" stroke-width="1.5" marker-end="url(#arrow)" />
+<text x="370" y="556.0" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#52657d">HTTPS</text>
+<polyline points="905,530 975,530 975,410 1295,410 1295,365" fill="none" stroke="#172b4d" stroke-width="1.5" marker-end="url(#arrow)" />
+<text x="1050" y="397.0" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#52657d">typed SQL</text>
+<rect x="1045" y="490" width="500" height="165" rx="12" fill="#f0eaff" stroke="#172b4d" stroke-width="1.5"/>
+<text x="1067" y="533.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">Model providers</text>
+<text x="1067" y="567.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#172b4d">Generation: Gemini / OpenAI fallback</text>
+<text x="1067" y="592.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#172b4d">Embeddings: one configured model</text>
+<text x="1067" y="617.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#172b4d">Called by Python and web adapters</text>
+<polyline points="905,595 1045,595" fill="none" stroke="#172b4d" stroke-width="1.5" marker-end="url(#arrow)" />
+<text x="922" y="581.0" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#52657d">model APIs</text>
+<rect x="55" y="745" width="430" height="150" rx="12" fill="#eef1f5" stroke="#172b4d" stroke-width="1.5"/>
+<text x="77" y="788.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">Dokploy on a VPS</text>
+<text x="77" y="821.0" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Schedules invoke CLI commands.</text>
+<text x="77" y="844.75" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Batch business logic runs via internal</text>
+<text x="77" y="868.5" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">web endpoints with a shared secret.</text>
+<rect x="535" y="745" width="470" height="150" rx="12" fill="#eef1f5" stroke="#172b4d" stroke-width="1.5"/>
+<text x="557" y="788.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">Shared data, scoped decisions</text>
+<text x="557" y="821.0" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Enrich once per tender; reuse globally.</text>
+<text x="557" y="844.75" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Profiles, opportunities and cases belong</text>
+<text x="557" y="868.5" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">to a company. Uploads use disk storage.</text>
+<rect x="1055" y="745" width="490" height="150" rx="12" fill="#eef1f5" stroke="#172b4d" stroke-width="1.5"/>
+<text x="1077" y="788.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">Delivery + operations</text>
+<text x="1077" y="821.0" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">DB email outbox → worker → Postfix.</text>
+<text x="1077" y="844.75" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">agent_runs records counters and errors.</text>
+<text x="1077" y="868.5" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">In-process caches use tags + TTL.</text>
+</svg><aside class="note" hidden>Shared tender evidence is processed once. Company profiles and decisions remain tenant-scoped. Python handles ingestion and document analysis; Next.js owns the UI and company workflow.</aside></section>
+<section class="slide" aria-label="Current · Hybrid retrieval"><svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000">
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10" fill="none" stroke="#172b4d" stroke-width="1.5"/></marker></defs>
+<rect x="0" y="0" width="1600" height="1000" rx="12" fill="#fbfcfe" stroke="#d6dfeb" stroke-width="1.5"/>
+<text x="55" y="73.0" font-family="Arial, Helvetica, sans-serif" font-size="38" fill="#172b4d">02  /  Search: two indexes, one ranked result</text>
+<text x="55" y="111.0" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#52657d">Existing procurement-level retrieval · keyword ranking is PostgreSQL ts_rank · semantic ranking uses cosine distance</text>
+<text x="55" y="966.0" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#52657d">LIXTO  /  Interview architecture  /  28 Oct 2026</text>
+<text x="1460" y="968.0" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#52657d">02</text>
+<text x="55" y="174.0" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#52657d">INGESTION / PREPARATION</text>
+<rect x="55" y="210" width="400" height="150" rx="12" fill="#eef1f5" stroke="#172b4d" stroke-width="1.5"/>
+<text x="77" y="253.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">Procurement text</text>
+<text x="77" y="287.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#172b4d">PNCP description + item text</text>
+<text x="77" y="312.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#172b4d">Shared globally across companies</text>
+<rect x="585" y="190" width="405" height="130" rx="12" fill="#e5f6ee" stroke="#172b4d" stroke-width="1.5"/>
+<text x="607" y="233.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">Keyword representation</text>
+<text x="607" y="267.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#172b4d">Portuguese FTS + unaccent</text>
+<text x="607" y="292.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#172b4d">GIN expression indexes</text>
+<rect x="585" y="370" width="405" height="155" rx="12" fill="#f0eaff" stroke="#172b4d" stroke-width="1.5"/>
+<text x="607" y="413.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">Semantic representation</text>
+<text x="607" y="447.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#172b4d">Embed raw or enriched tender text</text>
+<text x="607" y="472.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#172b4d">One vector per procurement</text>
+<text x="607" y="497.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#172b4d">pgvector + HNSW</text>
+<polyline points="455,250 585,250" fill="none" stroke="#172b4d" stroke-width="1.5" marker-end="url(#arrow)" />
+<polyline points="455,310 510,310 510,445 585,445" fill="none" stroke="#172b4d" stroke-width="1.5" marker-end="url(#arrow)" />
+<rect x="1090" y="210" width="455" height="190" rx="12" fill="#eef1f5" stroke="#172b4d" stroke-width="1.5"/>
+<text x="1112" y="253.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">Indexing unit</text>
+<text x="1112" y="286.0" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">The search result is a tender.</text>
+<text x="1112" y="309.75" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Document pages support dossier</text>
+<text x="1112" y="333.5" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">citations; they are not the search</text>
+<text x="1112" y="357.25" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">chunk index shown in generic RAG.</text>
+<text x="55" y="589.0" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#52657d">QUERY TIME</text>
+<rect x="55" y="640" width="290" height="160" rx="12" fill="#eef1f5" stroke="#172b4d" stroke-width="1.5"/>
+<text x="77" y="683.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">Query + filters</text>
+<text x="77" y="715.0" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#172b4d">Text + UF + modality</text>
+<text x="77" y="737.5" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#172b4d">Value range + status</text>
+<text x="77" y="760.0" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#172b4d">Embed query when available</text>
+<rect x="430" y="585" width="390" height="130" rx="12" fill="#e8f1ff" stroke="#172b4d" stroke-width="1.5"/>
+<text x="452" y="628.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">Keyword branch</text>
+<text x="452" y="660.0" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#172b4d">Description / items match</text>
+<text x="452" y="682.5" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#172b4d">Rank on tender description: ts_rank</text>
+<rect x="430" y="765" width="390" height="130" rx="12" fill="#f0eaff" stroke="#172b4d" stroke-width="1.5"/>
+<text x="452" y="808.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">Semantic branch</text>
+<text x="452" y="840.0" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#172b4d">Cosine distance: top 200</text>
+<text x="452" y="862.5" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#172b4d">Semantic-only similarity ≥ 0.4</text>
+<polyline points="345,680 390,680 390,650 430,650" fill="none" stroke="#172b4d" stroke-width="1.5" marker-end="url(#arrow)" />
+<polyline points="345,760 390,760 390,830 430,830" fill="none" stroke="#172b4d" stroke-width="1.5" marker-end="url(#arrow)" />
+<rect x="935" y="665" width="275" height="160" rx="12" fill="#e5f6ee" stroke="#172b4d" stroke-width="1.5"/>
+<text x="957" y="708.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">Rank fusion</text>
+<text x="957" y="741.0" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">RRF, k = 60</text>
+<text x="957" y="764.75" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Merge by tender ID</text>
+<text x="957" y="788.5" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Hard filters on both</text>
+<polyline points="820,650 875,650 875,705 935,705" fill="none" stroke="#172b4d" stroke-width="1.5" marker-end="url(#arrow)" />
+<polyline points="820,830 875,830 875,785 935,785" fill="none" stroke="#172b4d" stroke-width="1.5" marker-end="url(#arrow)" />
+<rect x="1300" y="665" width="245" height="160" rx="12" fill="#e8f1ff" stroke="#172b4d" stroke-width="1.5"/>
+<text x="1322" y="708.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">Results</text>
+<text x="1322" y="740.0" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#172b4d">Keyword / semantic</text>
+<text x="1322" y="762.5" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#172b4d">/ both labels</text>
+<text x="1322" y="785.0" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#172b4d">User sort can override</text>
+<polyline points="1210,745 1300,745" fill="none" stroke="#172b4d" stroke-width="1.5" marker-end="url(#arrow)" />
+<text x="1090" y="465.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#52657d">Query embedding fails?</text>
+<text x="1090" y="490.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#52657d">Fall back to keyword-only search.</text>
+<text x="1090" y="515.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#52657d">Search returns records directly.</text>
+</svg><aside class="note" hidden>Keyword ranking uses ts_rank, not BM25. pgvector adds semantic retrieval; RRF merges results. Search returns procurement records. Query embedding failure degrades to keyword-only.</aside></section>
+<section class="slide" aria-label="Current · Evidence and decisions"><svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000">
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10" fill="none" stroke="#172b4d" stroke-width="1.5"/></marker></defs>
+<rect x="0" y="0" width="1600" height="1000" rx="12" fill="#fbfcfe" stroke="#d6dfeb" stroke-width="1.5"/>
+<text x="55" y="73.0" font-family="Arial, Helvetica, sans-serif" font-size="38" fill="#172b4d">03  /  AI evidence and the company decision loop</text>
+<text x="55" y="111.0" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#52657d">Global analysis is reused across companies · generation is bounded · scoring and compliance checks are deterministic</text>
+<text x="55" y="966.0" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#52657d">LIXTO  /  Interview architecture  /  28 Oct 2026</text>
+<text x="1460" y="968.0" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#52657d">03</text>
+<text x="55" y="174.0" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#52657d">ON-DEMAND DOCUMENT ANALYSIS</text>
+<rect x="55" y="210" width="300" height="165" rx="12" fill="#e8f1ff" stroke="#172b4d" stroke-width="1.5"/>
+<text x="77" y="253.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">Analysis request</text>
+<text x="77" y="286.0" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">User click or waiting case</text>
+<text x="77" y="309.75" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Company daily cap</text>
+<text x="77" y="333.5" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Postgres analysis_jobs</text>
+<rect x="445" y="210" width="440" height="165" rx="12" fill="#f0eaff" stroke="#172b4d" stroke-width="1.5"/>
+<text x="467" y="253.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">Python analysis worker</text>
+<text x="467" y="286.0" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Fetch PDFs → page text / OCR</text>
+<text x="467" y="309.75" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Route text, PDF or metadata to LLM</text>
+<text x="467" y="333.5" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Validate output and page citations</text>
+<rect x="1025" y="210" width="520" height="165" rx="12" fill="#e5f6ee" stroke="#172b4d" stroke-width="1.5"/>
+<text x="1047" y="253.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">Shared tender dossier</text>
+<text x="1047" y="286.0" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Facts, dates, requirements, risks</text>
+<text x="1047" y="309.75" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Persist dossier + enrichment transactionally</text>
+<text x="1047" y="333.5" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Version by document set; refresh embedding</text>
+<polyline points="355,290 445,290" fill="none" stroke="#172b4d" stroke-width="1.5" marker-end="url(#arrow)" />
+<text x="365" y="276.0" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#52657d">poll queue</text>
+<polyline points="885,290 1025,290" fill="none" stroke="#172b4d" stroke-width="1.5" marker-end="url(#arrow)" />
+<text x="925" y="276.0" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#52657d">persist</text>
+<text x="55" y="464.0" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#52657d">PROACTIVE COMPANY WORKFLOW  /  LOGIC IN NEXT.JS, TRIGGERED BY CLI</text>
+<rect x="55" y="510" width="305" height="170" rx="12" fill="#e8f1ff" stroke="#172b4d" stroke-width="1.5"/>
+<text x="77" y="553.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">1. Match</text>
+<text x="77" y="586.0" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Profile × tender signals</text>
+<text x="77" y="609.75" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Deterministic score 0–100</text>
+<text x="77" y="633.5" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Persist reasons + opportunity</text>
+<rect x="450" y="510" width="305" height="170" rx="12" fill="#f0eaff" stroke="#172b4d" stroke-width="1.5"/>
+<text x="472" y="553.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">2. Recommend</text>
+<text x="472" y="585.0" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#172b4d">Top eligible opportunities</text>
+<text x="472" y="607.5" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#172b4d">LLM: GO / NO-GO / borderline</text>
+<text x="472" y="630.0" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#172b4d">Per-company daily cap</text>
+<rect x="845" y="510" width="305" height="170" rx="12" fill="#e8f1ff" stroke="#172b4d" stroke-width="1.5"/>
+<text x="867" y="553.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">3. Case checks</text>
+<text x="867" y="585.0" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#172b4d">GO → case</text>
+<text x="867" y="607.5" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#172b4d">Dossier × company documents</text>
+<text x="867" y="630.0" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#172b4d">Missing / valid / manual</text>
+<rect x="1240" y="510" width="305" height="170" rx="12" fill="#eef1f5" stroke="#172b4d" stroke-width="1.5"/>
+<text x="1262" y="553.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">4. Operator</text>
+<text x="1262" y="585.0" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#172b4d">Review evidence</text>
+<text x="1262" y="607.5" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#172b4d">Submit / skip / missing doc</text>
+<text x="1262" y="630.0" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#172b4d">Submission is manual</text>
+<polyline points="360,595 450,595" fill="none" stroke="#172b4d" stroke-width="1.5" marker-end="url(#arrow)" />
+<polyline points="755,595 845,595" fill="none" stroke="#172b4d" stroke-width="1.5" marker-end="url(#arrow)" />
+<polyline points="1150,595 1240,595" fill="none" stroke="#172b4d" stroke-width="1.5" marker-end="url(#arrow)" />
+<polyline points="1285,375 1285,420 995,420 995,510" fill="none" stroke="#172b4d" stroke-width="1.5" marker-end="url(#arrow)" />
+<text x="1020" y="441.0" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#52657d">dossier evidence</text>
+<rect x="55" y="755" width="455" height="145" rx="12" fill="#eef1f5" stroke="#172b4d" stroke-width="1.5"/>
+<text x="77" y="798.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">Close the loop</text>
+<text x="77" y="831.0" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">PNCP results → won / lost outcomes.</text>
+<text x="77" y="854.75" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Feedback is recorded; automatic</text>
+<text x="77" y="878.5" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">retraining of ranking is not implemented.</text>
+<rect x="550" y="755" width="465" height="145" rx="12" fill="#eef1f5" stroke="#172b4d" stroke-width="1.5"/>
+<text x="572" y="798.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">Reliable notification delivery</text>
+<text x="572" y="831.0" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Persisted email outbox + bounded retries.</text>
+<text x="572" y="854.75" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Digest and case-ready notifications.</text>
+<text x="572" y="878.5" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Bounce processing updates suppressions.</text>
+<rect x="1055" y="755" width="490" height="145" rx="12" fill="#eef1f5" stroke="#172b4d" stroke-width="1.5"/>
+<text x="1077" y="798.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">Implemented, scheduled jobs off</text>
+<text x="1077" y="831.0" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Radar: PCA → future opportunities.</text>
+<text x="1077" y="854.75" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Contracts sync and bulk analysis also off.</text>
+<text x="1077" y="878.5" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Status follows README snapshot, not live audit.</text>
+</svg><aside class="note" hidden>Document analysis consumes the selected tender’s documents directly. Models interpret evidence and recommend; deterministic code scores and checks documents. The operator decides. Outcomes are recorded, not automatically used to retrain.</aside></section>
+<section class="slide" aria-label="AWS proposal · Deployment"><svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000">
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10" fill="none" stroke="#172b4d" stroke-width="1.5"/></marker></defs>
+<rect x="0" y="0" width="1600" height="1000" rx="12" fill="#fbfcfe" stroke="#d6dfeb" stroke-width="1.5"/>
+<text x="55" y="73.0" font-family="Arial, Helvetica, sans-serif" font-size="38" fill="#172b4d">01  /  Lixto on AWS: proposed deployment</text>
+<text x="55" y="111.0" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#52657d">Target architecture, not deployed · preserve domain flows · introduce managed compute, storage, email and AI adapters</text>
+<text x="55" y="966.0" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#52657d">LIXTO  /  Interview architecture  /  28 Oct 2026</text>
+<text x="1460" y="968.0" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#52657d">01</text>
+<rect x="55" y="170" width="300" height="120" rx="12" fill="#eef1f5" stroke="#172b4d" stroke-width="1.5"/>
+<text x="77" y="213.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">Browser</text>
+<text x="77" y="247.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#172b4d">Company operator</text>
+<rect x="445" y="170" width="440" height="120" rx="12" fill="#fff0dc" stroke="#172b4d" stroke-width="1.5"/>
+<text x="467" y="213.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">Route 53 + ALB + ACM</text>
+<text x="467" y="247.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#172b4d">DNS → HTTPS ingress → web tasks</text>
+<rect x="1045" y="170" width="500" height="120" rx="12" fill="#fff0dc" stroke="#172b4d" stroke-width="1.5"/>
+<text x="1067" y="213.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">EventBridge Scheduler</text>
+<text x="1067" y="245.0" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#172b4d">Cron → ECS RunTask</text>
+<text x="1067" y="267.5" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#172b4d">Jobs retain idempotency / overlap guards</text>
+<polyline points="355,230 445,230" fill="none" stroke="#172b4d" stroke-width="1.5" marker-end="url(#arrow)" />
+<rect x="445" y="390" width="440" height="160" rx="12" fill="#e8f1ff" stroke="#172b4d" stroke-width="1.5"/>
+<text x="467" y="433.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">ECS Fargate: web service</text>
+<text x="467" y="466.0" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Next.js + existing domain logic</text>
+<text x="467" y="489.75" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Private app subnets; ALB targets</text>
+<text x="467" y="513.5" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Session-based tenant authorization</text>
+<polyline points="665,290 665,390" fill="none" stroke="#172b4d" stroke-width="1.5" marker-end="url(#arrow)" />
+<rect x="1045" y="390" width="500" height="160" rx="12" fill="#e8f1ff" stroke="#172b4d" stroke-width="1.5"/>
+<text x="1067" y="433.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">ECS Fargate: job tasks</text>
+<text x="1067" y="466.0" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Python sync, analysis and dispatch</text>
+<text x="1067" y="489.75" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Call protected web batch endpoints</text>
+<text x="1067" y="513.5" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Private subnets; NAT egress for PNCP</text>
+<polyline points="1295,290 1295,390" fill="none" stroke="#172b4d" stroke-width="1.5" marker-end="url(#arrow)" />
+<polyline points="1045,470 885,470" fill="none" stroke="#172b4d" stroke-width="1.5" marker-end="url(#arrow)" />
+<text x="915" y="456.0" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#52657d">internal HTTP</text>
+<rect x="55" y="390" width="300" height="160" rx="12" fill="#eef1f5" stroke="#172b4d" stroke-width="1.5"/>
+<text x="77" y="433.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">PNCP API</text>
+<text x="77" y="465.0" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#172b4d">External source</text>
+<text x="77" y="487.5" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#172b4d">Tasks fetch through NAT</text>
+<text x="77" y="510.0" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#172b4d">Watermarks + raw retention</text>
+<polyline points="205,550 205,600 1295,600 1295,550" fill="none" stroke="#172b4d" stroke-width="1.5" marker-end="url(#arrow)" />
+<text x="570" y="590.0" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#52657d">external API access via NAT</text>
+<rect x="55" y="680" width="340" height="180" rx="12" fill="#e5f6ee" stroke="#172b4d" stroke-width="1.5"/>
+<text x="77" y="723.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">RDS PostgreSQL</text>
+<text x="77" y="756.0" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">pgvector + GIN + HNSW</text>
+<text x="77" y="779.75" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Domain tables, jobs, outbox</text>
+<text x="77" y="803.5" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Private DB subnets</text>
+<text x="77" y="827.25" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Backups; Multi-AZ as needed</text>
+<rect x="440" y="680" width="340" height="180" rx="12" fill="#e5f6ee" stroke="#172b4d" stroke-width="1.5"/>
+<text x="462" y="723.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">Amazon S3</text>
+<text x="462" y="756.0" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Private company uploads</text>
+<text x="462" y="779.75" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Authorized object access</text>
+<text x="462" y="803.5" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Storage adapter required</text>
+<rect x="825" y="680" width="340" height="180" rx="12" fill="#f0eaff" stroke="#172b4d" stroke-width="1.5"/>
+<text x="847" y="723.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">Amazon Bedrock</text>
+<text x="847" y="756.0" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Generation + embeddings</text>
+<text x="847" y="779.75" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Provider adapters + evals</text>
+<text x="847" y="803.5" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Re-embed on model change</text>
+<rect x="1210" y="680" width="335" height="180" rx="12" fill="#fff0dc" stroke="#172b4d" stroke-width="1.5"/>
+<text x="1232" y="723.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">SES + SNS</text>
+<text x="1232" y="756.0" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Send from existing outbox</text>
+<text x="1232" y="779.75" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Bounce / complaint events</text>
+<text x="1232" y="803.5" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Validated handler → DB</text>
+<text x="55" y="642.0" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#52657d">WEB + JOBS USE MANAGED SERVICES BELOW VIA TASK IAM ROLES / DB CREDENTIALS</text>
+<text x="55" y="913.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#52657d">Operations: ECR images  ·  Secrets Manager  ·  CloudWatch logs / alarms  ·  VPC security groups</text>
+</svg><aside class="note" hidden>Proposed architecture, not deployed. Preserve business flows while replacing hosting with Fargate, storage with RDS/S3, model APIs with Bedrock, and mail delivery with SES.</aside></section>
+<section class="slide" aria-label="AWS proposal · Migration"><svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000">
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10" fill="none" stroke="#172b4d" stroke-width="1.5"/></marker></defs>
+<rect x="0" y="0" width="1600" height="1000" rx="12" fill="#fbfcfe" stroke="#d6dfeb" stroke-width="1.5"/>
+<text x="55" y="73.0" font-family="Arial, Helvetica, sans-serif" font-size="38" fill="#172b4d">02  /  AWS migration: what changes, what stays</text>
+<text x="55" y="111.0" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#52657d">Proposed service mapping + implementation work · select region, model support and availability targets before sizing</text>
+<text x="55" y="966.0" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#52657d">LIXTO  /  Interview architecture  /  28 Oct 2026</text>
+<text x="1460" y="968.0" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#52657d">02</text>
+<text x="60" y="183.0" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#52657d">CURRENT</text>
+<text x="510" y="183.0" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#52657d">AWS TARGET</text>
+<text x="1010" y="183.0" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#52657d">MIGRATION WORK</text>
+<rect x="55" y="215" width="1490" height="78" rx="12" fill="#eef1f5" stroke="#d6dfeb" stroke-width="1.5"/>
+<text x="73" y="257.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#172b4d">Dokploy containers + schedules</text>
+<text x="510" y="257.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#172b4d">ECS Fargate + EventBridge Scheduler</text>
+<text x="1010" y="244.0" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#172b4d">Container entrypoint overrides; task failure</text>
+<text x="1010" y="265.25" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#172b4d">alarms; overlap controls.</text>
+<rect x="55" y="305" width="1490" height="78" rx="12" fill="#ffffff" stroke="#d6dfeb" stroke-width="1.5"/>
+<text x="73" y="347.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#172b4d">Self-managed PostgreSQL</text>
+<text x="510" y="347.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#172b4d">RDS PostgreSQL + pgvector</text>
+<text x="1010" y="334.0" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#172b4d">Migrate SQL + extensions; keep FTS, cosine</text>
+<text x="1010" y="355.25" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#172b4d">retrieval and RRF.</text>
+<rect x="55" y="395" width="1490" height="78" rx="12" fill="#eef1f5" stroke="#d6dfeb" stroke-width="1.5"/>
+<text x="73" y="437.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#172b4d">Local uploaded documents</text>
+<text x="510" y="437.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#172b4d">S3 private objects</text>
+<text x="1010" y="424.0" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#172b4d">Replace filesystem reads/writes; authorize every</text>
+<text x="1010" y="445.25" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#172b4d">object operation.</text>
+<rect x="55" y="485" width="1490" height="78" rx="12" fill="#ffffff" stroke="#d6dfeb" stroke-width="1.5"/>
+<text x="73" y="527.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#172b4d">Gemini / OpenAI adapters</text>
+<text x="510" y="527.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#172b4d">Amazon Bedrock adapters</text>
+<text x="1010" y="514.0" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#172b4d">Evaluate output + citations; migrate all vector</text>
+<text x="1010" y="535.25" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#172b4d">sets together.</text>
+<rect x="55" y="575" width="1490" height="78" rx="12" fill="#eef1f5" stroke="#d6dfeb" stroke-width="1.5"/>
+<text x="73" y="617.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#172b4d">Postfix + DSN maildir</text>
+<text x="510" y="617.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#172b4d">SES + SNS notifications</text>
+<text x="1010" y="604.0" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#172b4d">Keep outbox; replace sender + bounce ingestion;</text>
+<text x="1010" y="625.25" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#172b4d">verify event origin.</text>
+<rect x="55" y="665" width="1490" height="78" rx="12" fill="#ffffff" stroke="#d6dfeb" stroke-width="1.5"/>
+<text x="73" y="707.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#172b4d">Local process logs + env secrets</text>
+<text x="510" y="707.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#172b4d">CloudWatch + Secrets Manager + IAM</text>
+<text x="1010" y="694.0" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#172b4d">Keep agent_runs audit; add task failures, queue</text>
+<text x="1010" y="715.25" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#172b4d">age and spend alarms.</text>
+<rect x="55" y="790" width="460" height="135" rx="12" fill="#eef1f5" stroke="#172b4d" stroke-width="1.5"/>
+<text x="77" y="833.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">Preserve application semantics</text>
+<text x="77" y="866.0" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Company ID from session; typed SQL.</text>
+<text x="77" y="889.75" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Global enrichment, per-company decisions.</text>
+<text x="77" y="913.5" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Hybrid retrieval + direct document analysis.</text>
+<rect x="565" y="790" width="460" height="135" rx="12" fill="#eef1f5" stroke="#172b4d" stroke-width="1.5"/>
+<text x="587" y="833.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">Migration gates</text>
+<text x="587" y="866.0" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Bedrock model / region compatibility.</text>
+<text x="587" y="889.75" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Rebuild procurement, profile, CNAE,</text>
+<text x="587" y="913.5" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">label and Radar vectors with one model.</text>
+<rect x="1075" y="790" width="470" height="135" rx="12" fill="#eef1f5" stroke="#172b4d" stroke-width="1.5"/>
+<text x="1097" y="833.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">Operational tradeoff</text>
+<text x="1097" y="866.0" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Managed services reduce host maintenance.</text>
+<text x="1097" y="889.75" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">NAT, ALB, RDS and task startup add cost.</text>
+<text x="1097" y="913.5" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Benchmark before adding more services.</text>
+</svg><aside class="note" hidden>This requires adapters and evaluation. Changing embedding models requires a coordinated rebuild across all vector sets. Compare operational savings with managed-service, network and task-startup costs.</aside></section>
+</main><footer><span id="position" aria-live="polite"></span> · Arrow keys to navigate · F for fullscreen · N for notes · Print to save all slides as PDF · <a href="README.md">Evidence and full speaking guide</a></footer>
+<script>
+const slides=[...document.querySelectorAll('.slide')];
+const jump=document.getElementById('jump');
+let current=Math.max(0,Math.min(slides.length-1,(Number(location.hash.slice(1))||1)-1));
+function show(i){current=Math.max(0,Math.min(slides.length-1,i));slides.forEach((s,n)=>s.classList.toggle('active',n===current));jump.value=String(current);document.getElementById('prev').disabled=current===0;document.getElementById('next').disabled=current===slides.length-1;document.getElementById('position').textContent=`${current+1} / ${slides.length}`;history.replaceState(null,'',`#${current+1}`)}
+function toggleNotes(){const b=document.getElementById('notes');const visible=b.getAttribute('aria-pressed')!=='true';b.setAttribute('aria-pressed',String(visible));document.querySelectorAll('.note').forEach(n=>n.hidden=!visible)}
+async function fullscreen(){try{if(document.fullscreenElement)await document.exitFullscreen();else await document.body.requestFullscreen()}catch{document.getElementById('position').textContent='Use your browser fullscreen command'}}
+jump.addEventListener('change',()=>show(Number(jump.value)));document.getElementById('prev').onclick=()=>show(current-1);document.getElementById('next').onclick=()=>show(current+1);document.getElementById('notes').onclick=toggleNotes;document.getElementById('full').onclick=fullscreen;
+document.addEventListener('keydown',e=>{if(e.target.matches('select,input,textarea')||e.ctrlKey||e.metaKey||e.altKey)return;if(e.key==='ArrowRight'){e.preventDefault();show(current+1)}if(e.key==='ArrowLeft'){e.preventDefault();show(current-1)}if(e.key.toLowerCase()==='n')toggleNotes();if(e.key.toLowerCase()==='f')fullscreen()});
+show(current);
+</script></html>

@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000">
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10" fill="none" stroke="#172b4d" stroke-width="1.5"/></marker></defs>
+<rect x="0" y="0" width="1600" height="1000" rx="12" fill="#fbfcfe" stroke="#d6dfeb" stroke-width="1.5"/>
+<text x="55" y="73.0" font-family="Arial, Helvetica, sans-serif" font-size="38" fill="#172b4d">03  /  AI evidence and the company decision loop</text>
+<text x="55" y="111.0" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#52657d">Global analysis is reused across companies · generation is bounded · scoring and compliance checks are deterministic</text>
+<text x="55" y="966.0" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#52657d">LIXTO  /  Interview architecture  /  28 Oct 2026</text>
+<text x="1460" y="968.0" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#52657d">03</text>
+<text x="55" y="174.0" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#52657d">ON-DEMAND DOCUMENT ANALYSIS</text>
+<rect x="55" y="210" width="300" height="165" rx="12" fill="#e8f1ff" stroke="#172b4d" stroke-width="1.5"/>
+<text x="77" y="253.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">Analysis request</text>
+<text x="77" y="286.0" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">User click or waiting case</text>
+<text x="77" y="309.75" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Company daily cap</text>
+<text x="77" y="333.5" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Postgres analysis_jobs</text>
+<rect x="445" y="210" width="440" height="165" rx="12" fill="#f0eaff" stroke="#172b4d" stroke-width="1.5"/>
+<text x="467" y="253.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">Python analysis worker</text>
+<text x="467" y="286.0" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Fetch PDFs → page text / OCR</text>
+<text x="467" y="309.75" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Route text, PDF or metadata to LLM</text>
+<text x="467" y="333.5" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Validate output and page citations</text>
+<rect x="1025" y="210" width="520" height="165" rx="12" fill="#e5f6ee" stroke="#172b4d" stroke-width="1.5"/>
+<text x="1047" y="253.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">Shared tender dossier</text>
+<text x="1047" y="286.0" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Facts, dates, requirements, risks</text>
+<text x="1047" y="309.75" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Persist dossier + enrichment transactionally</text>
+<text x="1047" y="333.5" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Version by document set; refresh embedding</text>
+<polyline points="355,290 445,290" fill="none" stroke="#172b4d" stroke-width="1.5" marker-end="url(#arrow)" />
+<text x="365" y="276.0" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#52657d">poll queue</text>
+<polyline points="885,290 1025,290" fill="none" stroke="#172b4d" stroke-width="1.5" marker-end="url(#arrow)" />
+<text x="925" y="276.0" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#52657d">persist</text>
+<text x="55" y="464.0" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#52657d">PROACTIVE COMPANY WORKFLOW  /  LOGIC IN NEXT.JS, TRIGGERED BY CLI</text>
+<rect x="55" y="510" width="305" height="170" rx="12" fill="#e8f1ff" stroke="#172b4d" stroke-width="1.5"/>
+<text x="77" y="553.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">1. Match</text>
+<text x="77" y="586.0" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Profile × tender signals</text>
+<text x="77" y="609.75" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Deterministic score 0–100</text>
+<text x="77" y="633.5" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Persist reasons + opportunity</text>
+<rect x="450" y="510" width="305" height="170" rx="12" fill="#f0eaff" stroke="#172b4d" stroke-width="1.5"/>
+<text x="472" y="553.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">2. Recommend</text>
+<text x="472" y="585.0" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#172b4d">Top eligible opportunities</text>
+<text x="472" y="607.5" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#172b4d">LLM: GO / NO-GO / borderline</text>
+<text x="472" y="630.0" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#172b4d">Per-company daily cap</text>
+<rect x="845" y="510" width="305" height="170" rx="12" fill="#e8f1ff" stroke="#172b4d" stroke-width="1.5"/>
+<text x="867" y="553.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">3. Case checks</text>
+<text x="867" y="585.0" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#172b4d">GO → case</text>
+<text x="867" y="607.5" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#172b4d">Dossier × company documents</text>
+<text x="867" y="630.0" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#172b4d">Missing / valid / manual</text>
+<rect x="1240" y="510" width="305" height="170" rx="12" fill="#eef1f5" stroke="#172b4d" stroke-width="1.5"/>
+<text x="1262" y="553.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">4. Operator</text>
+<text x="1262" y="585.0" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#172b4d">Review evidence</text>
+<text x="1262" y="607.5" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#172b4d">Submit / skip / missing doc</text>
+<text x="1262" y="630.0" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#172b4d">Submission is manual</text>
+<polyline points="360,595 450,595" fill="none" stroke="#172b4d" stroke-width="1.5" marker-end="url(#arrow)" />
+<polyline points="755,595 845,595" fill="none" stroke="#172b4d" stroke-width="1.5" marker-end="url(#arrow)" />
+<polyline points="1150,595 1240,595" fill="none" stroke="#172b4d" stroke-width="1.5" marker-end="url(#arrow)" />
+<polyline points="1285,375 1285,420 995,420 995,510" fill="none" stroke="#172b4d" stroke-width="1.5" marker-end="url(#arrow)" />
+<text x="1020" y="441.0" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#52657d">dossier evidence</text>
+<rect x="55" y="755" width="455" height="145" rx="12" fill="#eef1f5" stroke="#172b4d" stroke-width="1.5"/>
+<text x="77" y="798.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">Close the loop</text>
+<text x="77" y="831.0" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">PNCP results → won / lost outcomes.</text>
+<text x="77" y="854.75" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Feedback is recorded; automatic</text>
+<text x="77" y="878.5" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">retraining of ranking is not implemented.</text>
+<rect x="550" y="755" width="465" height="145" rx="12" fill="#eef1f5" stroke="#172b4d" stroke-width="1.5"/>
+<text x="572" y="798.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">Reliable notification delivery</text>
+<text x="572" y="831.0" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Persisted email outbox + bounded retries.</text>
+<text x="572" y="854.75" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Digest and case-ready notifications.</text>
+<text x="572" y="878.5" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Bounce processing updates suppressions.</text>
+<rect x="1055" y="755" width="490" height="145" rx="12" fill="#eef1f5" stroke="#172b4d" stroke-width="1.5"/>
+<text x="1077" y="798.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">Implemented, scheduled jobs off</text>
+<text x="1077" y="831.0" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Radar: PCA → future opportunities.</text>
+<text x="1077" y="854.75" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Contracts sync and bulk analysis also off.</text>
+<text x="1077" y="878.5" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Status follows README snapshot, not live audit.</text>
+</svg>

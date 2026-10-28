@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000">
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10" fill="none" stroke="#172b4d" stroke-width="1.5"/></marker></defs>
+<rect x="0" y="0" width="1600" height="1000" rx="12" fill="#fbfcfe" stroke="#d6dfeb" stroke-width="1.5"/>
+<text x="55" y="73.0" font-family="Arial, Helvetica, sans-serif" font-size="38" fill="#172b4d">02  /  Search: two indexes, one ranked result</text>
+<text x="55" y="111.0" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#52657d">Existing procurement-level retrieval · keyword ranking is PostgreSQL ts_rank · semantic ranking uses cosine distance</text>
+<text x="55" y="966.0" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#52657d">LIXTO  /  Interview architecture  /  28 Oct 2026</text>
+<text x="1460" y="968.0" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#52657d">02</text>
+<text x="55" y="174.0" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#52657d">INGESTION / PREPARATION</text>
+<rect x="55" y="210" width="400" height="150" rx="12" fill="#eef1f5" stroke="#172b4d" stroke-width="1.5"/>
+<text x="77" y="253.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">Procurement text</text>
+<text x="77" y="287.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#172b4d">PNCP description + item text</text>
+<text x="77" y="312.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#172b4d">Shared globally across companies</text>
+<rect x="585" y="190" width="405" height="130" rx="12" fill="#e5f6ee" stroke="#172b4d" stroke-width="1.5"/>
+<text x="607" y="233.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">Keyword representation</text>
+<text x="607" y="267.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#172b4d">Portuguese FTS + unaccent</text>
+<text x="607" y="292.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#172b4d">GIN expression indexes</text>
+<rect x="585" y="370" width="405" height="155" rx="12" fill="#f0eaff" stroke="#172b4d" stroke-width="1.5"/>
+<text x="607" y="413.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">Semantic representation</text>
+<text x="607" y="447.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#172b4d">Embed raw or enriched tender text</text>
+<text x="607" y="472.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#172b4d">One vector per procurement</text>
+<text x="607" y="497.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#172b4d">pgvector + HNSW</text>
+<polyline points="455,250 585,250" fill="none" stroke="#172b4d" stroke-width="1.5" marker-end="url(#arrow)" />
+<polyline points="455,310 510,310 510,445 585,445" fill="none" stroke="#172b4d" stroke-width="1.5" marker-end="url(#arrow)" />
+<rect x="1090" y="210" width="455" height="190" rx="12" fill="#eef1f5" stroke="#172b4d" stroke-width="1.5"/>
+<text x="1112" y="253.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">Indexing unit</text>
+<text x="1112" y="286.0" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">The search result is a tender.</text>
+<text x="1112" y="309.75" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Document pages support dossier</text>
+<text x="1112" y="333.5" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">citations; they are not the search</text>
+<text x="1112" y="357.25" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">chunk index shown in generic RAG.</text>
+<text x="55" y="589.0" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#52657d">QUERY TIME</text>
+<rect x="55" y="640" width="290" height="160" rx="12" fill="#eef1f5" stroke="#172b4d" stroke-width="1.5"/>
+<text x="77" y="683.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">Query + filters</text>
+<text x="77" y="715.0" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#172b4d">Text + UF + modality</text>
+<text x="77" y="737.5" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#172b4d">Value range + status</text>
+<text x="77" y="760.0" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#172b4d">Embed query when available</text>
+<rect x="430" y="585" width="390" height="130" rx="12" fill="#e8f1ff" stroke="#172b4d" stroke-width="1.5"/>
+<text x="452" y="628.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">Keyword branch</text>
+<text x="452" y="660.0" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#172b4d">Description / items match</text>
+<text x="452" y="682.5" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#172b4d">Rank on tender description: ts_rank</text>
+<rect x="430" y="765" width="390" height="130" rx="12" fill="#f0eaff" stroke="#172b4d" stroke-width="1.5"/>
+<text x="452" y="808.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">Semantic branch</text>
+<text x="452" y="840.0" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#172b4d">Cosine distance: top 200</text>
+<text x="452" y="862.5" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#172b4d">Semantic-only similarity ≥ 0.4</text>
+<polyline points="345,680 390,680 390,650 430,650" fill="none" stroke="#172b4d" stroke-width="1.5" marker-end="url(#arrow)" />
+<polyline points="345,760 390,760 390,830 430,830" fill="none" stroke="#172b4d" stroke-width="1.5" marker-end="url(#arrow)" />
+<rect x="935" y="665" width="275" height="160" rx="12" fill="#e5f6ee" stroke="#172b4d" stroke-width="1.5"/>
+<text x="957" y="708.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">Rank fusion</text>
+<text x="957" y="741.0" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">RRF, k = 60</text>
+<text x="957" y="764.75" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Merge by tender ID</text>
+<text x="957" y="788.5" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Hard filters on both</text>
+<polyline points="820,650 875,650 875,705 935,705" fill="none" stroke="#172b4d" stroke-width="1.5" marker-end="url(#arrow)" />
+<polyline points="820,830 875,830 875,785 935,785" fill="none" stroke="#172b4d" stroke-width="1.5" marker-end="url(#arrow)" />
+<rect x="1300" y="665" width="245" height="160" rx="12" fill="#e8f1ff" stroke="#172b4d" stroke-width="1.5"/>
+<text x="1322" y="708.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">Results</text>
+<text x="1322" y="740.0" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#172b4d">Keyword / semantic</text>
+<text x="1322" y="762.5" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#172b4d">/ both labels</text>
+<text x="1322" y="785.0" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#172b4d">User sort can override</text>
+<polyline points="1210,745 1300,745" fill="none" stroke="#172b4d" stroke-width="1.5" marker-end="url(#arrow)" />
+<text x="1090" y="465.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#52657d">Query embedding fails?</text>
+<text x="1090" y="490.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#52657d">Fall back to keyword-only search.</text>
+<text x="1090" y="515.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#52657d">Search returns records directly.</text>
+</svg>

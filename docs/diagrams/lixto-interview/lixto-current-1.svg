@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000">
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10" fill="none" stroke="#172b4d" stroke-width="1.5"/></marker></defs>
+<rect x="0" y="0" width="1600" height="1000" rx="12" fill="#fbfcfe" stroke="#d6dfeb" stroke-width="1.5"/>
+<text x="55" y="73.0" font-family="Arial, Helvetica, sans-serif" font-size="38" fill="#172b4d">01  /  Lixto today: procurement to decision</text>
+<text x="55" y="111.0" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#52657d">Observed application architecture · Python workers + Next.js domain logic + shared PostgreSQL</text>
+<text x="55" y="966.0" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#52657d">LIXTO  /  Interview architecture  /  28 Oct 2026</text>
+<text x="1460" y="968.0" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#52657d">01</text>
+<rect x="55" y="200" width="300" height="165" rx="12" fill="#eef1f5" stroke="#172b4d" stroke-width="1.5"/>
+<text x="77" y="243.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">PNCP public API</text>
+<text x="77" y="275.0" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#172b4d">Tenders, items, document URLs</text>
+<text x="77" y="297.5" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#172b4d">and awarded results</text>
+<rect x="445" y="200" width="460" height="165" rx="12" fill="#e8f1ff" stroke="#172b4d" stroke-width="1.5"/>
+<text x="467" y="243.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">lixto-cli  /  Python</text>
+<text x="467" y="277.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#172b4d">Incremental sync + detail fetch</text>
+<text x="467" y="302.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#172b4d">Embedding + ingest classification</text>
+<text x="467" y="327.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#172b4d">Queued document analysis</text>
+<rect x="1045" y="200" width="500" height="165" rx="12" fill="#e5f6ee" stroke="#172b4d" stroke-width="1.5"/>
+<text x="1067" y="243.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">PostgreSQL + pgvector</text>
+<text x="1067" y="277.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#172b4d">Global tender data + raw payloads</text>
+<text x="1067" y="302.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#172b4d">Tenant profiles, jobs, cases, outbox</text>
+<text x="1067" y="327.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#172b4d">GIN full-text + HNSW vector indexes</text>
+<polyline points="355,280 445,280" fill="none" stroke="#172b4d" stroke-width="1.5" marker-end="url(#arrow)" />
+<text x="375" y="266.0" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#52657d">HTTP</text>
+<polyline points="905,280 1045,280" fill="none" stroke="#172b4d" stroke-width="1.5" marker-end="url(#arrow)" />
+<text x="923" y="266.0" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#52657d">read / write</text>
+<rect x="55" y="490" width="300" height="165" rx="12" fill="#eef1f5" stroke="#172b4d" stroke-width="1.5"/>
+<text x="77" y="533.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">Company operator</text>
+<text x="77" y="567.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#172b4d">Discover tenders</text>
+<text x="77" y="592.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#172b4d">Review evidence</text>
+<text x="77" y="617.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#172b4d">Decide and record outcomes</text>
+<rect x="445" y="490" width="460" height="165" rx="12" fill="#e8f1ff" stroke="#172b4d" stroke-width="1.5"/>
+<text x="467" y="533.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">lixto-web  /  Next.js</text>
+<text x="467" y="567.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#172b4d">Session + company authorization</text>
+<text x="467" y="592.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#172b4d">Hybrid search + deterministic match</text>
+<text x="467" y="617.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#172b4d">Recommendations, cases, dashboards</text>
+<polyline points="355,570 445,570" fill="none" stroke="#172b4d" stroke-width="1.5" marker-end="url(#arrow)" />
+<text x="370" y="556.0" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#52657d">HTTPS</text>
+<polyline points="905,530 975,530 975,410 1295,410 1295,365" fill="none" stroke="#172b4d" stroke-width="1.5" marker-end="url(#arrow)" />
+<text x="1050" y="397.0" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#52657d">typed SQL</text>
+<rect x="1045" y="490" width="500" height="165" rx="12" fill="#f0eaff" stroke="#172b4d" stroke-width="1.5"/>
+<text x="1067" y="533.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">Model providers</text>
+<text x="1067" y="567.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#172b4d">Generation: Gemini / OpenAI fallback</text>
+<text x="1067" y="592.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#172b4d">Embeddings: one configured model</text>
+<text x="1067" y="617.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#172b4d">Called by Python and web adapters</text>
+<polyline points="905,595 1045,595" fill="none" stroke="#172b4d" stroke-width="1.5" marker-end="url(#arrow)" />
+<text x="922" y="581.0" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#52657d">model APIs</text>
+<rect x="55" y="745" width="430" height="150" rx="12" fill="#eef1f5" stroke="#172b4d" stroke-width="1.5"/>
+<text x="77" y="788.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">Dokploy on a VPS</text>
+<text x="77" y="821.0" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Schedules invoke CLI commands.</text>
+<text x="77" y="844.75" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Batch business logic runs via internal</text>
+<text x="77" y="868.5" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">web endpoints with a shared secret.</text>
+<rect x="535" y="745" width="470" height="150" rx="12" fill="#eef1f5" stroke="#172b4d" stroke-width="1.5"/>
+<text x="557" y="788.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">Shared data, scoped decisions</text>
+<text x="557" y="821.0" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Enrich once per tender; reuse globally.</text>
+<text x="557" y="844.75" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Profiles, opportunities and cases belong</text>
+<text x="557" y="868.5" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">to a company. Uploads use disk storage.</text>
+<rect x="1055" y="745" width="490" height="150" rx="12" fill="#eef1f5" stroke="#172b4d" stroke-width="1.5"/>
+<text x="1077" y="788.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">Delivery + operations</text>
+<text x="1077" y="821.0" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">DB email outbox → worker → Postfix.</text>
+<text x="1077" y="844.75" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">agent_runs records counters and errors.</text>
+<text x="1077" y="868.5" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">In-process caches use tags + TTL.</text>
+</svg>

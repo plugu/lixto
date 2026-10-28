@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000">
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10" fill="none" stroke="#172b4d" stroke-width="1.5"/></marker></defs>
+<rect x="0" y="0" width="1600" height="1000" rx="12" fill="#fbfcfe" stroke="#d6dfeb" stroke-width="1.5"/>
+<text x="55" y="73.0" font-family="Arial, Helvetica, sans-serif" font-size="38" fill="#172b4d">01  /  Lixto on AWS: proposed deployment</text>
+<text x="55" y="111.0" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#52657d">Target architecture, not deployed · preserve domain flows · introduce managed compute, storage, email and AI adapters</text>
+<text x="55" y="966.0" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#52657d">LIXTO  /  Interview architecture  /  28 Oct 2026</text>
+<text x="1460" y="968.0" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#52657d">01</text>
+<rect x="55" y="170" width="300" height="120" rx="12" fill="#eef1f5" stroke="#172b4d" stroke-width="1.5"/>
+<text x="77" y="213.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">Browser</text>
+<text x="77" y="247.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#172b4d">Company operator</text>
+<rect x="445" y="170" width="440" height="120" rx="12" fill="#fff0dc" stroke="#172b4d" stroke-width="1.5"/>
+<text x="467" y="213.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">Route 53 + ALB + ACM</text>
+<text x="467" y="247.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#172b4d">DNS → HTTPS ingress → web tasks</text>
+<rect x="1045" y="170" width="500" height="120" rx="12" fill="#fff0dc" stroke="#172b4d" stroke-width="1.5"/>
+<text x="1067" y="213.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">EventBridge Scheduler</text>
+<text x="1067" y="245.0" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#172b4d">Cron → ECS RunTask</text>
+<text x="1067" y="267.5" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#172b4d">Jobs retain idempotency / overlap guards</text>
+<polyline points="355,230 445,230" fill="none" stroke="#172b4d" stroke-width="1.5" marker-end="url(#arrow)" />
+<rect x="445" y="390" width="440" height="160" rx="12" fill="#e8f1ff" stroke="#172b4d" stroke-width="1.5"/>
+<text x="467" y="433.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">ECS Fargate: web service</text>
+<text x="467" y="466.0" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Next.js + existing domain logic</text>
+<text x="467" y="489.75" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Private app subnets; ALB targets</text>
+<text x="467" y="513.5" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Session-based tenant authorization</text>
+<polyline points="665,290 665,390" fill="none" stroke="#172b4d" stroke-width="1.5" marker-end="url(#arrow)" />
+<rect x="1045" y="390" width="500" height="160" rx="12" fill="#e8f1ff" stroke="#172b4d" stroke-width="1.5"/>
+<text x="1067" y="433.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">ECS Fargate: job tasks</text>
+<text x="1067" y="466.0" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Python sync, analysis and dispatch</text>
+<text x="1067" y="489.75" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Call protected web batch endpoints</text>
+<text x="1067" y="513.5" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Private subnets; NAT egress for PNCP</text>
+<polyline points="1295,290 1295,390" fill="none" stroke="#172b4d" stroke-width="1.5" marker-end="url(#arrow)" />
+<polyline points="1045,470 885,470" fill="none" stroke="#172b4d" stroke-width="1.5" marker-end="url(#arrow)" />
+<text x="915" y="456.0" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#52657d">internal HTTP</text>
+<rect x="55" y="390" width="300" height="160" rx="12" fill="#eef1f5" stroke="#172b4d" stroke-width="1.5"/>
+<text x="77" y="433.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">PNCP API</text>
+<text x="77" y="465.0" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#172b4d">External source</text>
+<text x="77" y="487.5" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#172b4d">Tasks fetch through NAT</text>
+<text x="77" y="510.0" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#172b4d">Watermarks + raw retention</text>
+<polyline points="205,550 205,600 1295,600 1295,550" fill="none" stroke="#172b4d" stroke-width="1.5" marker-end="url(#arrow)" />
+<text x="570" y="590.0" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#52657d">external API access via NAT</text>
+<rect x="55" y="680" width="340" height="180" rx="12" fill="#e5f6ee" stroke="#172b4d" stroke-width="1.5"/>
+<text x="77" y="723.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">RDS PostgreSQL</text>
+<text x="77" y="756.0" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">pgvector + GIN + HNSW</text>
+<text x="77" y="779.75" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Domain tables, jobs, outbox</text>
+<text x="77" y="803.5" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Private DB subnets</text>
+<text x="77" y="827.25" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Backups; Multi-AZ as needed</text>
+<rect x="440" y="680" width="340" height="180" rx="12" fill="#e5f6ee" stroke="#172b4d" stroke-width="1.5"/>
+<text x="462" y="723.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">Amazon S3</text>
+<text x="462" y="756.0" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Private company uploads</text>
+<text x="462" y="779.75" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Authorized object access</text>
+<text x="462" y="803.5" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Storage adapter required</text>
+<rect x="825" y="680" width="340" height="180" rx="12" fill="#f0eaff" stroke="#172b4d" stroke-width="1.5"/>
+<text x="847" y="723.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">Amazon Bedrock</text>
+<text x="847" y="756.0" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Generation + embeddings</text>
+<text x="847" y="779.75" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Provider adapters + evals</text>
+<text x="847" y="803.5" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Re-embed on model change</text>
+<rect x="1210" y="680" width="335" height="180" rx="12" fill="#fff0dc" stroke="#172b4d" stroke-width="1.5"/>
+<text x="1232" y="723.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#172b4d">SES + SNS</text>
+<text x="1232" y="756.0" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Send from existing outbox</text>
+<text x="1232" y="779.75" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Bounce / complaint events</text>
+<text x="1232" y="803.5" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#172b4d">Validated handler → DB</text>
+<text x="55" y="642.0" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#52657d">WEB + JOBS USE MANAGED SERVICES BELOW VIA TASK IAM ROLES / DB CREDENTIALS</text>
+<text x="55" y="913.0" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#52657d">Operations: ECR images  ·  Secrets Manager  ·  CloudWatch logs / alarms  ·  VPC security groups</text>
+</svg>
