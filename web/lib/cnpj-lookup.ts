@@ -128,7 +128,7 @@ export async function lookupCNPJ(
         signal: AbortSignal.timeout(LOOKUP_TIMEOUT_MS),
         // BrasilAPI 403s Node's default undici "node" User-Agent; identify
         // as a browser-ish client instead so real lookups succeed.
-        headers: { "User-Agent": "Mozilla/5.0 plataforma-licitante" },
+        headers: { "User-Agent": "Mozilla/5.0 lixto" },
       },
     );
     if (!res.ok) return null;

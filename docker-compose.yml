@@ -1,6 +1,8 @@
 # Local development: uses ./web/uploads (gitignored) for document storage.
 # Production (Dokploy): mount a named volume at /app/uploads.
 
+name: lixto
+
 services:
   db:
     image: pgvector/pgvector:pg16-trixie
